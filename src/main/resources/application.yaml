@@ -4,8 +4,6 @@ server:
 spring:
   config:
     import: optional:classpath:application-secret.properties
-    activate:
-      on-profile: dev
 
   jackson:
     property-naming-strategy: SNAKE_CASE
@@ -38,3 +36,6 @@ spring:
       host: ${DEV_REDIS_HOST}
       port: ${DEV_REDIS_PORT}
       password: ${DEV_REDIS_PASSWORD}
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}

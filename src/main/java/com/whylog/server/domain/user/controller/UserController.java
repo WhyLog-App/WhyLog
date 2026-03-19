@@ -1,4 +1,4 @@
-package com.whylog.server.user.domain.user.controller;
+package com.whylog.server.domain.user.controller;
 
 import org.springframework.web.bind.annotation.RestController;
 
