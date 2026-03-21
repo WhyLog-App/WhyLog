@@ -1,4 +1,4 @@
-package com.whylog.server.user.domain.user.service;
+package com.whylog.server.domain.user.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

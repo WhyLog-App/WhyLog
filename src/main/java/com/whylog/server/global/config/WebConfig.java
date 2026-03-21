@@ -1,4 +1,4 @@
-package com.whylog.server.user.global.config;
+package com.whylog.server.global.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,4 +29,3 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowCredentials(true);
     }
 }
-
