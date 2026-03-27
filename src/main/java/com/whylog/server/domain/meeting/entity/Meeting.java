@@ -69,6 +69,11 @@ public class Meeting extends BaseEntity {
         return this.endDateTime == null;
     }
 
+    public LocalDateTime endMeeting() {
+        this.endDateTime = LocalDateTime.now();
+        return this.endDateTime;
+    }
+
     public String getElapse() {
 
         Duration duration = Duration.between(startDateTime, LocalDateTime.now());

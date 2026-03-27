@@ -47,6 +47,7 @@ public class MeetingController {
             
             """)
     public ApiResponse<List<MeetingResponse.MeetingListDTO>> getMeetings(
+            @Parameter(hidden = true) @CurrentMember Long memberId,
             @PathVariable Long teamId,
             @RequestParam(required = false, defaultValue = "COMPLETED") MeetingStatus status) {
 
@@ -76,10 +77,14 @@ public class MeetingController {
     }
 
     @PatchMapping("/meetings/{meetingId}/end")
-    @Operation(summary = "회의 종료 API", description = "진행 중인 회의를 종료하는 API입니다.")
+    @Operation(summary = "회의 종료 API", description = """
+            진행 중인 회의를 종료하는 API입니다.
+            회의 종료 시 실시간 회의 참여자들에게 종료를 알리는 웹소켓 메시지를 전송합니다.
+            """)
     public ApiResponse<MeetingResponse.MeetingEndResponseDTO> endMeeting(
+            @Parameter(hidden= true) @CurrentMember Long memberId,
             @PathVariable Long meetingId) {
-        return ApiResponse.onSuccess(null);
+        return ApiResponse.onSuccess(meetingCommandService.endMeeting(memberId, meetingId));
     }
 
     @GetMapping("/meetings/{meetingId}")

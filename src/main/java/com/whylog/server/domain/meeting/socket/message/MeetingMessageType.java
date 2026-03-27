@@ -8,6 +8,7 @@ import java.util.Arrays;
 // 웹소켓에서 주고받는 메시지 타입 상수입니다.
 public enum MeetingMessageType {
     CONNECTED("connected"),
+    MEETING_ENDED("meeting_ended"),
     PARTICIPANT_JOINED("participant_joined"),
     PARTICIPANT_LEFT("participant_left"),
     ROSTER("roster"),

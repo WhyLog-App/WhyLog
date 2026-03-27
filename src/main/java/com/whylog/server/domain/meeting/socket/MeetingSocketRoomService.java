@@ -1,9 +1,12 @@
 package com.whylog.server.domain.meeting.socket;
 
 import com.whylog.server.domain.meeting.repository.MeetingRepository;
+import com.whylog.server.domain.meeting.socket.message.MeetingEndedMessage;
+import com.whylog.server.domain.meeting.socket.message.MeetingMessageType;
 import com.whylog.server.domain.meeting.socket.message.ParticipantSummary;
 import com.whylog.server.domain.meeting.socket.repository.MeetingRoomRepository;
 import com.whylog.server.domain.meeting.socket.repository.MeetingSocketRoomRepository;
+import com.whylog.server.global.util.json.JsonConverter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +16,7 @@ import org.springframework.web.socket.WebSocketMessage;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -114,6 +118,18 @@ public class MeetingSocketRoomService {
                         leave(meetingId, participant.sessionId());
                     }
                 });
+    }
+
+    // 회의 종료 메시지를 현재 회의방 참가자 전체에게 전송합니다.
+    public void broadcastMeetingEnded(Long meetingId, LocalDateTime endedAt) {
+        broadcastText(
+                meetingId,
+                JsonConverter.toJson(new MeetingEndedMessage(
+                        MeetingMessageType.MEETING_ENDED,
+                        meetingId,
+                        endedAt
+                ))
+        );
     }
 
     // 회의방이 이미 있으면 반환하고, 없으면 새로 생성해서 반환합니다.
