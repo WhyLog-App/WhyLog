@@ -1,6 +1,7 @@
 package com.whylog.server.domain.meeting.entity;
 
 import com.whylog.server.domain.meeting.dto.MeetingRequest;
+import com.whylog.server.domain.meeting.enums.MeetingStatus;
 import com.whylog.server.domain.team.entity.Team;
 import com.whylog.server.global.entity.BaseEntity;
 import jakarta.persistence.Column;
@@ -12,7 +13,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+
+import java.time.Duration;
 import java.time.LocalDateTime;
+
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -55,6 +59,27 @@ public class Meeting extends BaseEntity {
                 .name(dto.getName())
                 .team(team)
                 .build();
+    }
+
+    public MeetingStatus getStatus(){
+        return this.endDateTime == null ? MeetingStatus.ONGOING : MeetingStatus.COMPLETED;
+    }
+
+    public boolean isOngoing(){
+        return this.endDateTime == null;
+    }
+
+    public String getElapse() {
+
+        Duration duration = Duration.between(startDateTime, LocalDateTime.now());
+
+        long seconds = duration.getSeconds();
+
+        long hours = seconds / 3600;
+        long minutes = (seconds % 3600) / 60;
+        long secs = seconds % 60;
+
+        return String.format("%02d:%02d:%02d", hours, minutes, secs);
     }
 
 //    @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)

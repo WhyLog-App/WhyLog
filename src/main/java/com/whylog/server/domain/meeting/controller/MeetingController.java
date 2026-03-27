@@ -2,7 +2,9 @@ package com.whylog.server.domain.meeting.controller;
 
 import com.whylog.server.domain.meeting.dto.MeetingRequest;
 import com.whylog.server.domain.meeting.dto.MeetingResponse;
+import com.whylog.server.domain.meeting.enums.MeetingStatus;
 import com.whylog.server.domain.meeting.service.MeetingCommandService;
+import com.whylog.server.domain.meeting.service.MeetingQueryService;
 import com.whylog.server.global.apiPayload.ApiResponse;
 import com.whylog.server.global.auth.annotation.CurrentMember;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,21 +30,35 @@ import java.util.List;
 public class MeetingController {
 
     private final MeetingCommandService meetingCommandService;
+    private final MeetingQueryService meetingQueryService;
 
     @GetMapping("/teams/{teamId}/meetings")
-    @Operation(summary = "회의 목록 조회 API", description = "특정 팀의 회의 목록을 조회하는 API입니다. (status: ONGOING/COMPLETED)")
+    @Operation(summary = "회의 목록 조회 API", description = """
+            
+            특정 팀의 회의 목록을 조회하는 API입니다.
+            status: ONGOING/COMPLETED
+            - status는 필수가 아니며, 기본값은 COMPLETED 입니다.
+            
+            elapse : 경과시간
+            - 시:분:초 형태
+            - 완료된 회의라면 null로 반환함( 표시할 필요 없으니까 )
+            
+            페이징 없습니다.
+            
+            """)
     public ApiResponse<List<MeetingResponse.MeetingListDTO>> getMeetings(
             @PathVariable Long teamId,
-            @RequestParam(required = false) String status) {
-        return ApiResponse.onSuccess(null);
+            @RequestParam(required = false, defaultValue = "COMPLETED") MeetingStatus status) {
+
+        return ApiResponse.onSuccess(meetingQueryService.getMeetings(teamId, status));
     }
 
-    @PostMapping("/meetings/{meetingId}/join")
-    @Operation(summary = "회의 입장 API", description = "특정 회의에 입장하는 API입니다.")
-    public ApiResponse<MeetingResponse.MeetingJoinResponseDTO> joinMeeting(
-            @PathVariable Long meetingId) {
-        return ApiResponse.onSuccess(null);
-    }
+//    @PostMapping("/meetings/{meetingId}/join")
+//    @Operation(summary = "회의 입장 API", description = "특정 회의에 입장하는 API입니다.")
+//    public ApiResponse<MeetingResponse.MeetingJoinResponseDTO> joinMeeting(
+//            @PathVariable Long meetingId) {
+//        return ApiResponse.onSuccess(null);
+//    }
 
     @PostMapping("/teams/{teamId}/meetings")
     @Operation(summary = "회의 생성 API", description = """

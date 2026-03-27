@@ -14,6 +14,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -42,5 +43,22 @@ public class TeamMember extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private TeamRole role;
 
+    @Builder
+    private TeamMember(TeamMemberId id, Team team, Member member, Boolean active, TeamRole role) {
+        this.id = id;
+        this.team = team;
+        this.member = member;
+        this.active = active;
+        this.role = role;
+    }
 
+    public static TeamMember create(Team team, Member member, TeamRole role) {
+        return TeamMember.builder()
+                .id(TeamMemberId.of(team.getId(), member.getId()))
+                .team(team)
+                .member(member)
+                .active(true)
+                .role(role)
+                .build();
+    }
 }

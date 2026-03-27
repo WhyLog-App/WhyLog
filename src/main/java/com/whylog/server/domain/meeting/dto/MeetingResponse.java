@@ -1,5 +1,6 @@
 package com.whylog.server.domain.meeting.dto;
 
+import com.whylog.server.domain.meeting.enums.MeetingStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +25,11 @@ public class MeetingResponse {
         private String name;
 
         @Schema(description = "회의 상태", example = "ONGOING")
-        private String status;
+        private MeetingStatus status;
+
+        @Schema(description = "경과시간 (시:분:초)", example = "00:00:00")
+        private String elapse;
+
     }
 
     @Getter

@@ -19,7 +19,7 @@ public class AuthRequest {
         @NotBlank @Email
         private String email;
 
-        @Schema(description = "비밀번호", example = "wtf1234")
+        @Schema(description = "비밀번호", example = "wtf12345")
         @NotBlank
         @Size(min = 8, max = 100)
         private String password;
@@ -36,7 +36,7 @@ public class AuthRequest {
         @NotBlank @Email
         private String email;
 
-        @Schema(description = "비밀번호", example = "wtf1234")
+        @Schema(description = "비밀번호", example = "wtf12345")
         @NotBlank
         private String password;
     }

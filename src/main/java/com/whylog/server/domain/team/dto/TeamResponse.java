@@ -21,4 +21,20 @@ public class TeamResponse {
         @Schema(description = "초대받은 사용자 이메일", example = "member@example.com")
         private String memberEmail;
     }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "팀 생성 응답")
+    public static class TeamCreateResponseDTO {
+
+        @Schema(description = "팀 ID", example = "1")
+        private Long teamId;
+
+        @Schema(description = "팀명", example = "팀명이 어떻게 다마고치")
+        private String name;
+
+    }
+
 }
