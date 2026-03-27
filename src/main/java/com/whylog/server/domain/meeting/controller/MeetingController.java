@@ -5,6 +5,7 @@ import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,7 +36,7 @@ public class MeetingController {
     @Operation(summary = "회의 초대 API", description = "특정 회의에 멤버를 초대하는 API입니다.")
     public ApiResponse<MeetingResponse.MeetingInvitationResponseDTO> sendInvitation(
             @PathVariable Long meetingId,
-            @RequestBody MeetingRequest.MeetingInvitationDTO request) {
+            @Valid @RequestBody MeetingRequest.MeetingInvitationDTO request) {
         return ApiResponse.onSuccess(null);
     }
 
@@ -43,7 +44,7 @@ public class MeetingController {
     @Operation(summary = "회의 생성 API", description = "새로운 회의를 생성하는 API입니다.")
     public ApiResponse<MeetingResponse.MeetingCreateResponseDTO> createMeeting(
             @PathVariable Long teamId,
-            @RequestBody MeetingRequest.MeetingCreateDTO request) {
+            @Valid @RequestBody MeetingRequest.MeetingCreateDTO request) {
         return ApiResponse.onSuccess(null);
     }
 

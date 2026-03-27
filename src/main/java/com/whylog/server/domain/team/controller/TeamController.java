@@ -6,6 +6,7 @@ import com.whylog.server.domain.team.dto.TeamResponse;
 import com.whylog.server.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,7 +32,7 @@ public class TeamController {
     @Operation(summary = "팀 초대 API", description = "특정 팀에 사용자를 초대하는 API입니다.")
     public ApiResponse<TeamResponse.InvitationResponseDTO> sendInvitation(
             @PathVariable Long teamId,
-            @RequestBody TeamRequest.InvitationDTO request) {
+            @Valid @RequestBody TeamRequest.InvitationDTO request) {
         return ApiResponse.onSuccess(null);
     }
 

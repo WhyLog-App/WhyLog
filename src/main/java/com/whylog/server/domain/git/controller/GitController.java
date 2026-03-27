@@ -5,6 +5,7 @@ import com.whylog.server.domain.git.dto.GitResponse;
 import com.whylog.server.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,7 +33,7 @@ public class GitController {
     @Operation(summary = "레포 추가 API", description = "팀에 새로운 레포를 추가하는 API입니다.")
     public ApiResponse<GitResponse.RepositoryCreateResponseDTO> createRepository(
             @PathVariable Long teamId,
-            @RequestBody GitRequest.RepositoryCreateDTO request) {
+            @Valid @RequestBody GitRequest.RepositoryCreateDTO request) {
         return ApiResponse.onSuccess(null);
     }
 

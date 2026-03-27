@@ -5,6 +5,7 @@ import com.whylog.server.domain.decision.dto.DecisionRequest;
 import com.whylog.server.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,7 +48,7 @@ public class ApplicationController {
     @Operation(summary = "커밋 연결 API", description = "적용사항에 커밋을 연결하는 API입니다.")
     public ApiResponse<ApplicationResponse.CommitConnectionResponseDTO> connectCommit(
             @PathVariable Long applicationId,
-            @RequestBody DecisionRequest.CommitConnectionDTO request) {
+            @Valid @RequestBody DecisionRequest.CommitConnectionDTO request) {
         return ApiResponse.onSuccess(null);
     }
 
@@ -55,7 +56,7 @@ public class ApplicationController {
     @Operation(summary = "추천 결과 저장 API", description = "적용사항의 추천 결과를 저장하는 API입니다.")
     public ApiResponse<ApplicationResponse.RecommendedCommitDTO> saveRecommendation(
             @PathVariable Long decisionId,
-            @RequestBody DecisionRequest.RecommendationDTO request) {
+            @Valid @RequestBody DecisionRequest.RecommendationDTO request) {
         return ApiResponse.onSuccess(null);
     }
 
