@@ -1,7 +1,7 @@
 package com.whylog.server.domain.team.entity;
 
 import com.whylog.server.domain.team.enums.TeamRole;
-import com.whylog.server.domain.user.entity.User;
+import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.global.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
@@ -34,7 +34,7 @@ public class TeamMember extends BaseEntity {
     @MapsId("memberId")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
-    private User user;
+    private Member member;
 
     @Column(name = "is_active")
     private Boolean active;

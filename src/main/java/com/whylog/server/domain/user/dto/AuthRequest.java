@@ -1,8 +1,9 @@
-package com.whylog.server.domain.auth.dto;
+package com.whylog.server.domain.user.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 public class AuthRequest {
@@ -20,6 +21,7 @@ public class AuthRequest {
 
         @Schema(description = "비밀번호", example = "wtf1234")
         @NotBlank
+        @Size(min = 8, max = 100)
         private String password;
     }
 

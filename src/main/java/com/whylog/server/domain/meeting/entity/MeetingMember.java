@@ -1,7 +1,7 @@
 package com.whylog.server.domain.meeting.entity;
 
 import com.whylog.server.domain.meeting.enums.MeetingRole;
-import com.whylog.server.domain.user.entity.User;
+import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.global.entity.BaseEntity;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -33,7 +33,7 @@ public class MeetingMember extends BaseEntity {
     @MapsId("memberId")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
-    private User user;
+    private Member member;
 
     @Enumerated(EnumType.STRING)
     private MeetingRole role;

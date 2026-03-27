@@ -1,21 +1,25 @@
 package com.whylog.server.domain.user.entity;
 
+import com.whylog.server.domain.user.enums.Role;
 import com.whylog.server.global.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Member")
+@Table(name = "member")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class User extends BaseEntity {
+public class Member extends BaseEntity {
 
     @Id
     @Column(name = "member_id")
@@ -31,4 +35,15 @@ public class User extends BaseEntity {
     @Column(name = "profile_image", length = 255)
     private String profileImage;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Role role;
+
+    @Builder
+    private Member(String email, String password, String profileImage, Role role) {
+        this.email = email;
+        this.password = password;
+        this.profileImage = profileImage;
+        this.role = role;
+    }
 }

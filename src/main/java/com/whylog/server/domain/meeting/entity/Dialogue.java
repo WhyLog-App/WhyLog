@@ -1,6 +1,6 @@
 package com.whylog.server.domain.meeting.entity;
 
-import com.whylog.server.domain.user.entity.User;
+import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.global.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,7 +9,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
@@ -34,7 +33,7 @@ public class Dialogue extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", nullable = false)
-    private User user;
+    private Member member;
 
     @Column(name = "content", columnDefinition = "TEXT", nullable = false)
     private String content;
