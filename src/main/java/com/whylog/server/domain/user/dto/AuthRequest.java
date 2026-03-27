@@ -15,6 +15,10 @@ public class AuthRequest {
     @Schema(description = "회원가입 요청")
     public static class SignUpDTO {
 
+        @Schema(description = "이름", example = "아무개")
+        @NotBlank
+        private String name;
+
         @Schema(description = "이메일", example = "user@example.com")
         @NotBlank @Email
         private String email;

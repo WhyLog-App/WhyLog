@@ -119,10 +119,10 @@ public class MeetingController {
         return ApiResponse.onSuccess(null);
     }
 
-    @GetMapping("/meetings/{meetingId}/applications")
-    @Operation(summary = "적용사항 목록 조회 API", description = "특정 회의의 적용사항 목록을 조회하는 API입니다.")
-    public ApiResponse<List<MeetingResponse.ApplicationDTO>> getApplications(
-            @PathVariable Long meetingId) {
-        return ApiResponse.onSuccess(null);
-    }
+//    @GetMapping("/meetings/{meetingId}/applications")
+//    @Operation(summary = "적용사항 목록 조회 API", description = "특정 회의의 적용사항 목록을 조회하는 API입니다.")
+//    public ApiResponse<List<MeetingResponse.ApplicationDTO>> getApplications(
+//            @PathVariable Long meetingId) {
+//        return ApiResponse.onSuccess(null);
+//    }
 }

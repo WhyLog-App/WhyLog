@@ -1,5 +1,6 @@
 package com.whylog.server.domain.user.entity;
 
+import com.whylog.server.domain.user.dto.AuthRequest;
 import com.whylog.server.domain.user.enums.Role;
 import com.whylog.server.global.entity.BaseEntity;
 import jakarta.persistence.Column;
@@ -43,10 +44,21 @@ public class Member extends BaseEntity {
     private Role role;
 
     @Builder
-    private Member(String email, String password, String profileImage, Role role) {
+    private Member(String name, String email, String password, String profileImage, Role role) {
+        this.name = name;
         this.email = email;
         this.password = password;
         this.profileImage = profileImage;
         this.role = role;
     }
+
+    public static Member create(AuthRequest.SignUpDTO dto, Role role) {
+        return Member.builder()
+                .name(dto.getName())
+                .email(dto.getEmail())
+                .password(dto.getPassword())
+                .role(role)
+                .build();
+    }
+
 }
