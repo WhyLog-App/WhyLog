@@ -32,11 +32,10 @@ public class MeetingController {
         return ApiResponse.onSuccess(null);
     }
 
-    @PostMapping("/meetings/{meetingId}/invitations")
-    @Operation(summary = "회의 초대 API", description = "특정 회의에 멤버를 초대하는 API입니다.")
-    public ApiResponse<MeetingResponse.MeetingInvitationResponseDTO> sendInvitation(
-            @PathVariable Long meetingId,
-            @Valid @RequestBody MeetingRequest.MeetingInvitationDTO request) {
+    @PostMapping("/meetings/{meetingId}/join")
+    @Operation(summary = "회의 입장 API", description = "특정 회의에 입장하는 API입니다.")
+    public ApiResponse<MeetingResponse.MeetingJoinResponseDTO> joinMeeting(
+            @PathVariable Long meetingId) {
         return ApiResponse.onSuccess(null);
     }
 
@@ -45,13 +44,6 @@ public class MeetingController {
     public ApiResponse<MeetingResponse.MeetingCreateResponseDTO> createMeeting(
             @PathVariable Long teamId,
             @Valid @RequestBody MeetingRequest.MeetingCreateDTO request) {
-        return ApiResponse.onSuccess(null);
-    }
-
-    @DeleteMapping("/meetings/{meetingId}/members/me")
-    @Operation(summary = "회의 나가기 API", description = "현재 사용자가 회의에서 나가는 API입니다.")
-    public ApiResponse<MeetingResponse.MemberDeleteResponseDTO> leaveMeeting(
-            @PathVariable Long meetingId) {
         return ApiResponse.onSuccess(null);
     }
 

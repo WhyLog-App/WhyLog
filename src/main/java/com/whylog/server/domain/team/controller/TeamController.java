@@ -35,11 +35,4 @@ public class TeamController {
             @Valid @RequestBody TeamRequest.InvitationDTO request) {
         return ApiResponse.onSuccess(null);
     }
-
-    @PostMapping("/{teamId}/accept")
-    @Operation(summary = "팀 초대 수락 API", description = "팀 초대를 수락하는 API입니다.")
-    public ApiResponse<TeamResponse.AcceptInvitationResponseDTO> acceptInvitation(
-            @PathVariable Long teamId) {
-        return ApiResponse.onSuccess(null);
-    }
 }

@@ -31,11 +31,14 @@ public class MeetingResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    @Schema(description = "회의 초대 응답")
-    public static class MeetingInvitationResponseDTO {
+    @Schema(description = "회의 입장 응답")
+    public static class MeetingJoinResponseDTO {
 
         @Schema(description = "회의 ID", example = "1")
         private Long meetingId;
+
+        @Schema(description = "참여자 ID", example = "1")
+        private Long memberId;
     }
 
     @Getter
