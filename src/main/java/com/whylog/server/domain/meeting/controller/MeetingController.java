@@ -45,13 +45,18 @@ public class MeetingController {
     }
 
     @PostMapping("/teams/{teamId}/meetings")
-    @Operation(summary = "회의 생성 API", description = "새로운 회의를 생성하는 API입니다. 생성하면 실시긴 회의방이 하나 생성됩니다.")
+    @Operation(summary = "회의 생성 API", description = """
+            
+            새로운 회의를 생성하는 API입니다. 생성하면 실시긴 회의방이 하나 생성됩니다.
+            해당 API는 방 생성만 담당합니다. 회의 참여를 위해서는 웹소켓 연결이 필요합니다.
+            
+            """)
     public ApiResponse<MeetingResponse.MeetingCreateResponseDTO> createMeeting(
             @Parameter(hidden = true) @CurrentMember Long memberId,
             @PathVariable Long teamId,
             @Valid @RequestBody MeetingRequest.MeetingCreateDTO request) {
-        meetingCommandService.makeMeetingRoom(memberId, teamId, request);
-        return ApiResponse.onSuccess(null);
+        MeetingResponse.MeetingCreateResponseDTO result = meetingCommandService.makeMeetingRoom(memberId, teamId, request);
+        return ApiResponse.onSuccess(result);
     }
 
     @PatchMapping("/meetings/{meetingId}/end")
