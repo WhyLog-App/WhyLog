@@ -88,10 +88,14 @@ public class MeetingController {
     }
 
     @GetMapping("/meetings/{meetingId}")
-    @Operation(summary = "회의 기본 정보 조회 API", description = "특정 회의의 기본 정보를 조회하는 API입니다.")
+    @Operation(summary = "회의 기본 정보 조회 API", description = """
+            특정 회의의 기본 정보를 조회하는 API입니다.
+            회의명, 날짜, 기간, 참여자 정보를 제공합니다.
+            본 API에서 분석결과, 대화기록은 제공하지 않습니다.
+            """)
     public ApiResponse<MeetingResponse.MeetingDetailDTO> getMeetingDetail(
             @PathVariable Long meetingId) {
-        return ApiResponse.onSuccess(null);
+        return ApiResponse.onSuccess(meetingQueryService.getMeetingDefaultInfo(meetingId));
     }
 
     @GetMapping("/meetings/{meetingId}/history")

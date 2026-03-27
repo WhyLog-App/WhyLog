@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface MeetingRepository extends JpaRepository<Meeting, Long> {
 
@@ -15,6 +16,14 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
             ON t.id = :teamId
     """)
     List<Meeting> findByTeamId(@Param("teamId") Long teamId);
+
+    @Query("""
+        SELECT m FROM Meeting m
+        LEFT JOIN FETCH MeetingMember mm
+        WHERE m.id = :meetingId
+            AND mm.meeting = m
+    """)
+    Optional<Meeting> findWithMembers(@Param("meetingId") Long meetingId);
 
 
 }
