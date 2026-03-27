@@ -70,6 +70,7 @@ public class Meeting extends BaseEntity {
     }
 
     public Long getDuration() {
+        if(this.endDateTime == null) return null;
         return ChronoUnit.MINUTES.between(startDateTime, endDateTime);
     }
 

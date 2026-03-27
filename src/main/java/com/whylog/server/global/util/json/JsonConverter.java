@@ -6,7 +6,7 @@ import org.springframework.web.socket.TextMessage;
 
 public class JsonConverter {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // keyword 없을 때
     public static String toJson(Object value, String keyword) {
@@ -16,7 +16,7 @@ public class JsonConverter {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("객체 -> Json 변환 실패", exception);
+            throw new IllegalStateException(failKeyword, exception);
         }
     }
 

@@ -25,18 +25,17 @@ public class MeetingQueryService {
     public List<MeetingResponse.MeetingListDTO> getMeetings(Long teamId, MeetingStatus status){
 
         // 기본값: 진행완료
-        if (status == null) {
-            status = MeetingStatus.COMPLETED;
-        }
+        MeetingStatus targetStatus = status != null ? status : MeetingStatus.COMPLETED;
 
         List<Meeting> meetings = meetingRepository.findByTeamId(teamId);
 
         return meetings.stream()
+                .filter( m -> checkMeetingStatus(m, targetStatus)) // 상태 일치 체크
                 .map(m -> MeetingResponse.MeetingListDTO.builder()
                         .meetingId(m.getId())
                         .name(m.getName())
                         .status(m.getStatus())
-                        .elapse( m.isOngoing() ? m.getElapse() : null ) // 진행완료일 경우 null로 반환
+                        .elapse( !m.isOngoing() ? m.getElapse() : null ) // 진행완료일 경우 null로 반환
                         .build()
                 ).toList();
 
@@ -72,6 +71,10 @@ public class MeetingQueryService {
                         .profileImage(member.getProfileImage())
                         .build()
                 ).toList();
+    }
+
+    private boolean checkMeetingStatus(Meeting meeting, MeetingStatus status){
+        return meeting.getStatus() == status;
     }
 
 }

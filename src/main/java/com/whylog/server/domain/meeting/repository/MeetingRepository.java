@@ -1,6 +1,8 @@
 package com.whylog.server.domain.meeting.repository;
 
 import com.whylog.server.domain.meeting.entity.Meeting;
+import com.whylog.server.domain.meeting.enums.MeetingStatus;
+import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,8 +22,8 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
     @Query("""
         SELECT m FROM Meeting m
         LEFT JOIN FETCH MeetingMember mm
+            ON mm.meeting.id = m.id
         WHERE m.id = :meetingId
-            AND mm.meeting = m
     """)
     Optional<Meeting> findWithMembers(@Param("meetingId") Long meetingId);
 

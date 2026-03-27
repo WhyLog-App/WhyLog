@@ -94,7 +94,7 @@ public class MeetingSocketAuthInterceptor implements HandshakeInterceptor {
         return Optional.ofNullable(queryParams.getFirst("name"))
                 .map(this::decode)
                 .filter(StringUtils::hasText)
-                .orElse(member.getEmail());
+                .orElse(member.getName());
     }
 
     // URL 인코딩된 쿼리 파라미터 값을 디코딩합니다.

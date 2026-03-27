@@ -83,7 +83,7 @@ public class MeetingCommandService {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(MeetingNotFoundException::new);
 
-        if(meetingMemberRepository.existsByMemberIdAndMeetingId(memberId, meetingId)) // 회의 참여자 존재 검증
+        if(!meetingMemberRepository.existsByMemberIdAndMeetingId(memberId, meetingId)) // 회의 참여자 존재 검증
             throw new MeetingInvalidMemberException();
 
         if (!meeting.isOngoing()) { // 이미 종료된 회의인지 검증
