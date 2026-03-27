@@ -2,8 +2,11 @@ package com.whylog.server.domain.meeting.controller;
 
 import com.whylog.server.domain.meeting.dto.MeetingRequest;
 import com.whylog.server.domain.meeting.dto.MeetingResponse;
+import com.whylog.server.domain.meeting.service.MeetingCommandService;
 import com.whylog.server.global.apiPayload.ApiResponse;
+import com.whylog.server.global.auth.annotation.CurrentMember;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,8 @@ import java.util.List;
 @Tag(name = "Meeting", description = "회의 관련 API")
 public class MeetingController {
 
+    private final MeetingCommandService meetingCommandService;
+
     @GetMapping("/teams/{teamId}/meetings")
     @Operation(summary = "회의 목록 조회 API", description = "특정 팀의 회의 목록을 조회하는 API입니다. (status: ONGOING/COMPLETED)")
     public ApiResponse<List<MeetingResponse.MeetingListDTO>> getMeetings(
@@ -40,10 +45,12 @@ public class MeetingController {
     }
 
     @PostMapping("/teams/{teamId}/meetings")
-    @Operation(summary = "회의 생성 API", description = "새로운 회의를 생성하는 API입니다.")
+    @Operation(summary = "회의 생성 API", description = "새로운 회의를 생성하는 API입니다. 생성하면 실시긴 회의방이 하나 생성됩니다.")
     public ApiResponse<MeetingResponse.MeetingCreateResponseDTO> createMeeting(
+            @Parameter(hidden = true) @CurrentMember Long memberId,
             @PathVariable Long teamId,
             @Valid @RequestBody MeetingRequest.MeetingCreateDTO request) {
+        meetingCommandService.makeMeetingRoom(memberId, teamId, request);
         return ApiResponse.onSuccess(null);
     }
 

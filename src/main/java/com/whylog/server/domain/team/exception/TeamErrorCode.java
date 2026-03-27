@@ -1,0 +1,38 @@
+package com.whylog.server.domain.team.exception;
+
+import com.whylog.server.global.apiPayload.code.BaseErrorCode;
+import com.whylog.server.global.apiPayload.code.ErrorReasonDTO;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+
+@Getter
+@RequiredArgsConstructor
+public enum TeamErrorCode implements BaseErrorCode {
+
+    TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_404", "존재하지 않는 팀입니다.")
+    ;
+
+    private final HttpStatus httpStatus;
+    private final String code;
+    private final String message;
+
+    @Override
+    public ErrorReasonDTO getReason() {
+        return ErrorReasonDTO.builder()
+                .isSuccess(false)
+                .code(code)
+                .message(message)
+                .build();
+    }
+
+    @Override
+    public ErrorReasonDTO getReasonHttpStatus() {
+        return ErrorReasonDTO.builder()
+                .httpStatus(httpStatus)
+                .isSuccess(false)
+                .code(code)
+                .message(message)
+                .build();
+    }
+}

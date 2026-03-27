@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.Table;
+import lombok.Builder;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -38,5 +39,20 @@ public class MeetingMember extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private MeetingRole role;
 
+    @Builder
+    private MeetingMember(MeetingMemberId id, Meeting meeting, Member member, MeetingRole role) {
+        this.id = id;
+        this.meeting = meeting;
+        this.member = member;
+        this.role = role;
+    }
 
+    public static MeetingMember create(Meeting meeting, Member member, MeetingRole role) {
+        return MeetingMember.builder()
+                .id(new MeetingMemberId(meeting.getId(), member.getId()))
+                .meeting(meeting)
+                .member(member)
+                .role(role)
+                .build();
+    }
 }

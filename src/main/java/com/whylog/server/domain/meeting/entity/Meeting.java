@@ -1,9 +1,8 @@
 package com.whylog.server.domain.meeting.entity;
 
-import com.whylog.server.domain.decision.entity.Decision;
+import com.whylog.server.domain.meeting.dto.MeetingRequest;
 import com.whylog.server.domain.team.entity.Team;
 import com.whylog.server.global.entity.BaseEntity;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -12,13 +11,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -45,6 +41,21 @@ public class Meeting extends BaseEntity {
 
     @Column(name = "end_date_time")
     private LocalDateTime endDateTime;
+
+    @Builder
+    private Meeting(String name, Team team) {
+        this.name = name;
+        this.team = team;
+        this.startDateTime = LocalDateTime.now();
+        this.endDateTime = null;
+    }
+
+    public static Meeting create(MeetingRequest.MeetingCreateDTO dto, Team team) {
+        return Meeting.builder()
+                .name(dto.getName())
+                .team(team)
+                .build();
+    }
 
 //    @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<MeetingMember> meetingMembers = new ArrayList<>();
