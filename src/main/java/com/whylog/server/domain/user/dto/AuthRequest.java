@@ -15,11 +15,15 @@ public class AuthRequest {
     @Schema(description = "회원가입 요청")
     public static class SignUpDTO {
 
+        @Schema(description = "이름", example = "아무개")
+        @NotBlank
+        private String name;
+
         @Schema(description = "이메일", example = "user@example.com")
         @NotBlank @Email
         private String email;
 
-        @Schema(description = "비밀번호", example = "wtf1234")
+        @Schema(description = "비밀번호", example = "wtf12345")
         @NotBlank
         @Size(min = 8, max = 100)
         private String password;
@@ -36,7 +40,7 @@ public class AuthRequest {
         @NotBlank @Email
         private String email;
 
-        @Schema(description = "비밀번호", example = "wtf1234")
+        @Schema(description = "비밀번호", example = "wtf12345")
         @NotBlank
         private String password;
     }

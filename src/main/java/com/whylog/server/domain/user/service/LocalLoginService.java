@@ -26,11 +26,7 @@ public class LocalLoginService {
             throw new ErrorHandler(AuthErrorStatus.EMAIL_ALREADY_EXISTS);
         }
 
-        Member member = memberRepository.save(Member.builder()
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.USER)
-                .build());
+        Member member = memberRepository.save(Member.create(request, Role.USER));
 
         return authenticationService.generateLoginResponse(member);
     }

@@ -1,5 +1,7 @@
 package com.whylog.server.domain.meeting.dto;
 
+import com.whylog.server.domain.meeting.enums.MeetingStatus;
+import com.whylog.server.domain.meeting.socket.MeetingParticipant;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +26,11 @@ public class MeetingResponse {
         private String name;
 
         @Schema(description = "회의 상태", example = "ONGOING")
-        private String status;
+        private MeetingStatus status;
+
+        @Schema(description = "경과시간 (시:분:초)", example = "00:00:00")
+        private String elapse;
+
     }
 
     @Getter
@@ -112,7 +118,7 @@ public class MeetingResponse {
         private Integer memberCount;
 
         @Schema(description = "회의 참여자 목록", example = "[1, 2, 3]")
-        private List<Long> members;
+        private List<MeetingParticipantInfo> members;
     }
 
     @Getter
@@ -210,4 +216,23 @@ public class MeetingResponse {
         @Schema(description = "적용사항명", example = "Redis 기술 변경")
         private String name;
     }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "미팅 내 참여자 정보")
+    public static class MeetingParticipantInfo{
+
+        @Schema(description = "멤버 id", example = "1")
+        private Long memberId;
+
+        @Schema(description = "유저이름", example = "아무개")
+        private String name;
+
+        @Schema(description = "프로필이미지", example = "https://example.com/profile/user-1.jpg")
+        private String profileImage;
+
+    }
+
 }

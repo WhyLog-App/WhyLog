@@ -1,5 +1,6 @@
 package com.whylog.server.domain.team.entity;
 
+import com.whylog.server.domain.team.dto.TeamRequest;
 import com.whylog.server.global.entity.BaseEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -12,6 +13,7 @@ import jakarta.persistence.Table;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -26,8 +28,19 @@ public class Team extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(length = 50, nullable = false)
+    @Column(length = 50, nullable = false, unique = true)
     private String name;
+
+    @Builder
+    private Team(String name) {
+        this.name = name;
+    }
+
+    public static Team create(TeamRequest.TeamCreateDTO dto) {
+        return Team.builder()
+                .name(dto.getName())
+                .build();
+    }
 
 //    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<TeamMember> teamMembers = new ArrayList<>();

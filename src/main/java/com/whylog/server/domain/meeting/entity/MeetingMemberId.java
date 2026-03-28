@@ -19,4 +19,9 @@ public class MeetingMemberId implements Serializable {
 
     @Column(name = "member_id")
     private Long memberId;
+
+    public MeetingMemberId(Long meetingId, Long memberId) {
+        this.meetingId = meetingId;
+        this.memberId = memberId;
+    }
 }
