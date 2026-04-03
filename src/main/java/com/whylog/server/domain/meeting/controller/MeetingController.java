@@ -5,6 +5,7 @@ import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
 import com.whylog.server.domain.meeting.service.MeetingCommandService;
 import com.whylog.server.domain.meeting.service.MeetingQueryService;
+import com.whylog.server.domain.meeting.service.MeetingRtcService;
 import com.whylog.server.global.apiPayload.ApiResponse;
 import com.whylog.server.global.auth.annotation.CurrentMember;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,6 +32,7 @@ public class MeetingController {
 
     private final MeetingCommandService meetingCommandService;
     private final MeetingQueryService meetingQueryService;
+    private final MeetingRtcService meetingRtcService;
 
     @GetMapping("/teams/{teamId}/meetings")
     @Operation(summary = "회의 목록 조회 API", description = """
@@ -66,6 +68,8 @@ public class MeetingController {
             
             새로운 회의를 생성하는 API입니다. 생성하면 실시긴 회의방이 하나 생성됩니다.
             해당 API는 방 생성만 담당합니다. 회의 참여를 위해서는 웹소켓 연결이 필요합니다.
+            웹소켓은 JWT 인증, 참여자 상태, WebRTC 시그널링 처리만 담당합니다.
+            실제 실시간 음성 전달은 WebRTC/SFU 경로를 사용합니다.
             
             """)
     public ApiResponse<MeetingResponse.MeetingCreateResponseDTO> createMeeting(
@@ -76,10 +80,23 @@ public class MeetingController {
         return ApiResponse.onSuccess(result);
     }
 
+    @GetMapping("/meetings/{meetingId}/rtc-token")
+    @Operation(summary = "회의 SFU 접속 토큰 발급 API", description = """
+            현재 로그인한 사용자가 해당 회의의 LiveKit SFU room에 접속할 수 있도록 join token을 발급합니다.
+            프론트는 이 토큰과 serverUrl을 사용해 WebRTC 음성 연결을 수립합니다.
+            """)
+    public ApiResponse<MeetingResponse.MeetingRtcTokenDTO> issueRtcToken(
+            @Parameter(hidden = true) @CurrentMember Long memberId,
+            @PathVariable Long meetingId
+    ) {
+        return ApiResponse.onSuccess(meetingRtcService.issueRtcToken(memberId, meetingId));
+    }
+
     @PatchMapping("/meetings/{meetingId}/end")
     @Operation(summary = "회의 종료 API", description = """
             진행 중인 회의를 종료하는 API입니다.
             회의 종료 시 실시간 회의 참여자들에게 종료를 알리는 웹소켓 메시지를 전송합니다.
+            종료 이후의 음성 파일 처리, STT, 회의 분석은 비동기 후처리 파이프라인에서 수행합니다.
             """)
     public ApiResponse<MeetingResponse.MeetingEndResponseDTO> endMeeting(
             @Parameter(hidden= true) @CurrentMember Long memberId,

@@ -98,7 +98,7 @@ public class MeetingCommandService {
         meetingSocketRoomService.broadcastMeetingEnded(meetingId, endDateTime); // 회의 참여한 사람들에게 알림
         meetingSocketRoomService.closeRoom(meetingId); // 메모리 내의 실시간 회의 정보 제거
 
-        // TODO: 회의 종료 후 AI 분석 시작
+        // TODO: 회의 종료 후 분석 비동기 작업 시작
 
         return MeetingResponse.MeetingEndResponseDTO.builder()
                 .meetingId(meeting.getId())

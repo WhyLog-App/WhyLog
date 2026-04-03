@@ -26,7 +26,8 @@ public class LocalLoginService {
             throw new ErrorHandler(AuthErrorStatus.EMAIL_ALREADY_EXISTS);
         }
 
-        Member member = memberRepository.save(Member.create(request, Role.USER));
+        String encodedPassword = passwordEncoder.encode(request.getPassword());
+        Member member = memberRepository.save(Member.create(request, encodedPassword, Role.USER));
 
         return authenticationService.generateLoginResponse(member);
     }

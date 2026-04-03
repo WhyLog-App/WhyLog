@@ -10,12 +10,10 @@ import com.whylog.server.global.util.json.JsonConverter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketMessage;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -85,15 +83,6 @@ public class MeetingSocketRoomService {
                 meetingId,
                 participant -> new TextMessage(payload),
                 participant -> false);
-    }
-
-    // 발신자를 제외한 나머지 참가자들에게 오디오 바이너리 청크를 전달합니다.
-    public void broadcastAudio(Long meetingId, String senderSessionId, ByteBuffer payload) {
-        broadcast(
-                meetingId,
-                participant -> new BinaryMessage(payload.asReadOnlyBuffer()),
-                participant -> participant.sessionId().equals(senderSessionId)
-        );
     }
 
     // 특정 대상 참가자 한 명에게만 시그널링 메시지를 전달합니다.
