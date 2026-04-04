@@ -13,7 +13,6 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.BinaryWebSocketHandler;
 
-import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -98,16 +97,10 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
         }
     }
 
-    // 클라이언트가 보낸 오디오 청크를 발신자 memberId와 함께 다른 참가자들에게 중계합니다.
+    // 실시간 오디오는 WebRTC/SFU 경로로 전달하고, 웹소켓 바이너리 프레임은 더 이상 중계하지 않습니다.
     @Override
     protected void handleBinaryMessage(@NonNull WebSocketSession session, BinaryMessage message) throws Exception {
-        MeetingParticipant participant = createParticipant(session);
-        ByteBuffer outbound = ByteBuffer.allocate(Long.BYTES + message.getPayloadLength());
-        outbound.putLong(participant.memberId());
-        outbound.put(message.getPayload().asReadOnlyBuffer());
-        outbound.flip();
-
-        meetingSocketRoomService.broadcastAudio(participant.meetingId(), participant.sessionId(), outbound);
+        sendError(session, "Binary audio relay over WebSocket is not supported. Use WebRTC transport for live audio.");
     }
 
     // 정상 종료된 세션을 회의방에서 제거하고 퇴장 이벤트를 전파합니다.

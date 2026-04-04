@@ -52,11 +52,11 @@ public class Member extends BaseEntity {
         this.role = role;
     }
 
-    public static Member create(AuthRequest.SignUpDTO dto, Role role) {
+    public static Member create(AuthRequest.SignUpDTO dto, String password, Role role) {
         return Member.builder()
                 .name(dto.getName())
                 .email(dto.getEmail())
-                .password(dto.getPassword())
+                .password(password)
                 .role(role)
                 .build();
     }

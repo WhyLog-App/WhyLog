@@ -96,6 +96,26 @@ public class MeetingResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    @Schema(description = "회의 SFU 접속 토큰 응답")
+    public static class MeetingRtcTokenDTO {
+
+        @Schema(description = "회의 ID", example = "1")
+        private Long meetingId;
+
+        @Schema(description = "LiveKit room name", example = "meeting-1")
+        private String roomName;
+
+        @Schema(description = "LiveKit server URL", example = "wss://livekit.example.com")
+        private String serverUrl;
+
+        @Schema(description = "LiveKit join token")
+        private String token;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     @Schema(description = "회의 기본 정보 응답")
     public static class MeetingDetailDTO {
 
