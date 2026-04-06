@@ -43,6 +43,9 @@ public class Member extends BaseEntity {
     @Column(nullable = false, length = 20)
     private Role role;
 
+    @Column(name = "github_access_token", length = 500, nullable = true)
+    private String githubAccessToken;
+
     @Builder
     private Member(String name, String email, String password, String profileImage, Role role) {
         this.name = name;
@@ -61,4 +64,7 @@ public class Member extends BaseEntity {
                 .build();
     }
 
+    public void setGithubAccessToken(String token) {
+        this.githubAccessToken = token;
+    }
 }

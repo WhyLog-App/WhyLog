@@ -1,5 +1,6 @@
 package com.whylog.server.domain.git.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
@@ -23,5 +24,17 @@ public class GitRequest {
         private String url;
     }
 
+    @Getter
+    @NoArgsConstructor(access = AccessLevel.PROTECTED)
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "GitHub Access Token 등록 요청")
+    public static class GitHubTokenDTO {
+
+        @Schema(description = "GitHub Access Token", example = "ghp_jv******")
+        @NotBlank
+        @JsonProperty("access_token")
+        private String accessToken;
+    }
 }
 

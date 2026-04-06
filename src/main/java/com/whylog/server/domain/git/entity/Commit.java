@@ -34,10 +34,10 @@ public class Commit extends BaseEntity {
     @JoinColumn(name = "repository_id", nullable = false)
     private Repository repository;
 
-    @Column(length = 255, nullable = false)
+    @Column(nullable = false)
     private String hash;
 
-    @Column(length = 255, nullable = false)
+    @Column(nullable = false)
     private String message;
 
     @Column(name = "author_name", length = 50, nullable = false)
@@ -46,8 +46,17 @@ public class Commit extends BaseEntity {
     @Column(name = "author_email", length = 50, nullable = false)
     private String authorEmail;
 
+    @Column(name = "author_profile_image", length = 255, nullable = false)
+    private String authorProfileImage;
+
     @Column(name = "datetime", nullable = false)
     private LocalDateTime dateTime;
+
+    @Column(name = "added_lines", nullable = false)
+    private Integer addedLines;
+
+    @Column(name = "deleted_lines", nullable = false)
+    private Integer deletedLines;
 
 //    @OneToMany(mappedBy = "commit", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<ChangedFile> changedFiles = new ArrayList<>();
@@ -57,4 +66,20 @@ public class Commit extends BaseEntity {
 //
 //    @OneToMany(mappedBy = "commit", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<CommitConnection> commitConnections = new ArrayList<>();
+
+    public static Commit create(String hash, String message, String authorName, String authorEmail,
+                                String authorProfileImage, LocalDateTime dateTime, Integer addedLines,
+                                Integer deletedLines, Repository repository) {
+        Commit commit = new Commit();
+        commit.hash = hash;
+        commit.message = message;
+        commit.authorName = authorName;
+        commit.authorEmail = authorEmail;
+        commit.authorProfileImage = authorProfileImage;
+        commit.dateTime = dateTime;
+        commit.addedLines = addedLines;
+        commit.deletedLines = deletedLines;
+        commit.repository = repository;
+        return commit;
+    }
 }
