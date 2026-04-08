@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import org.hibernate.validator.constraints.URL;
 
+import java.time.LocalDateTime;
+
 public class GitRequest {
 
     @Getter
@@ -35,6 +37,38 @@ public class GitRequest {
         @NotBlank
         @JsonProperty("access_token")
         private String accessToken;
+    }
+
+    @Getter
+    @NoArgsConstructor(access = AccessLevel.PROTECTED)
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "커밋 생성 DTO")
+    public static class CommitCreateDTO {
+
+        @Schema(description = "커밋 해시", example = "abc123def456")
+        private String hash;
+
+        @Schema(description = "커밋 메시지", example = "[feat] 사용자 인증 기능 추가")
+        private String message;
+
+        @Schema(description = "작성자 이름", example = "김준용")
+        private String authorName;
+
+        @Schema(description = "작성자 이메일", example = "user@example.com")
+        private String authorEmail;
+
+        @Schema(description = "작성자 프로필 이미지", example = "https://avatars.githubusercontent.com/u/123?v=4")
+        private String authorProfileImage;
+
+        @Schema(description = "커밋 날짜", example = "2026-03-24T10:30:00")
+        private LocalDateTime dateTime;
+
+        @Schema(description = "추가된 줄 수", example = "45")
+        private Integer addedLines;
+
+        @Schema(description = "삭제된 줄 수", example = "12")
+        private Integer deletedLines;
     }
 }
 

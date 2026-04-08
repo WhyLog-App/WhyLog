@@ -160,20 +160,21 @@ public class GitCommandServiceImpl implements GitCommandService {
                                     ? ghCommit.getAuthor().getAvatarUrl()
                                     : null;
 
-                            return Commit.create(
-                                    ghCommit.getSHA1(),
-                                    message,
-                                    shortInfo.getAuthor().getName(),
-                                    shortInfo.getAuthor().getEmail(),
-                                    authorProfileImage,
-                                    shortInfo.getAuthor().getDate()
+                            GitRequest.CommitCreateDTO dto = GitRequest.CommitCreateDTO.builder()
+                                    .hash(ghCommit.getSHA1())
+                                    .message(message)
+                                    .authorName(shortInfo.getAuthor().getName())
+                                    .authorEmail(shortInfo.getAuthor().getEmail())
+                                    .authorProfileImage(authorProfileImage)
+                                    .dateTime(shortInfo.getAuthor().getDate()
                                             .toInstant()
                                             .atZone(ZoneId.systemDefault())
-                                            .toLocalDateTime(),
-                                    ghCommit.getLinesAdded(),
-                                    ghCommit.getLinesDeleted(),
-                                    repository
-                            );
+                                            .toLocalDateTime())
+                                    .addedLines(ghCommit.getLinesAdded())
+                                    .deletedLines(ghCommit.getLinesDeleted())
+                                    .build();
+
+                            return Commit.create(dto, repository);
                         } catch (Exception e) {
                             log.warn("커밋 변환 실패 [{}]: {}", ghCommit.getSHA1(), e.getMessage());
                             return null;

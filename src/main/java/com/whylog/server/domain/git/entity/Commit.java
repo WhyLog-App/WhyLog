@@ -1,23 +1,13 @@
 package com.whylog.server.domain.git.entity;
 
+import com.whylog.server.domain.git.dto.GitRequest;
 import com.whylog.server.global.entity.BaseEntity;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -67,18 +57,16 @@ public class Commit extends BaseEntity {
 //    @OneToMany(mappedBy = "commit", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<CommitConnection> commitConnections = new ArrayList<>();
 
-    public static Commit create(String hash, String message, String authorName, String authorEmail,
-                                String authorProfileImage, LocalDateTime dateTime, Integer addedLines,
-                                Integer deletedLines, Repository repository) {
+    public static Commit create(GitRequest.CommitCreateDTO dto, Repository repository) {
         Commit commit = new Commit();
-        commit.hash = hash;
-        commit.message = message;
-        commit.authorName = authorName;
-        commit.authorEmail = authorEmail;
-        commit.authorProfileImage = authorProfileImage;
-        commit.dateTime = dateTime;
-        commit.addedLines = addedLines;
-        commit.deletedLines = deletedLines;
+        commit.hash = dto.getHash();
+        commit.message = dto.getMessage();
+        commit.authorName = dto.getAuthorName();
+        commit.authorEmail = dto.getAuthorEmail();
+        commit.authorProfileImage = dto.getAuthorProfileImage();
+        commit.dateTime = dto.getDateTime();
+        commit.addedLines = dto.getAddedLines();
+        commit.deletedLines = dto.getDeletedLines();
         commit.repository = repository;
         return commit;
     }
