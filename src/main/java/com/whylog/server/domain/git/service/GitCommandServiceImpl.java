@@ -4,10 +4,12 @@ import com.whylog.server.domain.git.dto.GitRequest;
 import com.whylog.server.domain.git.dto.GitResponse;
 import com.whylog.server.domain.git.entity.Commit;
 import com.whylog.server.domain.git.entity.Repository;
+import com.whylog.server.domain.git.exception.GitErrorCode;
 import com.whylog.server.domain.git.exception.GitTokenNotRegisteredException;
 import com.whylog.server.domain.git.exception.RepositoryNotFoundException;
 import com.whylog.server.domain.git.repository.CommitRepository;
 import com.whylog.server.domain.git.repository.RepositoryRepository;
+import com.whylog.server.global.apiPayload.exception.handler.ErrorHandler;
 import com.whylog.server.global.util.github.GitHubUtil;
 import com.whylog.server.domain.team.entity.Team;
 import com.whylog.server.domain.team.service.TeamUseCase;
@@ -16,16 +18,17 @@ import com.whylog.server.domain.user.service.MemberUseCase;
 import com.whylog.server.global.apiPayload.exception.ParameterRequiredException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.kohsuke.github.GHCommit;
 import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GitHub;
+import org.kohsuke.github.HttpException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -39,11 +42,15 @@ public class GitCommandServiceImpl implements GitCommandService {
 
     /**
      * 사용자의 GitHub Access Token을 등록합니다.
+     * 등록 전에 token의 유효성을 검증합니다.
      */
     @Override
     @Transactional
     public GitResponse.GitHubTokenResponseDTO registerGitHubToken(Long memberId, String accessToken) {
         if (accessToken == null || accessToken.isEmpty()) throw new ParameterRequiredException();
+
+        // GitHub token 유효성 검증 (401 응답 시 예외 발생)
+        GitHubUtil.validateGitHubToken(accessToken);
 
         Member member = memberUseCase.findMemberById(memberId);
         member.setGithubAccessToken(accessToken);
@@ -63,10 +70,22 @@ public class GitCommandServiceImpl implements GitCommandService {
 
         // 현재 사용자의 GitHub Token 조회
         Member member = memberUseCase.findMemberById(memberId);
-        String accessToken = member.getGithubAccessToken();
 
-        // 레포 URL 유효성 검증 및 GitHub에서 존재 여부 확인
-        GitHubUtil.validateRepositoryExists(request.getUrl(), accessToken);
+        // token 존재 및 유효성 검증
+        if (!member.hasGithubToken()) {
+            throw new GitTokenNotRegisteredException();
+        }
+
+        try {
+            GitHubUtil.validateGitHubToken(member.getGithubAccessToken());
+            // 레포 URL 유효성 검증 및 GitHub에서 존재 여부 확인
+            GitHubUtil.validateRepositoryExists(request.getUrl(), member.getGithubAccessToken());
+        } catch (ErrorHandler e) {
+            if (e.getCode() == GitErrorCode.GITHUB_TOKEN_EXPIRED) {
+                invalidateGitHubToken(memberId);
+            }
+            throw e;
+        }
 
         Team team = teamUseCase.findTeamById(teamId);
         Repository repository = Repository.create(request.getName(), request.getUrl(), team);
@@ -84,8 +103,7 @@ public class GitCommandServiceImpl implements GitCommandService {
 
         // 사용자의 GitHub Token 조회 및 검증
         Member member = memberUseCase.findMemberById(memberId);
-        String accessToken = member.getGithubAccessToken();
-        if (accessToken == null || accessToken.isEmpty()) {
+        if (!member.hasGithubToken()) {
             throw new GitTokenNotRegisteredException();
         }
 
@@ -93,7 +111,7 @@ public class GitCommandServiceImpl implements GitCommandService {
                 .orElseThrow(RepositoryNotFoundException::new);
 
         try {
-            GitHub gitHub = GitHubUtil.createGitHubInstance(accessToken);
+            GitHub gitHub = GitHubUtil.createGitHubInstance(member.getGithubAccessToken());
             String repoPath = GitHubUtil.extractRepoPath(repository.getUrl());
             GHRepository ghRepository = gitHub.getRepository(repoPath);
 
@@ -104,6 +122,12 @@ public class GitCommandServiceImpl implements GitCommandService {
             // 동기화 시간 업데이트
             repository.updateLastSyncedAt(LocalDateTime.now());
 
+        } catch (HttpException e) {
+            if (e.getResponseCode() == 401) {
+                invalidateGitHubToken(memberId); // DB에서 토큰 삭제
+                throw new ErrorHandler(GitErrorCode.GITHUB_TOKEN_EXPIRED);
+            }
+            GitHubUtil.handleHttpException(e);
         } catch (IOException e) {
             throw new RepositoryNotFoundException();
         }
@@ -116,83 +140,80 @@ public class GitCommandServiceImpl implements GitCommandService {
     /**
      * GitHub에서 마지막 동기화 시간 이후의 커밋을 조회하고 DB에 일괄 저장합니다.
      */
-    private void syncCommits(GHRepository ghRepository, Repository repository, LocalDateTime lastSyncedAt) {
-        try {
-            var commitQuery = ghRepository.queryCommits();
+    private void syncCommits(GHRepository ghRepository, Repository repository, LocalDateTime lastSyncedAt) throws IOException {
 
-            // 시간 필터링
-            if (lastSyncedAt != null) {
-                java.util.Date sinceDate = java.util.Date.from(
-                        lastSyncedAt.atZone(ZoneId.systemDefault()).toInstant()
-                );
-                commitQuery.since(sinceDate); // 이 시간 이후의 커밋만 달라고 요청
-            }
+        var commitQuery = ghRepository.queryCommits();
 
-            // GitHub에서 가져온 모든 커밋을 리스트로 변환
-            List<org.kohsuke.github.GHCommit> allGitHubCommits = commitQuery.list().toList();
-
-            // 모든 커밋의 hash를 추출
-            List<String> allHashes = allGitHubCommits.stream()
-                    .map(org.kohsuke.github.GHCommit::getSHA1)
-                    .toList();
-
-            // DB에 이미 존재하는 hash들을 조회
-            Set<String> existingHashes = allHashes.isEmpty()
-                    ? java.util.Collections.emptySet()
-                    : commitRepository.findExistingHashes(repository.getId(), allHashes);
-
-            //필요한 커밋만 필터링 및 변환
-            List<Commit> newCommits = allGitHubCommits.stream()
-                    .filter(ghCommit -> !existingHashes.contains(ghCommit.getSHA1()))
-                    .map(ghCommit -> {
-                        try {
-                            // 커밋 정보를 한 번에 조회
-                            var shortInfo = ghCommit.getCommitShortInfo();
-                            String message = shortInfo.getMessage();
-
-                            // Merge pull request 커밋 제외
-                            if (message.startsWith("Merge pull request")) {
-                                return null;
-                            }
-
-                            // 작성자 프로필 이미지 URL 조회
-                            String authorProfileImage = (ghCommit.getAuthor() != null)
-                                    ? ghCommit.getAuthor().getAvatarUrl()
-                                    : null;
-
-                            GitRequest.CommitCreateDTO dto = GitRequest.CommitCreateDTO.builder()
-                                    .hash(ghCommit.getSHA1())
-                                    .message(message)
-                                    .authorName(shortInfo.getAuthor().getName())
-                                    .authorEmail(shortInfo.getAuthor().getEmail())
-                                    .authorProfileImage(authorProfileImage)
-                                    .dateTime(shortInfo.getAuthor().getDate()
-                                            .toInstant()
-                                            .atZone(ZoneId.systemDefault())
-                                            .toLocalDateTime())
-                                    .addedLines(ghCommit.getLinesAdded())
-                                    .deletedLines(ghCommit.getLinesDeleted())
-                                    .build();
-
-                            return Commit.create(dto, repository);
-                        } catch (Exception e) {
-                            log.warn("커밋 변환 실패 [{}]: {}", ghCommit.getSHA1(), e.getMessage());
-                            return null;
-                        }
-                    })
-                    .filter(java.util.Objects::nonNull)
-                    .toList();
-
-            // db insert
-            if (!newCommits.isEmpty()) {
-                commitRepository.saveAll(newCommits);
-                log.info("새로운 커밋 {}개 동기화 완료: {}", newCommits.size(), ghRepository.getFullName());
-            } else {
-                log.info("새로 동기화할 커밋이 없습니다: {}", ghRepository.getFullName());
-            }
-
-        } catch (IOException e) {
-            throw new RepositoryNotFoundException();
+        if (lastSyncedAt != null) {
+            Date sinceDate = Date.from(
+                    lastSyncedAt.atZone(ZoneId.systemDefault()).toInstant()
+            );
+            commitQuery.since(sinceDate);
         }
+
+        List<GHCommit> allGitHubCommits = commitQuery.list().toList();
+
+        List<String> allHashes = allGitHubCommits.stream()
+                .map(GHCommit::getSHA1)
+                .toList();
+
+        Set<String> existingHashes = allHashes.isEmpty()
+                ? Collections.emptySet()
+                : commitRepository.findExistingHashes(repository.getId(), allHashes);
+
+        List<Commit> newCommits = allGitHubCommits.stream()
+                .filter(ghCommit -> !existingHashes.contains(ghCommit.getSHA1()))
+                .map(ghCommit -> {
+                    try {
+                        var shortInfo = ghCommit.getCommitShortInfo();
+                        String message = shortInfo.getMessage();
+
+                        if (message.startsWith("Merge pull request")) return null;
+
+                        String authorProfileImage = (ghCommit.getAuthor() != null)
+                                ? ghCommit.getAuthor().getAvatarUrl() : null;
+
+                        GitRequest.CommitCreateDTO dto = GitRequest.CommitCreateDTO.builder()
+                                .hash(ghCommit.getSHA1())
+                                .message(message)
+                                .authorName(shortInfo.getAuthor().getName())
+                                .authorEmail(shortInfo.getAuthor().getEmail())
+                                .authorProfileImage(authorProfileImage)
+                                .dateTime(shortInfo.getAuthor().getDate()
+                                        .toInstant()
+                                        .atZone(ZoneId.systemDefault())
+                                        .toLocalDateTime())
+                                .addedLines(ghCommit.getLinesAdded())
+                                .deletedLines(ghCommit.getLinesDeleted())
+                                .build();
+
+                        return Commit.create(dto, repository);
+                    } catch (Exception e) {
+                        log.warn("커밋 변환 실패 [{}]: {}", ghCommit.getSHA1(), e.getMessage());
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+        if (!newCommits.isEmpty()) {
+            commitRepository.saveAll(newCommits);
+            log.info("새로운 커밋 {}개 동기화 완료: {}", newCommits.size(), ghRepository.getFullName());
+        } else {
+            log.info("새로 동기화할 커밋이 없습니다: {}", ghRepository.getFullName());
+        }
+    }
+
+    /**
+     * GitHub Token 만료 시 처리합니다 (API 401 에러 감지)
+     * token을 초기화하여 사용자가 재인증하도록 유도합니다.
+     */
+    @Override
+    @Transactional
+    public void invalidateGitHubToken(Long memberId) {
+        if (memberId == null) throw new ParameterRequiredException();
+
+        Member member = memberUseCase.findMemberById(memberId);
+        member.clearGithubToken();
     }
 }

@@ -20,4 +20,10 @@ public interface GitCommandService {
      * 레포지토리를 동기화합니다.
      */
     GitResponse.RepositorySyncResponseDTO syncRepository(Long memberId, Long repositoryId);
+
+    /**
+     * GitHub Token 만료 시 처리합니다 (API 401 에러 감지).
+     * token을 초기화하여 사용자가 재인증하도록 유도합니다.
+     */
+    void invalidateGitHubToken(Long memberId);
 }

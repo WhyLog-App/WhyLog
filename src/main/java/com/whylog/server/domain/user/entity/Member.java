@@ -3,14 +3,8 @@ package com.whylog.server.domain.user.entity;
 import com.whylog.server.domain.user.dto.AuthRequest;
 import com.whylog.server.domain.user.enums.Role;
 import com.whylog.server.global.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.whylog.server.global.util.crypto.AESCryptoConverter;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -43,6 +37,7 @@ public class Member extends BaseEntity {
     @Column(nullable = false, length = 20)
     private Role role;
 
+    @Convert(converter = AESCryptoConverter.class)
     @Column(name = "github_access_token", length = 500, nullable = true)
     private String githubAccessToken;
 
@@ -66,5 +61,15 @@ public class Member extends BaseEntity {
 
     public void setGithubAccessToken(String token) {
         this.githubAccessToken = token;
+    }
+
+    // 토큰 존재 확인
+    public boolean hasGithubToken() {
+        return this.githubAccessToken != null && !this.githubAccessToken.isEmpty();
+    }
+
+    // 401 에러시 토큰 삭제
+    public void clearGithubToken() {
+        this.githubAccessToken = null;
     }
 }
