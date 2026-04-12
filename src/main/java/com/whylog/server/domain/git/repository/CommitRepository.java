@@ -1,0 +1,46 @@
+package com.whylog.server.domain.git.repository;
+
+import com.whylog.server.domain.git.entity.Commit;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+@Repository
+public interface CommitRepository extends JpaRepository<Commit, Long> {
+
+    // 레포지토리 ID와 해시로 커밋 조회
+    Optional<Commit> findByRepositoryIdAndHash(Long repositoryId, String hash);
+
+    // 해시 조회
+    @Query("SELECT c.hash FROM Commit c " +
+            "WHERE c.repository.id = :repositoryId " +
+            "AND c.hash IN :hashes")
+    Set<String> findExistingHashes(
+            @Param("repositoryId") Long repositoryId,
+            @Param("hashes") List<String> hashes
+    );
+
+    // 커서 기반 무한스크롤 - 커밋 목록 조회
+    @Query("SELECT c FROM Commit c " +
+            "WHERE c.repository.id = :repositoryId " +
+            "AND (" +
+            "  :cursorId IS NULL " +
+            "  OR c.dateTime < (SELECT sub.dateTime FROM Commit sub WHERE sub.id = :cursorId) " +
+            "  OR (c.dateTime = (SELECT sub2.dateTime FROM Commit sub2 WHERE sub2.id = :cursorId) AND c.id < :cursorId)" +
+            ") " +
+            "ORDER BY c.dateTime DESC, c.id DESC")
+    Slice<Commit> findCommitsWithCursor(
+            @Param("repositoryId") Long repositoryId,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable
+    );
+}
+
+
