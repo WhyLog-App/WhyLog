@@ -27,7 +27,7 @@ public class Commit extends BaseEntity {
     @Column(nullable = false)
     private String hash;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
 
     @Column(name = "author_name", length = 50, nullable = false)
