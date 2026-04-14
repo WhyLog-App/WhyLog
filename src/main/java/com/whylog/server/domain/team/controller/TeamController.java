@@ -7,6 +7,9 @@ import com.whylog.server.domain.team.service.TeamCommandService;
 import com.whylog.server.domain.team.service.TeamQueryService;
 import com.whylog.server.global.apiPayload.ApiResponse;
 import com.whylog.server.global.auth.annotation.CurrentMember;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Encoding;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -87,11 +90,19 @@ public class TeamController {
 
             `Content-Type`은 직접 지정하지 않습니다. 브라우저가 boundary를 포함한 `multipart/form-data` 값을 자동으로 생성해야 합니다.
             
-            """)
+            """,
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(
+                            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+                            schema = @Schema(implementation = TeamRequest.TeamCreateMultipartDTO.class),
+                            encoding = @Encoding(name = "request", contentType = MediaType.APPLICATION_JSON_VALUE)
+                    )
+            )
+    )
     public ApiResponse<TeamResponse.TeamCreateResponseDTO> createTeam(
-            @CurrentMember Long memberId,
-            @Valid @RequestPart("request") TeamRequest.TeamCreateDTO request,
-            @RequestPart(value = "image", required = false) MultipartFile image
+            @Parameter(hidden = true) @CurrentMember Long memberId,
+            @Parameter(hidden = true) @Valid @RequestPart("request") TeamRequest.TeamCreateDTO request,
+            @Parameter(hidden = true) @RequestPart(value = "image", required = false) MultipartFile image
     ) {
         return ApiResponse.onSuccess(teamCommandService.createTeam(memberId, request, image));
     }

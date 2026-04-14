@@ -5,6 +5,7 @@ import com.whylog.server.domain.user.service.MemberCommandService;
 import com.whylog.server.global.apiPayload.ApiResponse;
 import com.whylog.server.global.auth.annotation.CurrentMember;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -43,7 +44,7 @@ public class MemberController {
             
             """)
     public ApiResponse<MemberResponse.ProfileImageUploadResponseDTO> uploadProfileImage(
-            @CurrentMember Long memberId,
+            @Parameter(hidden = true) @CurrentMember Long memberId,
             @RequestPart("image") MultipartFile image
     ) {
         return ApiResponse.onSuccess(memberCommandService.uploadProfileImage(memberId, image));
