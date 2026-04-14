@@ -15,6 +15,9 @@ public enum TeamErrorCode implements BaseErrorCode {
     // 400 Bad Request
     TEAM_NAME_LENGTH(HttpStatus.BAD_REQUEST, "TEAM_400", "팀명 길이는 50글자 미만이어야 합니다."),
 
+    // 409 Conflict
+    TEAM_MEMBER_ALREADY_EXISTS(HttpStatus.CONFLICT, "TEAM_409", "이미 팀에 속한 사용자입니다."),
+
     // 422 Unprocessable Entity
     TEAM_NAME_ALREADY_EXISTS(HttpStatus.UNPROCESSABLE_ENTITY, "TEAM_420", "이미 존재하는 팀명입니다.")
 

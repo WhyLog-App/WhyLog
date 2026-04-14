@@ -16,7 +16,7 @@ public class TeamRequest {
     public static class InvitationDTO {
 
         @Schema(description = "초대받을 사용자 이메일", example = "member@example.com")
-        @NotBlank @Email
+        @Email @NotBlank
         private String memberEmail;
     }
 

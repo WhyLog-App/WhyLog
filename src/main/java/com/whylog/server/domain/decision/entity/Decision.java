@@ -37,8 +37,8 @@ public class Decision extends BaseEntity {
     @Column(name = "is_created")
     private Boolean isCreated;
 
-//    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<Application> applications = new ArrayList<>();
+    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
+    private final List<Application> applications = new ArrayList<>();
 //
 //    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<DecisionTimeline> decisionTimelines = new ArrayList<>();

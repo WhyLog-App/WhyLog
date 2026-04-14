@@ -35,6 +35,9 @@ public class TeamResponse {
         @Schema(description = "팀명", example = "팀명이 어떻게 다마고치")
         private String name;
 
+        @Schema(description = "팀 이미지 URL", example = "https://cdn.whylog.com/teams/team-image.png")
+        private String imageUrl;
+
     }
 
 }

@@ -5,5 +5,6 @@ import com.whylog.server.domain.team.entity.TeamMemberId;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TeamMemberRepository extends JpaRepository<TeamMember, TeamMemberId> {
-    boolean existsByMemberIdAndTeamIdAndActiveTrue(Long memberId, Long teamId);
+
+    boolean existsByTeamIdAndMemberIdAndActiveTrue(Long teamId, Long memberId);
 }

@@ -31,14 +31,19 @@ public class Team extends BaseEntity {
     @Column(length = 50, nullable = false, unique = true)
     private String name;
 
+    @Column(name = "image")
+    private String image; // s3 key
+
     @Builder
-    private Team(String name) {
+    private Team(String name, String image) {
         this.name = name;
+        this.image = image;
     }
 
-    public static Team create(TeamRequest.TeamCreateDTO dto) {
+    public static Team create(TeamRequest.TeamCreateDTO dto, String image) {
         return Team.builder()
                 .name(dto.getName())
+                .image(image)
                 .build();
     }
 
