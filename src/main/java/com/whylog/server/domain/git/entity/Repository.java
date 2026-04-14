@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
@@ -30,10 +31,34 @@ public class Repository extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(length = 255, nullable = false)
+    private String name;
+
+    @Column(length = 500, nullable = false)
+    private String url;
+
+    @Column(nullable = true)
+    private LocalDateTime lastSyncedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id", nullable = false)
     private Team team;
 
 //    @OneToMany(mappedBy = "repository", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<Commit> commits = new ArrayList<>();
+
+    public static Repository create(String name, String url, Team team) {
+        Repository repository = new Repository();
+        repository.name = name;
+        repository.url = url;
+        repository.team = team;
+        return repository;
+    }
+
+    /**
+     * 마지막 동기화 시간을 업데이트합니다.
+     */
+    public void updateLastSyncedAt(LocalDateTime syncedAt) {
+        this.lastSyncedAt = syncedAt;
+    }
 }

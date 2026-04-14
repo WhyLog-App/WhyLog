@@ -57,6 +57,9 @@ dependencies {
 	// AWS
 	implementation 'software.amazon.awssdk:s3:2.25.4'
 
+	// GitHub API
+	implementation 'org.kohsuke:github-api:1.321'
+
 }
 
 tasks.named('test') {

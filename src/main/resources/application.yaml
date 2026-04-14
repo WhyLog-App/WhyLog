@@ -51,6 +51,10 @@ livekit:
   api-secret: ${LIVEKIT_API_SECRET:01234567890123456789012345678901}
   token-expire-time: ${LIVEKIT_TOKEN_EXPIRE_TIME:3600000}
 
+github:
+  token:
+    encryption:
+      key: ${GITHUB_TOKEN_ENCRYPTION_KEY}
 aws:
   s3:
     bucket: ${AWS_S3_BUCKET}
