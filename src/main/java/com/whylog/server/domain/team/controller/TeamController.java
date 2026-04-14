@@ -63,10 +63,30 @@ public class TeamController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "팀 생성 API", description = """
-                팀을 생성합니다.
-                팀명은 50글자 미만입니다.
-                팀 이미지는 선택값입니다.
-                팀 생성과 동시에 팀에 참여합니다. ( 따로 호출 X )
+            
+            ## 설명
+            팀을 생성합니다. 해당 api를 호출한 사람은 팀에 참여합니다.
+            
+            ## API 호출 방법
+
+            `multipart/form-data`로 요청합니다.  
+            `request` 파트는 JSON Blob으로 추가하고, `image` 파트는 선택값입니다.
+
+            | Part name | Required | Value |
+            | --- | --- | --- |
+            | `request` | O | `application/json` 타입의 JSON Blob |
+            | `image` | X | 이미지 파일 |
+
+            ### request JSON
+
+            ```json
+            {
+              "name": "팀명이어떻게다마고치"
+            }
+            ```
+
+            `Content-Type`은 직접 지정하지 않습니다. 브라우저가 boundary를 포함한 `multipart/form-data` 값을 자동으로 생성해야 합니다.
+            
             """)
     public ApiResponse<TeamResponse.TeamCreateResponseDTO> createTeam(
             @CurrentMember Long memberId,
