@@ -69,7 +69,7 @@ public class TeamController {
                 팀 생성과 동시에 팀에 참여합니다. ( 따로 호출 X )
             """)
     public ApiResponse<TeamResponse.TeamCreateResponseDTO> createTeam(
-            @Parameter(hidden = true) @CurrentMember Long memberId,
+            @CurrentMember Long memberId,
             @Valid @RequestPart("request") TeamRequest.TeamCreateDTO request,
             @RequestPart(value = "image", required = false) MultipartFile image
     ) {

@@ -7,8 +7,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum ImageType {
 
-    TEAM_IMAGE("team_image_"),
-    MEMBER_PROFILE("member_profile_image_"),
+    TEAM_IMAGE("team_image/team_image_"),
+    MEMBER_PROFILE("member_profile/member_profile_image_"),
     ;
 
     private final String prefix;

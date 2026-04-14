@@ -13,7 +13,6 @@ import com.whylog.server.domain.user.service.MemberUseCase;
 import com.whylog.server.global.apiPayload.exception.handler.ErrorHandler;
 import com.whylog.server.global.external.s3.ImageType;
 import com.whylog.server.global.external.s3.S3Client;
-import com.whylog.server.global.external.s3.S3KeyGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +41,10 @@ public class TeamCommandService {
             throw new ErrorHandler(TeamErrorCode.TEAM_NAME_LENGTH);
         }
 
-        String imageKey = uploadTeamImage(image);
+        String imageKey = null;
+        if( image != null && !image.isEmpty()){
+            imageKey = s3Client.uploadFile(image, ImageType.TEAM_IMAGE);
+        }
 
         // 팀 생성 및 저장
         Team team = Team.create(request, imageKey);
@@ -55,7 +57,7 @@ public class TeamCommandService {
         return TeamResponse.TeamCreateResponseDTO.builder()
                 .teamId(team.getId())
                 .name(team.getName())
-                .imageUrl(team.getImage())
+                .imageUrl(s3Client.getFileUrl(team.getImage()))
                 .build();
     }
 
@@ -85,16 +87,6 @@ public class TeamCommandService {
         return teamMemberRepository.save(teamMember);
     }
 
-    private String uploadTeamImage(MultipartFile image) {
-        if (image == null || image.isEmpty()) {
-            return null;
-        }
 
-        return s3Client.uploadFile(createTeamImageFileName(image), image);
-    }
-
-    private String createTeamImageFileName(MultipartFile image) {
-        return S3KeyGenerator.makeImageKey(image.getOriginalFilename(), ImageType.TEAM_IMAGE);
-    }
 
 }
