@@ -3,9 +3,13 @@ package com.whylog.server.domain.user.controller;
 import com.whylog.server.domain.user.dto.AccessTokenGenerateResponse;
 import com.whylog.server.domain.user.dto.AuthRequest;
 import com.whylog.server.domain.user.dto.AuthResponse;
+import com.whylog.server.domain.user.exception.AuthErrorStatus;
 import com.whylog.server.domain.user.service.AuthenticationService;
 import com.whylog.server.domain.user.service.LocalLoginService;
 import com.whylog.server.domain.user.exception.AuthSuccessStatus;
+import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExample;
+import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExamples;
+import com.whylog.server.global.apiPayload.code.status.ErrorStatus;
 import com.whylog.server.global.auth.annotation.CurrentMember;
 import com.whylog.server.global.auth.jwt.application.TokenService;
 import com.whylog.server.global.apiPayload.ApiResponse;
@@ -59,6 +63,10 @@ public class AuthController {
             그래도...
             - 쿠키로 처리하기 귀찮거나...번거로울 경우를 대비해 Refresh Token을 Response Body에도 담아 보냅니다...😎
             """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = AuthErrorStatus.class, name = "EMAIL_ALREADY_EXISTS")
+    })
     public ApiResponse<AuthResponse.LoginResponseDTO> signup(
             @Valid @RequestBody AuthRequest.SignUpDTO request,
             HttpServletResponse httpServletResponse
@@ -93,6 +101,10 @@ public class AuthController {
             그래도...
             - 쿠키로 처리하기 귀찮거나...번거로울 경우를 대비해 Refresh Token을 Response Body에도 담아 보냅니다...😎
             """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = AuthErrorStatus.class, name = "LOGIN_FAILED")
+    })
     public ApiResponse<AuthResponse.LoginResponseDTO> login(
             @Valid @RequestBody AuthRequest.LoginDTO request,
             HttpServletResponse httpServletResponse
@@ -126,6 +138,12 @@ public class AuthController {
             - 새 액세스 토큰 TTL: 1시간 (`3600000ms`)
             - 기존 리프레시 토큰 JWT TTL: 14일 (`1209600000ms`)
             """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = AuthErrorStatus.class, name = "INVALID_REFRESH_TOKEN"),
+            @ApiErrorCodeExample(value = AuthErrorStatus.class, name = "REFRESH_TOKEN_EXPIRED"),
+            @ApiErrorCodeExample(value = AuthErrorStatus.class, name = "REFRESH_TOKEN_NOT_FOUND")
+    })
     public ApiResponse<AccessTokenGenerateResponse> refreshToken(
             @CookieValue(REFRESH_TOKEN) String refreshToken
     ) {
@@ -151,6 +169,10 @@ public class AuthController {
             - `Set-Cookie: refreshToken=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`
             - 브라우저 기준으로 refresh token 쿠키가 제거됩니다.
             """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = AuthErrorStatus.class, name = "REFRESH_TOKEN_NOT_FOUND")
+    })
     public ApiResponse<Void> logout(
             @CurrentMember Long memberId,
             HttpServletResponse httpServletResponse

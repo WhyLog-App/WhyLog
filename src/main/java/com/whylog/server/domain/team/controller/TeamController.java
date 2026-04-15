@@ -10,7 +10,9 @@ import com.whylog.server.domain.user.exception.MemberErrorStatus;
 import com.whylog.server.global.apiPayload.ApiResponse;
 import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExample;
 import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExamples;
+import com.whylog.server.global.apiPayload.code.status.ErrorStatus;
 import com.whylog.server.global.auth.annotation.CurrentMember;
+import com.whylog.server.global.external.s3.S3ErrorCode;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Encoding;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -42,6 +44,10 @@ public class TeamController {
 
     @GetMapping("/{teamId}/decisions")
     @Operation(summary = "결정사항 목록 조회 API", description = "특정 팀의 결정사항 목록을 조회하는 API입니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST")
+    })
     public ApiResponse<List<DecisionResponse.DecisionListDTO>> getDecisions(
             @PathVariable Long teamId) {
         List<DecisionResponse.DecisionListDTO> decisions = teamQueryService.decisions(teamId);
@@ -53,6 +59,8 @@ public class TeamController {
             특정 사용자를 팀에 초대합니다. 팀 초대를 하면 상대는 즉시 팀원으로 추가됩니다.
             """)
     @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
             @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_NOT_FOUND"),
             @ApiErrorCodeExample(value = MemberErrorStatus.class, name = "MEMBER_NOT_FOUND"),
             @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_MEMBER_ALREADY_EXISTS")
@@ -100,8 +108,15 @@ public class TeamController {
             )
     )
     @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
             @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_NAME_ALREADY_EXISTS"),
-            @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_NAME_LENGTH")
+            @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_NAME_LENGTH"),
+            @ApiErrorCodeExample(value = MemberErrorStatus.class, name = "MEMBER_NOT_FOUND"),
+            @ApiErrorCodeExample(value = S3ErrorCode.class, name = "S3_FILE_EMPTY"),
+            @ApiErrorCodeExample(value = S3ErrorCode.class, name = "S3_FILE_NAME_EMPTY"),
+            @ApiErrorCodeExample(value = S3ErrorCode.class, name = "S3_BUCKET_NOT_CONFIGURED"),
+            @ApiErrorCodeExample(value = S3ErrorCode.class, name = "S3_UPLOAD_FAILED")
     })
     public ApiResponse<TeamResponse.TeamCreateResponseDTO> createTeam(
             @Parameter(hidden = true) @CurrentMember Long memberId,
