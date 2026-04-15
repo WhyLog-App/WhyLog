@@ -2,13 +2,16 @@ package com.whylog.server.domain.user.controller;
 
 import com.whylog.server.domain.user.dto.MemberResponse;
 import com.whylog.server.domain.user.service.MemberCommandService;
+import com.whylog.server.domain.user.service.MemberQueryService;
 import com.whylog.server.global.apiPayload.ApiResponse;
 import com.whylog.server.global.auth.annotation.CurrentMember;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -22,6 +25,23 @@ import org.springframework.web.multipart.MultipartFile;
 public class MemberController {
 
     private final MemberCommandService memberCommandService;
+    private final MemberQueryService memberQueryService;
+
+    @GetMapping("/teams")
+    @Operation(summary = "내 소속 팀 목록 조회 API", description = """
+            
+            ## 설명
+            현재 로그인한 멤버가 소속된 활성 팀 목록을 조회합니다.
+            
+            ## 응답
+            `team_id`, `name`, `team_image` 필드를 가진 배열을 반환합니다.
+            
+            """)
+    public ApiResponse<List<MemberResponse.TeamListResponseDTO>> getMyTeams(
+            @Parameter(hidden = true) @CurrentMember Long memberId
+    ) {
+        return ApiResponse.onSuccess(memberQueryService.getTeams(memberId));
+    }
 
     @PostMapping(value = "/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "멤버 프로필 이미지 업로드 API", description = """
