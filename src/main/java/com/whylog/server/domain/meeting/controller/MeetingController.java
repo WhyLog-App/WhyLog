@@ -3,10 +3,16 @@ package com.whylog.server.domain.meeting.controller;
 import com.whylog.server.domain.meeting.dto.MeetingRequest;
 import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
+import com.whylog.server.domain.meeting.exception.MeetingErrorCode;
 import com.whylog.server.domain.meeting.service.MeetingCommandService;
 import com.whylog.server.domain.meeting.service.MeetingQueryService;
 import com.whylog.server.domain.meeting.service.MeetingRtcService;
+import com.whylog.server.domain.team.exception.TeamErrorCode;
+import com.whylog.server.domain.user.exception.MemberErrorStatus;
 import com.whylog.server.global.apiPayload.ApiResponse;
+import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExample;
+import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExamples;
+import com.whylog.server.global.apiPayload.code.status.ErrorStatus;
 import com.whylog.server.global.auth.annotation.CurrentMember;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -48,6 +54,10 @@ public class MeetingController {
             페이징 없습니다.
             
             """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST")
+    })
     public ApiResponse<List<MeetingResponse.MeetingListDTO>> getMeetings(
             @Parameter(hidden = true) @CurrentMember Long memberId,
             @PathVariable Long teamId,
@@ -72,6 +82,13 @@ public class MeetingController {
             실제 실시간 음성 전달은 WebRTC/SFU 경로를 사용합니다.
             
             """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_PARAMETER_REQUIRED"),
+            @ApiErrorCodeExample(value = MemberErrorStatus.class, name = "MEMBER_NOT_FOUND"),
+            @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_NOT_FOUND")
+    })
     public ApiResponse<MeetingResponse.MeetingCreateResponseDTO> createMeeting(
             @Parameter(hidden = true) @CurrentMember Long memberId,
             @PathVariable Long teamId,
@@ -85,6 +102,12 @@ public class MeetingController {
             현재 로그인한 사용자가 해당 회의의 LiveKit SFU room에 접속할 수 있도록 join token을 발급합니다.
             프론트는 이 토큰과 serverUrl을 사용해 WebRTC 음성 연결을 수립합니다.
             """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_FOUND"),
+            @ApiErrorCodeExample(value = MemberErrorStatus.class, name = "MEMBER_NOT_FOUND")
+    })
     public ApiResponse<MeetingResponse.MeetingRtcTokenDTO> issueRtcToken(
             @Parameter(hidden = true) @CurrentMember Long memberId,
             @PathVariable Long meetingId
@@ -98,6 +121,13 @@ public class MeetingController {
             회의 종료 시 실시간 회의 참여자들에게 종료를 알리는 웹소켓 메시지를 전송합니다.
             종료 이후의 음성 파일 처리, STT, 회의 분석은 비동기 후처리 파이프라인에서 수행합니다.
             """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_FOUND"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_INVALID_MEMBER"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_ALREADY_ENDED")
+    })
     public ApiResponse<MeetingResponse.MeetingEndResponseDTO> endMeeting(
             @Parameter(hidden= true) @CurrentMember Long memberId,
             @PathVariable Long meetingId) {
@@ -110,6 +140,12 @@ public class MeetingController {
             회의명, 날짜, 기간, 참여자 정보를 제공합니다.
             본 API에서 분석결과, 대화기록은 제공하지 않습니다.
             """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_PARAMETER_REQUIRED"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_FOUND")
+    })
     public ApiResponse<MeetingResponse.MeetingDetailDTO> getMeetingDetail(
             @PathVariable Long meetingId) {
         return ApiResponse.onSuccess(meetingQueryService.getMeetingDefaultInfo(meetingId));
@@ -117,6 +153,11 @@ public class MeetingController {
 
     @GetMapping("/meetings/{meetingId}/history")
     @Operation(summary = "회의 대화 기록 조회 API", description = "특정 회의의 대화 기록을 조회하는 API입니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_FOUND")
+    })
     public ApiResponse<MeetingResponse.HistoryListDTO> getHistory(
             @PathVariable Long meetingId) {
         return ApiResponse.onSuccess(null);
@@ -124,6 +165,11 @@ public class MeetingController {
 
     @GetMapping("/meetings/{meetingId}/analysis")
     @Operation(summary = "회의 분석 결과 조회 API", description = "회의 분석 결과를 조회하는 API입니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_FOUND")
+    })
     public ApiResponse<MeetingResponse.AnalysisResultDTO> getAnalysisResult(
             @PathVariable Long meetingId) {
         return ApiResponse.onSuccess(null);
@@ -131,6 +177,11 @@ public class MeetingController {
 
     @GetMapping("/meetings/{meetingId}/audio")
     @Operation(summary = "오디오 리플레이 API", description = "회의 오디오 파일을 리플레이하는 API입니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_FOUND")
+    })
     public ApiResponse<MeetingResponse.AudioDTO> getAudio(
             @PathVariable Long meetingId) {
         return ApiResponse.onSuccess(null);
