@@ -11,9 +11,12 @@ import com.whylog.server.domain.team.repository.TeamRepository;
 import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.domain.user.service.MemberUseCase;
 import com.whylog.server.global.apiPayload.exception.handler.ErrorHandler;
+import com.whylog.server.global.external.s3.ImageType;
+import com.whylog.server.global.external.s3.S3Client;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -22,9 +25,11 @@ public class TeamCommandService {
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final MemberUseCase memberUseCase;
+    private final TeamUseCase teamUseCase;
+    private final S3Client s3Client;
 
     @Transactional
-    public TeamResponse.TeamCreateResponseDTO createTeam(Long memberId, TeamRequest.TeamCreateDTO request){
+    public TeamResponse.TeamCreateResponseDTO createTeam(Long memberId, TeamRequest.TeamCreateDTO request, MultipartFile image){
 
         // 팀명 이미 존재하면 예외 발생
         if(teamRepository.existsByName(request.getName())){
@@ -36,8 +41,13 @@ public class TeamCommandService {
             throw new ErrorHandler(TeamErrorCode.TEAM_NAME_LENGTH);
         }
 
+        String imageKey = null;
+        if( image != null && !image.isEmpty()){
+            imageKey = s3Client.uploadFile(image, ImageType.TEAM_IMAGE);
+        }
+
         // 팀 생성 및 저장
-        Team team = Team.create(request);
+        Team team = Team.create(request, imageKey);
         teamRepository.save(team);
 
         // 팀원으로 등록
@@ -47,12 +57,36 @@ public class TeamCommandService {
         return TeamResponse.TeamCreateResponseDTO.builder()
                 .teamId(team.getId())
                 .name(team.getName())
+                .imageUrl(s3Client.getFileUrl(team.getImage()))
                 .build();
     }
 
-    private void addMember(Team team, Member member, TeamRole role){
-        TeamMember teamMember = TeamMember.create(team, member, role);
-        teamMemberRepository.save(teamMember);
+    @Transactional
+    public TeamResponse.InvitationResponseDTO invite(Long teamId, TeamRequest.InvitationDTO request){
+
+        // 데이터 조회
+        Member member = memberUseCase.findMemberByEmail(request.getMemberEmail());
+        Team team = teamUseCase.findTeamById(teamId);
+
+        // 이미 초대된 경우는 예외처리
+        if (teamMemberRepository.existsByTeamIdAndMemberIdAndActiveTrue(team.getId(), member.getId())) {
+            throw new ErrorHandler(TeamErrorCode.TEAM_MEMBER_ALREADY_EXISTS);
+        }
+
+        // 팀원 추가
+        TeamMember teamMember = addMember(team, member, TeamRole.MEMBER);
+
+        return TeamResponse.InvitationResponseDTO.builder()
+                .teamId(teamMember.getTeam().getId())
+                .memberEmail(teamMember.getMember().getEmail())
+                .build();
     }
+
+    private TeamMember addMember(Team team, Member member, TeamRole role){
+        TeamMember teamMember = TeamMember.create(team, member, role);
+        return teamMemberRepository.save(teamMember);
+    }
+
+
 
 }

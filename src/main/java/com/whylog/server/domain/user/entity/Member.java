@@ -59,6 +59,10 @@ public class Member extends BaseEntity {
                 .build();
     }
 
+    public void updateProfileImage(String profileImage) {
+        this.profileImage = profileImage;
+    }
+
     public void setGithubAccessToken(String token) {
         this.githubAccessToken = token;
     }

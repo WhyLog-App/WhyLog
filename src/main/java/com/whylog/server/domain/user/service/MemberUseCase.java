@@ -18,4 +18,9 @@ public class MemberUseCase {
                 .orElseThrow(MemberNotFoundException::new);
     }
 
+    public Member findMemberByEmail(String email) {
+        return memberRepository.findByEmail(email)
+                .orElseThrow(MemberNotFoundException::new);
+    }
+
 }

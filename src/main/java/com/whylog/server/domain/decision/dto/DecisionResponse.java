@@ -22,7 +22,7 @@ public class DecisionResponse {
         private String name;
 
         @Schema(description = "적용사항 개수", example = "3")
-        private Long applicationCount;
+        private Integer applicationCount;
     }
 
     @Getter

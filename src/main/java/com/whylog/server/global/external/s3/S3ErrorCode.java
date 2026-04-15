@@ -1,4 +1,4 @@
-package com.whylog.server.domain.team.exception;
+package com.whylog.server.global.external.s3;
 
 import com.whylog.server.global.apiPayload.code.BaseErrorCode;
 import com.whylog.server.global.apiPayload.code.ErrorReasonDTO;
@@ -8,19 +8,12 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 @RequiredArgsConstructor
-public enum TeamErrorCode implements BaseErrorCode {
+public enum S3ErrorCode implements BaseErrorCode {
 
-    TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_404", "존재하지 않는 팀입니다."),
-
-    // 400 Bad Request
-    TEAM_NAME_LENGTH(HttpStatus.BAD_REQUEST, "TEAM_400", "팀명 길이는 50글자 미만이어야 합니다."),
-
-    // 409 Conflict
-    TEAM_MEMBER_ALREADY_EXISTS(HttpStatus.CONFLICT, "TEAM_409", "이미 팀에 속한 사용자입니다."),
-
-    // 422 Unprocessable Entity
-    TEAM_NAME_ALREADY_EXISTS(HttpStatus.UNPROCESSABLE_ENTITY, "TEAM_420", "이미 존재하는 팀명입니다.")
-
+    S3_FILE_EMPTY(HttpStatus.BAD_REQUEST, "S3_400_1", "업로드할 파일이 비어있습니다."),
+    S3_FILE_NAME_EMPTY(HttpStatus.BAD_REQUEST, "S3_400_2", "S3 파일명이 비어있습니다."),
+    S3_BUCKET_NOT_CONFIGURED(HttpStatus.INTERNAL_SERVER_ERROR, "S3_500_1", "S3 버킷 설정이 필요합니다."),
+    S3_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S3_500_2", "S3 파일 업로드에 실패했습니다."),
     ;
 
     private final HttpStatus httpStatus;

@@ -16,7 +16,7 @@ public class TeamRequest {
     public static class InvitationDTO {
 
         @Schema(description = "초대받을 사용자 이메일", example = "member@example.com")
-        @NotBlank @Email
+        @Email @NotBlank
         private String memberEmail;
     }
 
@@ -31,6 +31,20 @@ public class TeamRequest {
         @NotBlank
         private String name;
 
+    }
+
+    @Getter
+    @NoArgsConstructor(access = AccessLevel.PROTECTED)
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "팀 생성 multipart 요청")
+    public static class TeamCreateMultipartDTO {
+
+        @Schema(description = "팀 생성 요청 JSON")
+        private TeamCreateDTO request;
+
+        @Schema(description = "팀 이미지 파일", type = "string", format = "binary")
+        private String image;
     }
 
 }
