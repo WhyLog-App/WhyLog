@@ -3,9 +3,14 @@ package com.whylog.server.domain.git.controller;
 import com.whylog.server.domain.git.dto.GitRequest;
 import com.whylog.server.domain.git.dto.GitResponse;
 import com.whylog.server.domain.git.entity.Commit;
+import com.whylog.server.domain.git.exception.GitErrorCode;
 import com.whylog.server.domain.git.service.GitCommandService;
 import com.whylog.server.domain.git.service.GitQueryService;
+import com.whylog.server.domain.team.exception.TeamErrorCode;
 import com.whylog.server.global.apiPayload.ApiResponse;
+import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExample;
+import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExamples;
+import com.whylog.server.global.apiPayload.code.status.ErrorStatus;
 import com.whylog.server.global.auth.annotation.CurrentMember;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -35,6 +40,10 @@ public class GitController {
                     - GitHub Personal Access Token 발급 필요 (repo 권한 포함)
                     - GitHub Settings > Developer settings > Personal access tokens에서 발급
                     """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_INTERNAL_SERVER_ERROR")
+    })
     public ApiResponse<GitResponse.GitHubTokenResponseDTO> registerGitHubToken(
             @Parameter(hidden = true) @CurrentMember Long memberId,
             @Valid @RequestBody GitRequest.GitHubTokenDTO request) {
@@ -51,6 +60,10 @@ public class GitController {
                     1. 최근 동기화한 레포지토리 (동기화 시간 최신순)
                     2. 동기화된 적 없는 레포지토리 (추가한순)
                     """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_NOT_FOUND")
+    })
     public ApiResponse<List<GitResponse.RepositoryDTO>> getRepositories(
             @PathVariable Long teamId) {
         return ApiResponse.onSuccess(
@@ -64,6 +77,12 @@ public class GitController {
     @Operation(
             summary = "GitHub 레포지토리 추가",
             description = "GitHub 레포지토리를 팀에 연동합니다. 등록 시에는 레포 정보만 저장되며, 커밋은 동기화 API를 호출할 때 수집됩니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "INVALID_GITHUB_URL"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "GITHUB_TOKEN_NOT_REGISTERED"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "GITHUB_TOKEN_EXPIRED")
+    })
     public ApiResponse<GitResponse.RepositoryCreateResponseDTO> createRepository(
             @Parameter(hidden = true) @CurrentMember Long memberId,
             @PathVariable Long teamId,
@@ -76,6 +95,12 @@ public class GitController {
     @Operation(
             summary = "GitHub 레포지토리 동기화",
             description = "등록된 레포지토리의 최신 커밋을 DB에 저장합니다. 마지막 동기화 이후의 새 커밋만 저장되며 Merge 커밋은 제외됩니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "REPOSITORY_NOT_FOUND"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "GITHUB_TOKEN_NOT_REGISTERED"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "GITHUB_TOKEN_EXPIRED")
+    })
     public ApiResponse<GitResponse.RepositorySyncResponseDTO> syncRepository(
             @Parameter(hidden = true) @CurrentMember Long memberId,
             @PathVariable Long repositoryId) {
@@ -100,6 +125,10 @@ public class GitController {
                     - nextCursorId: 다음 요청에 사용할 커서 ID
                     - isFirst: 첫 페이지 여부
                     """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "REPOSITORY_NOT_FOUND")
+    })
     public ApiResponse<GitResponse.CommitListResponseDTO> getCommitsCursor(
             @PathVariable Long repositoryId,
             @Parameter(description = "이전 조회의 마지막 커밋 ID (첫 요청 시 생략)")
@@ -130,6 +159,11 @@ public class GitController {
                     💡 프론트 구현시 참고 사항:
                     - changedCode를 react-diff-viewer-continued 라이브러리 사용하면 될거같으니 참고해주세요!
                     """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "COMMIT_NOT_FOUND"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "GITHUB_TOKEN_NOT_REGISTERED")
+    })
     public ApiResponse<GitResponse.CommitDetailDTO> getCommitDetail(
             @Parameter(hidden = true) @CurrentMember Long memberId,
             @PathVariable Long repositoryId,
