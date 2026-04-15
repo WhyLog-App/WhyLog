@@ -3,9 +3,13 @@ package com.whylog.server.domain.team.controller;
 import com.whylog.server.domain.decision.dto.DecisionResponse;
 import com.whylog.server.domain.team.dto.TeamRequest;
 import com.whylog.server.domain.team.dto.TeamResponse;
+import com.whylog.server.domain.team.exception.TeamErrorCode;
 import com.whylog.server.domain.team.service.TeamCommandService;
 import com.whylog.server.domain.team.service.TeamQueryService;
+import com.whylog.server.domain.user.exception.MemberErrorStatus;
 import com.whylog.server.global.apiPayload.ApiResponse;
+import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExample;
+import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExamples;
 import com.whylog.server.global.auth.annotation.CurrentMember;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Encoding;
@@ -46,17 +50,13 @@ public class TeamController {
 
     @PostMapping("/{teamId}/invitations")
     @Operation(summary = "팀 초대 API", description = """
-            
             특정 사용자를 팀에 초대합니다. 팀 초대를 하면 상대는 즉시 팀원으로 추가됩니다.
-
-            | 상황 | HTTP Status | Code | Message |
-            | --- | --- | --- | --- |
-            | 성공 | 200 OK | COMMON200 | 성공입니다. |
-            | 이미 팀에 속한 사용자 | 409 Conflict | TEAM_409 | 이미 팀에 속한 사용자입니다. |
-            | 팀 없음 | 404 Not Found | TEAM_404 | 존재하지 않는 팀입니다. |
-            | 사용자 없음 | 404 Not Found | MEMBER_404 | 찾을 수 없는 유저입니다. |
-            
             """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_NOT_FOUND"),
+            @ApiErrorCodeExample(value = MemberErrorStatus.class, name = "MEMBER_NOT_FOUND"),
+            @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_MEMBER_ALREADY_EXISTS")
+    })
     public ApiResponse<TeamResponse.InvitationResponseDTO> sendInvitation(
             @PathVariable Long teamId,
             @Valid @RequestBody TeamRequest.InvitationDTO request) {
@@ -99,6 +99,10 @@ public class TeamController {
                     )
             )
     )
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_NAME_ALREADY_EXISTS"),
+            @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_NAME_LENGTH")
+    })
     public ApiResponse<TeamResponse.TeamCreateResponseDTO> createTeam(
             @Parameter(hidden = true) @CurrentMember Long memberId,
             @Parameter(hidden = true) @Valid @RequestPart("request") TeamRequest.TeamCreateDTO request,
