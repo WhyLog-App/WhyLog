@@ -40,4 +40,15 @@ public class TeamResponse {
 
     }
 
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "팀 제거 응답")
+    public static class TeamRemoveResponseDTO {
+
+        @Schema(description = "제거 성공 여부", example = "true")
+        private Boolean isRemoved;
+    }
+
 }

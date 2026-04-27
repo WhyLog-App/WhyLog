@@ -22,13 +22,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -124,6 +118,26 @@ public class TeamController {
             @Parameter(hidden = true) @RequestPart(value = "image", required = false) MultipartFile image
     ) {
         return ApiResponse.onSuccess(teamCommandService.createTeam(memberId, request, image));
+    }
+
+    @DeleteMapping("/{teamId}")
+    @Operation(summary = "팀 제거 api", description = """
+            
+            팀 제거 API입니다.<br>
+            팀을 제거하면 관련된 데이터( 팀원, 회의, 저장소 ) 정보도 함께 제거됩니다.
+            
+            """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_NOT_FOUND"),
+            @ApiErrorCodeExample(value = TeamErrorCode.class, name = "TEAM_NOT_OWNER")
+    })
+    public ApiResponse<TeamResponse.TeamRemoveResponseDTO> removeTeam(
+            @CurrentMember Long memberId,
+            @PathVariable Long teamId
+    ) {
+        return ApiResponse.onSuccess(teamCommandService.removeTeam(memberId, teamId));
     }
 
 }

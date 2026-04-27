@@ -14,6 +14,7 @@ public enum S3ErrorCode implements BaseErrorCode {
     S3_FILE_NAME_EMPTY(HttpStatus.BAD_REQUEST, "S3_400_2", "S3 파일명이 비어있습니다."),
     S3_BUCKET_NOT_CONFIGURED(HttpStatus.INTERNAL_SERVER_ERROR, "S3_500_1", "S3 버킷 설정이 필요합니다."),
     S3_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S3_500_2", "S3 파일 업로드에 실패했습니다."),
+    S3_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S3_500_3", "S3 파일 삭제에 실패했습니다."),
     ;
 
     private final HttpStatus httpStatus;

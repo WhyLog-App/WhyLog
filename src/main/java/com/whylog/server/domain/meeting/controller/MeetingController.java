@@ -134,6 +134,24 @@ public class MeetingController {
         return ApiResponse.onSuccess(meetingCommandService.endMeeting(memberId, meetingId));
     }
 
+    @DeleteMapping("/meetings/{meetingId}")
+    @Operation(summary = "회의 삭제 API", description = """
+            특정 회의를 삭제하는 API입니다.
+            회의 삭제 시 회의 참여자, 대화 기록, 결정사항, 분석 데이터가 함께 삭제됩니다.
+            """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_FOUND"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_OWNER")
+    })
+    public ApiResponse<MeetingResponse.MeetingDeleteResponseDTO> deleteMeeting(
+            @Parameter(hidden = true) @CurrentMember Long memberId,
+            @PathVariable Long meetingId
+    ) {
+        return ApiResponse.onSuccess(meetingCommandService.deleteMeeting(memberId, meetingId));
+    }
+
     @GetMapping("/meetings/{meetingId}")
     @Operation(summary = "회의 기본 정보 조회 API", description = """
             특정 회의의 기본 정보를 조회하는 API입니다.

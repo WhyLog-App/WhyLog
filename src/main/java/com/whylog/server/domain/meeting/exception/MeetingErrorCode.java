@@ -13,6 +13,7 @@ public enum MeetingErrorCode implements BaseErrorCode {
     MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "MEETING_404", "존재하지 않는 회의입니다."),
     MEETING_ALREADY_ENDED(HttpStatus.CONFLICT, "MEETING_409", "이미 종료된 회의입니다."),
     MEETING_INVALID_MEMBER(HttpStatus.CONFLICT, "MEETING_410", "회의에 소속된 참여자가 아닙니다."),
+    MEETING_NOT_OWNER(HttpStatus.FORBIDDEN, "MEETING_403", "회의 삭제 권한이 없습니다."),
     ;
 
     private final HttpStatus httpStatus;

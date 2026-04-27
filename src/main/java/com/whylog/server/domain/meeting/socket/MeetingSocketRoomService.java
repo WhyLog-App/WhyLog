@@ -7,26 +7,36 @@ import com.whylog.server.domain.meeting.socket.message.ParticipantSummary;
 import com.whylog.server.domain.meeting.socket.repository.MeetingRoomRepository;
 import com.whylog.server.domain.meeting.socket.repository.MeetingSocketRoomRepository;
 import com.whylog.server.global.util.json.JsonConverter;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketMessage;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 // 회의별 참가자 세션 저장소 역할을 하며 텍스트/오디오 메시지 전달을 담당합니다.
 @Service
-@RequiredArgsConstructor
 public class MeetingSocketRoomService {
 
     private final MeetingRepository meetingRepository;
     private final MeetingSocketRoomRepository meetingSocketRoomRepository;
+    private final Executor meetingSocketDispatchExecutor;
+
+    public MeetingSocketRoomService(
+            MeetingRepository meetingRepository,
+            MeetingSocketRoomRepository meetingSocketRoomRepository,
+            @Qualifier("meetingSocketDispatchExecutor") Executor meetingSocketDispatchExecutor
+    ) {
+        this.meetingRepository = meetingRepository;
+        this.meetingSocketRoomRepository = meetingSocketRoomRepository;
+        this.meetingSocketDispatchExecutor = meetingSocketDispatchExecutor;
+    }
 
     // 웹소켓으로 연결하려는 회의가 DB에 실제로 존재하는지 확인합니다.
     @Transactional(readOnly = true)
@@ -79,34 +89,39 @@ public class MeetingSocketRoomService {
 
     // 텍스트 메시지를 회의방의 모든 참가자에게 브로드캐스트합니다.
     public void broadcastText(Long meetingId, String payload) {
-        broadcast(
+        dispatch(() -> broadcast(
                 meetingId,
                 participant -> new TextMessage(payload),
-                participant -> false);
+                participant -> false));
+    }
+
+    // 채팅 메시지를 별도 경로로 브로드캐스트합니다.
+    public void broadcastChatText(Long meetingId, String payload) {
+        dispatch(() -> broadcast(
+                meetingId,
+                participant -> new TextMessage(payload),
+                participant -> false));
+    }
+
+    // 실시간 자막/STT 메시지를 채팅과 분리해 브로드캐스트합니다.
+    public void broadcastSpeechText(Long meetingId, String payload) {
+        dispatch(() -> broadcast(
+                meetingId,
+                participant -> new TextMessage(payload),
+                participant -> false));
+    }
+
+    // 오디오 텍스트 변환 결과를 별도 경로로 브로드캐스트합니다.
+    public void broadcastAudioText(Long meetingId, String payload) {
+        dispatch(() -> broadcast(
+                meetingId,
+                participant -> new TextMessage(payload),
+                participant -> false));
     }
 
     // 특정 대상 참가자 한 명에게만 시그널링 메시지를 전달합니다.
     public void sendToMember(Long meetingId, Long targetMemberId, String payload) {
-        MeetingRoomRepository room = getRoom(meetingId);
-        if (room == null) {
-            return;
-        }
-
-        room.participants().stream()
-                .filter(participant -> participant.memberId().equals(targetMemberId))
-                .findFirst()
-                .ifPresent(participant -> {
-                    if (!participant.socketSession().isOpen()) {
-                        leave(meetingId, participant.sessionId());
-                        return;
-                    }
-
-                    try {
-                        participant.socketSession().sendMessage(new TextMessage(payload));
-                    } catch (IOException exception) {
-                        leave(meetingId, participant.sessionId());
-                    }
-                });
+        dispatch(() -> sendToMemberInternal(meetingId, targetMemberId, payload));
     }
 
     // 회의 종료 메시지를 현재 회의방 참가자 전체에게 전송합니다.
@@ -131,6 +146,27 @@ public class MeetingSocketRoomService {
         return meetingSocketRoomRepository.findByMeetingId(meetingId);
     }
 
+    private void dispatch(Runnable task) {
+        try {
+            meetingSocketDispatchExecutor.execute(task);
+        } catch (RuntimeException exception) {
+            task.run();
+        }
+    }
+
+    private void sendToMemberInternal(Long meetingId, Long targetMemberId, String payload) {
+        MeetingRoomRepository room = getRoom(meetingId);
+        if (room == null) {
+            return;
+        }
+
+        room.participantsByMemberId(targetMemberId).forEach(participant -> {
+            if (!sendMessage(participant, new TextMessage(payload))) {
+                leave(meetingId, participant.sessionId());
+            }
+        });
+    }
+
     // 회의방 참가자 전체를 순회하면서 메시지를 보내고 끊어진 세션은 정리합니다.
     private void broadcast(
             Long meetingId,
@@ -144,7 +180,7 @@ public class MeetingSocketRoomService {
         }
 
         List<MeetingParticipant> disconnectedParticipants = new ArrayList<>();
-        for (MeetingParticipant participant : room.participants()) {
+        for (MeetingParticipant participant : new ArrayList<>(room.participants())) {
             if (skipCondition.apply(participant)) {
                 continue;
             }
@@ -166,7 +202,7 @@ public class MeetingSocketRoomService {
         try {
             participant.socketSession().sendMessage(message);
             return true;
-        } catch (IOException exception) {
+        } catch (Exception exception) {
             return false;
         }
     }

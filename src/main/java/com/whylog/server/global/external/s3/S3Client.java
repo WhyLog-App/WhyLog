@@ -11,6 +11,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @Slf4j
@@ -72,6 +73,28 @@ public class S3Client {
 
         String encodedFileName = encodeS3Key(fileName);
         return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + encodedFileName;
+    }
+
+    public void deleteFile(String fileName) {
+        if (!StringUtils.hasText(fileName)) {
+            return;
+        }
+
+        if (!StringUtils.hasText(bucket)) {
+            throw new S3Exception(S3ErrorCode.S3_BUCKET_NOT_CONFIGURED);
+        }
+
+        DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                .bucket(bucket)
+                .key(fileName)
+                .build();
+
+        try {
+            s3Client.deleteObject(deleteObjectRequest);
+        } catch (software.amazon.awssdk.services.s3.model.S3Exception | SdkClientException e) {
+            log.error("S3 삭제 에러 발생: {}", e.getMessage());
+            throw new S3Exception(S3ErrorCode.S3_DELETE_FAILED);
+        }
     }
 
     // ------------------------------------------------------------------------------------------------------------------------------
