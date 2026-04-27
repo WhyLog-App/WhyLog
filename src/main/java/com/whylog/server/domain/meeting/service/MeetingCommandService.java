@@ -5,20 +5,25 @@ import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.domain.meeting.entity.Meeting;
 import com.whylog.server.domain.meeting.entity.MeetingMember;
 import com.whylog.server.domain.meeting.enums.MeetingRole;
+import com.whylog.server.domain.meeting.exception.MeetingErrorCode;
 import com.whylog.server.domain.meeting.exception.MeetingAlreadyEndedException;
 import com.whylog.server.domain.meeting.exception.MeetingInvalidMemberException;
 import com.whylog.server.domain.meeting.exception.MeetingNotFoundException;
 import com.whylog.server.domain.meeting.repository.MeetingMemberRepository;
 import com.whylog.server.domain.meeting.repository.MeetingRepository;
 import com.whylog.server.domain.meeting.socket.MeetingSocketRoomService;
+import com.whylog.server.domain.meeting.service.MeetingCleanupService;
 import com.whylog.server.domain.team.entity.Team;
 import com.whylog.server.domain.team.service.TeamUseCase;
 import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.domain.user.service.MemberUseCase;
+import com.whylog.server.global.apiPayload.exception.handler.ErrorHandler;
 import com.whylog.server.global.apiPayload.exception.ParameterRequiredException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 
@@ -28,6 +33,7 @@ public class MeetingCommandService {
 
     private final MeetingMemberRepository meetingMemberRepository;
     private final MeetingRepository meetingRepository;
+    private final MeetingCleanupService meetingCleanupService;
 
     private final MemberUseCase memberUseCase;
     private final TeamUseCase teamUseCase;
@@ -104,6 +110,38 @@ public class MeetingCommandService {
                 .meetingId(meeting.getId())
                 .endDateTime(endDateTime)
                 .build();
+    }
+
+    @Transactional
+    public MeetingResponse.MeetingDeleteResponseDTO deleteMeeting(Long memberId, Long meetingId) {
+
+        meetingRepository.findById(meetingId)
+                .orElseThrow(MeetingNotFoundException::new);
+
+        meetingMemberRepository.findOwnerMeetingMember(memberId, meetingId, MeetingRole.OWNER)
+                .orElseThrow(() -> new ErrorHandler(MeetingErrorCode.MEETING_NOT_OWNER));
+
+        meetingCleanupService.deleteByMeetingId(meetingId);
+        scheduleAfterCommit(() -> meetingSocketRoomService.closeRoom(meetingId));
+
+        return MeetingResponse.MeetingDeleteResponseDTO.builder()
+                .meetingId(meetingId)
+                .isRemoved(true)
+                .build();
+    }
+
+    private void scheduleAfterCommit(Runnable task) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    task.run();
+                }
+            });
+            return;
+        }
+
+        task.run();
     }
 
 }

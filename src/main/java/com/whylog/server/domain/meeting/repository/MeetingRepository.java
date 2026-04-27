@@ -1,9 +1,8 @@
 package com.whylog.server.domain.meeting.repository;
 
 import com.whylog.server.domain.meeting.entity.Meeting;
-import com.whylog.server.domain.meeting.enums.MeetingStatus;
-import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,19 +12,33 @@ import java.util.Optional;
 public interface MeetingRepository extends JpaRepository<Meeting, Long> {
 
     @Query("""
-        SELECT m FROM Meeting m
-        LEFT JOIN FETCH Team t
-            ON t.id = :teamId
+        SELECT m
+        FROM Meeting m
+        WHERE m.team.id = :teamId
     """)
     List<Meeting> findByTeamId(@Param("teamId") Long teamId);
 
     @Query("""
-        SELECT m FROM Meeting m
-        LEFT JOIN FETCH MeetingMember mm
-            ON mm.meeting.id = m.id
+        SELECT DISTINCT m
+        FROM Meeting m
+        LEFT JOIN FETCH m.meetingMembers
         WHERE m.id = :meetingId
     """)
     Optional<Meeting> findWithMembers(@Param("meetingId") Long meetingId);
+
+    @Query("""
+        SELECT m.id
+        FROM Meeting m
+        WHERE m.team.id = :teamId
+    """)
+    List<Long> findIdsByTeamId(@Param("teamId") Long teamId);
+
+    @Modifying
+    @Query("""
+        DELETE FROM Meeting m
+        WHERE m.team.id = :teamId
+    """)
+    void deleteByTeamId(@Param("teamId") Long teamId);
 
 
 }

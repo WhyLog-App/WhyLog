@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 public enum TeamErrorCode implements BaseErrorCode {
 
     TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_404", "존재하지 않는 팀입니다."),
+    TEAM_NOT_OWNER(HttpStatus.FORBIDDEN, "TEAM_403", "팀 삭제 권한이 없습니다."),
 
     // 400 Bad Request
     TEAM_NAME_LENGTH(HttpStatus.BAD_REQUEST, "TEAM_400", "팀명 길이는 50글자 미만이어야 합니다."),

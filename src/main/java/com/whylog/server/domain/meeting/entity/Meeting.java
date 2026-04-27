@@ -1,5 +1,6 @@
 package com.whylog.server.domain.meeting.entity;
 
+import com.whylog.server.domain.decision.entity.Decision;
 import com.whylog.server.domain.meeting.dto.MeetingRequest;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
 import com.whylog.server.domain.team.entity.Team;
@@ -90,11 +91,11 @@ public class Meeting extends BaseEntity {
     @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<MeetingMember> meetingMembers = new ArrayList<>();
 //
-//    @OneToOne(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final MeetingAnalysis meetingAnalyses;
+    @OneToOne(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
+    private final MeetingAnalysis meetingAnalyses = new MeetingAnalysis();
 //
-//    @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<Dialogue> dialogues = new ArrayList<>();
+    @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
+    private final List<Dialogue> dialogues = new ArrayList<>();
 //
 //    @OneToOne(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private Decision decision;

@@ -1,5 +1,7 @@
 package com.whylog.server.domain.team.entity;
 
+import com.whylog.server.domain.git.entity.Repository;
+import com.whylog.server.domain.meeting.entity.Meeting;
 import com.whylog.server.domain.team.dto.TeamRequest;
 import com.whylog.server.global.entity.BaseEntity;
 import jakarta.persistence.CascadeType;
@@ -47,12 +49,12 @@ public class Team extends BaseEntity {
                 .build();
     }
 
-//    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<TeamMember> teamMembers = new ArrayList<>();
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
+    private final List<TeamMember> teamMembers = new ArrayList<>();
 //
-//    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<com.whylog.server.domain.meeting.entity.Meeting> meetings = new ArrayList<>();
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
+    private final List<Meeting> meetings = new ArrayList<>();
 //
-//    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<com.whylog.server.domain.git.entity.Repository> repositories = new ArrayList<>();
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
+    private final List<Repository> repositories = new ArrayList<>();
 }

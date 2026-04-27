@@ -96,6 +96,20 @@ public class MeetingResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    @Schema(description = "회의 삭제 응답")
+    public static class MeetingDeleteResponseDTO {
+
+        @Schema(description = "회의 ID", example = "1")
+        private Long meetingId;
+
+        @Schema(description = "삭제 성공 여부", example = "true")
+        private Boolean isRemoved;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     @Schema(description = "회의 SFU 접속 토큰 응답")
     public static class MeetingRtcTokenDTO {
 
