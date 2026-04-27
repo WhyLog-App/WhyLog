@@ -50,7 +50,7 @@ public class MeetingRtcService {
         this.liveKitTokenExpireTime = liveKitTokenExpireTime;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public MeetingResponse.MeetingRtcTokenDTO issueRtcToken(Long memberId, Long meetingId) {
         Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(MeetingNotFoundException::new);
@@ -73,7 +73,6 @@ public class MeetingRtcService {
         if (meetingMemberRepository.existsByMemberIdAndMeetingId(member.getId(), meeting.getId())) {
             return;
         }
-
         meetingMemberRepository.save(MeetingMember.create(meeting, member, MeetingRole.GENERAL));
     }
 
