@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.whylog.server.domain.meeting.socket.message.*;
 import com.whylog.server.global.util.json.JsonConverter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -11,6 +12,7 @@ import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.BinaryWebSocketHandler;
 
 import java.time.Instant;
@@ -19,15 +21,19 @@ import java.util.Optional;
 
 // 회의 웹소켓 연결의 입장, 퇴장, 텍스트 메시지, 오디오 바이너리 중계를 처리합니다.
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class MeetingSocketHandler extends BinaryWebSocketHandler {
+
+    private static final int SESSION_SEND_TIME_LIMIT_MS = 10_000;
+    private static final int SESSION_BUFFER_SIZE_LIMIT_BYTES = 512 * 1024;
 
     private final MeetingSocketRoomService meetingSocketRoomService;
 
     // 웹소켓 연결 직후 참가자를 방에 등록하고 현재 참여자 목록과 입장 이벤트를 전파합니다.
     @Override
     public void afterConnectionEstablished(@NonNull WebSocketSession session) throws Exception {
-        MeetingParticipant participant = createParticipant(session);
+        MeetingParticipant participant = createParticipant(session, decorate(session));
         if (!meetingSocketRoomService.existsMeeting(participant.meetingId())) {
             session.close(CloseStatus.BAD_DATA);
             return;
@@ -65,16 +71,45 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
         }
 
         switch (type) {
-            case CHAT, SPEECH, AUDIO_TEXT -> meetingSocketRoomService.broadcastText(
-                    participant.meetingId(),
-                    JsonConverter.toJson(MeetingTextMessage.createTextMessage(
-                            participant,
-                            type,
-                            null,
-                            Optional.ofNullable(incoming.text()).orElse(""),
-                            incoming.payload()
-                    ))
-            );
+            case CHAT -> {
+                logIncomingText(participant, type, incoming);
+                meetingSocketRoomService.broadcastChatText(
+                        participant.meetingId(),
+                        JsonConverter.toJson(MeetingTextMessage.createTextMessage(
+                                participant,
+                                type,
+                                null,
+                                Optional.ofNullable(incoming.text()).orElse(""),
+                                incoming.payload()
+                        ))
+                );
+            }
+            case SPEECH -> {
+                logIncomingText(participant, type, incoming);
+                meetingSocketRoomService.broadcastSpeechText(
+                        participant.meetingId(),
+                        JsonConverter.toJson(MeetingTextMessage.createTextMessage(
+                                participant,
+                                type,
+                                null,
+                                Optional.ofNullable(incoming.text()).orElse(""),
+                                incoming.payload()
+                        ))
+                );
+            }
+            case AUDIO_TEXT -> {
+                logIncomingText(participant, type, incoming);
+                meetingSocketRoomService.broadcastAudioText(
+                        participant.meetingId(),
+                        JsonConverter.toJson(MeetingTextMessage.createTextMessage(
+                                participant,
+                                type,
+                                null,
+                                Optional.ofNullable(incoming.text()).orElse(""),
+                                incoming.payload()
+                        ))
+                );
+            }
             case OFFER, ANSWER, ICE -> {
                 if (incoming.targetMemberId() == null) {
                     sendError(session, "targetMemberId is required for " + type.value());
@@ -150,6 +185,10 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
 
     // 핸드셰이크에서 저장한 속성으로 참가자 정보를 복원합니다.
     private MeetingParticipant createParticipant(WebSocketSession session) {
+        return createParticipant(session, session);
+    }
+
+    private MeetingParticipant createParticipant(WebSocketSession session, WebSocketSession outboundSession) {
         Long meetingId = getAttribute(session, MeetingSocketAuthInterceptor.MEETING_ID_ATTRIBUTE, Long.class);
         Long memberId = getAttribute(session, MeetingSocketAuthInterceptor.MEMBER_ID_ATTRIBUTE, Long.class);
         String name = getAttribute(session, MeetingSocketAuthInterceptor.MEMBER_NAME_ATTRIBUTE, String.class);
@@ -158,7 +197,7 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
             throw new IllegalStateException("WebSocket participant attributes are missing");
         }
 
-        return new MeetingParticipant(session.getId(), memberId, name, meetingId, session);
+        return new MeetingParticipant(session.getId(), memberId, name, meetingId, outboundSession);
     }
 
     // 잘못된 요청이나 지원하지 않는 타입에 대한 에러 메시지를 클라이언트에 보냅니다.
@@ -189,8 +228,30 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
     }
 
     // 웹소켓 메시지에 사용할 현재 시각 문자열을 생성합니다.
-    private String now() {
+        private String now() {
         return Instant.now().toString();
+    }
+
+    private String logIncomingText(MeetingParticipant participant, MeetingMessageType type, MeetingSocketMessage incoming) {
+        String text = Optional.ofNullable(incoming.text()).orElse("");
+        log.info(
+                "meeting text received: meetingId={}, memberId={}, name={}, type={}, targetMemberId={}, text={}",
+                participant.meetingId(),
+                participant.memberId(),
+                participant.name(),
+                type.value(),
+                incoming.targetMemberId(),
+                text
+        );
+        return text;
+    }
+
+    private WebSocketSession decorate(WebSocketSession session) {
+        return new ConcurrentWebSocketSessionDecorator(
+                session,
+                SESSION_SEND_TIME_LIMIT_MS,
+                SESSION_BUFFER_SIZE_LIMIT_BYTES
+        );
     }
 
 }
