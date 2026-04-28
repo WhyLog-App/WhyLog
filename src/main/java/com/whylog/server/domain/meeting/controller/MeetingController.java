@@ -194,11 +194,19 @@ public class MeetingController {
     }
 
     @GetMapping("/meetings/{meetingId}/audio")
-    @Operation(summary = "오디오 리플레이 API", description = "회의 오디오 파일을 리플레이하는 API입니다.")
+    @Operation(summary = "오디오 리플레이 API", description = """
+            회의 녹음본을 재생할 수 있는 정보를 조회하는 API입니다.
+
+            응답의 `audioUrl`은 10분짜리 presigned URL입니다.
+            클라인트는 이 URL을 `<audio src>` 또는 `new Audio(audioUrl)`로 바로 재생하면 됩니다.
+
+            `audioDuration`은 초 단위 재생 시간이며, 아직 파일이 없거나 길이를 확인할 수 없으면 `null`로 내려갑니다.
+            """)
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
-            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_FOUND")
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_FOUND"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_AUDIO_NOT_READY")
     })
     public ApiResponse<MeetingResponse.AudioDTO> getAudio(
             @PathVariable Long meetingId) {

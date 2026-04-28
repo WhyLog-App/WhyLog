@@ -25,6 +25,8 @@ public class MeetingQueryService {
     private final S3Client s3Client;
     private final MeetingRepository meetingRepository;
 
+    private static final int presignedUrlExpirationTime = 10; // 2시간
+
     // 미팅 목록 조회
     @Transactional(readOnly = true)
     public List<MeetingResponse.MeetingListDTO> getMeetings(Long teamId, MeetingStatus status){
@@ -64,7 +66,7 @@ public class MeetingQueryService {
                 .duration(meeting.getDuration())
                 .memberCount( meetingUseCase.getMeetingMemberCount(meeting) )
                 .members( memberToParticipantsInfo(meetingUseCase.getParticipantsInfo(meeting)) )
-                .audioDuration(resolveAudioDuration(resolveAudioKey(meeting)))
+                .audioDuration(resolveAudioDuration(meeting))
                 .build();
     }
 
@@ -92,7 +94,7 @@ public class MeetingQueryService {
                 .audioKey(audioKey)
                 .audioUrl(s3Client.getPresignedFileUrl(
                         audioKey,
-                        Duration.ofMinutes(10),
+                        Duration.ofMinutes(presignedUrlExpirationTime),
                         meetingAudioFileService.resolveResponseContentType(audioKey)
                 ))
                 .audioDuration(resolveAudioDuration(audioKey))
@@ -122,6 +124,20 @@ public class MeetingQueryService {
             return null;
         }
         return meetingAudioDurationService.resolveAudioDurationSeconds(audioKey);
+    }
+
+    private Integer resolveAudioDuration(Meeting meeting) {
+        String audioKey = meeting.getAudioKey();
+        if (isPlayableAudioKey(audioKey)) {
+            return resolveAudioDuration(audioKey);
+        }
+
+        String alternateAudioKey = meetingAudioFileService.alternateKey(audioKey);
+        if (isPlayableAudioKey(alternateAudioKey)) {
+            return resolveAudioDuration(alternateAudioKey);
+        }
+
+        return null;
     }
 
 }

@@ -154,7 +154,11 @@ public class MeetingResponse {
         @Schema(description = "회의 참여자 목록", example = "[1, 2, 3]")
         private List<MeetingParticipantInfo> members;
 
-        @Schema(description = "녹음 재생 시간(초)", example = "120")
+        @Schema(
+                description = "녹음 파일의 재생 시간(초). 녹음본이 아직 없거나 길이를 확인할 수 없으면 null 입니다.",
+                example = "120",
+                nullable = true
+        )
         private Integer audioDuration;
     }
 
@@ -227,18 +231,25 @@ public class MeetingResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    @Schema(description = "회의 오디오 응답")
+    @Schema(description = "회의 오디오 응답. 프론트엔드는 audioUrl을 <audio src> 또는 Audio()로 바로 재생하면 됩니다.")
     public static class AudioDTO {
         @Schema(description = "회의 ID", example = "1")
         private Long meetingId;
 
-        @Schema(description = "오디오 저장 키", example = "recordings/meeting-1/audio.mp4")
+        @Schema(description = "실제 재생 가능한 오디오 저장 키(S3 object key). 예: recordings/meeting-1-audio.mp4", example = "recordings/meeting-1-audio.mp4")
         private String audioKey;
 
-        @Schema(description = "오디오 URL", example = "https://example.com/audio/meeting-1.mp3")
+        @Schema(
+                description = "10분짜리 presigned URL. 브라우저는 이 URL로 오디오를 직접 받아 재생합니다.",
+                example = "https://example.com/presigned-audio-url"
+        )
         private String audioUrl;
 
-        @Schema(description = "녹음 재생 시간(초)", example = "120")
+        @Schema(
+                description = "녹음 파일의 재생 시간(초). 아직 파일이 없거나 길이를 알 수 없으면 null 입니다.",
+                example = "120",
+                nullable = true
+        )
         private Integer audioDuration;
     }
 
