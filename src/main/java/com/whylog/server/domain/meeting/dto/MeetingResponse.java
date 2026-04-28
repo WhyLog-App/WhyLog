@@ -153,6 +153,9 @@ public class MeetingResponse {
 
         @Schema(description = "회의 참여자 목록", example = "[1, 2, 3]")
         private List<MeetingParticipantInfo> members;
+
+        @Schema(description = "녹음 재생 시간(초)", example = "120")
+        private Integer audioDuration;
     }
 
     @Getter
@@ -234,6 +237,9 @@ public class MeetingResponse {
 
         @Schema(description = "오디오 URL", example = "https://example.com/audio/meeting-1.mp3")
         private String audioUrl;
+
+        @Schema(description = "녹음 재생 시간(초)", example = "120")
+        private Integer audioDuration;
     }
 
     @Getter

@@ -21,6 +21,7 @@ public class MeetingQueryService {
 
     private final MeetingUseCase meetingUseCase;
     private final MeetingAudioFileService meetingAudioFileService;
+    private final MeetingAudioDurationService meetingAudioDurationService;
     private final S3Client s3Client;
     private final MeetingRepository meetingRepository;
 
@@ -63,6 +64,7 @@ public class MeetingQueryService {
                 .duration(meeting.getDuration())
                 .memberCount( meetingUseCase.getMeetingMemberCount(meeting) )
                 .members( memberToParticipantsInfo(meetingUseCase.getParticipantsInfo(meeting)) )
+                .audioDuration(resolveAudioDuration(resolveAudioKey(meeting)))
                 .build();
     }
 
@@ -93,6 +95,7 @@ public class MeetingQueryService {
                         Duration.ofMinutes(10),
                         meetingAudioFileService.resolveResponseContentType(audioKey)
                 ))
+                .audioDuration(resolveAudioDuration(audioKey))
                 .build();
     }
 
@@ -112,6 +115,13 @@ public class MeetingQueryService {
 
     private boolean isPlayableAudioKey(String audioKey) {
         return audioKey != null && !audioKey.isBlank() && s3Client.exists(audioKey);
+    }
+
+    private Integer resolveAudioDuration(String audioKey) {
+        if (audioKey == null || audioKey.isBlank()) {
+            return null;
+        }
+        return meetingAudioDurationService.resolveAudioDurationSeconds(audioKey);
     }
 
 }
