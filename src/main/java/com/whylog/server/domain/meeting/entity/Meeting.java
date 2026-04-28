@@ -92,7 +92,7 @@ public class Meeting extends BaseEntity {
     private final List<MeetingMember> meetingMembers = new ArrayList<>();
 //
     @OneToOne(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
-    private final MeetingAnalysis meetingAnalyses = new MeetingAnalysis();
+    private MeetingAnalysis meetingAnalysis;
 //
     @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<Dialogue> dialogues = new ArrayList<>();
