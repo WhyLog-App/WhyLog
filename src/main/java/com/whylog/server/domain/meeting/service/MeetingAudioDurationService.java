@@ -1,6 +1,5 @@
 package com.whylog.server.domain.meeting.service;
 
-import com.whylog.server.global.external.s3.S3Client;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -8,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -15,28 +15,22 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MeetingAudioDurationService {
 
-    private static final String FFPROBE_COMMAND = "/opt/homebrew/bin/ffprobe";
+    @Value("${audio.ffprobe-command}")
+    private String ffprobeCommand;
 
-    private final S3Client s3Client;
-
-    public Integer resolveAudioDurationSeconds(String audioKey) {
-        if (audioKey == null || audioKey.isBlank()) {
+    public Integer resolveAudioDurationSeconds(String audioUrl) {
+        if (audioUrl == null || audioUrl.isBlank()) {
             return null;
         }
 
-        String presignedUrl = s3Client.getPresignedFileUrl(audioKey, java.time.Duration.ofMinutes(5));
-        if (presignedUrl == null || presignedUrl.isBlank()) {
-            return null;
-        }
-
-        return probeDurationSeconds(presignedUrl);
+        return probeDurationSeconds(audioUrl);
     }
 
     private Integer probeDurationSeconds(String audioUrl) {
         Process process;
         try {
             process = new ProcessBuilder(
-                    FFPROBE_COMMAND,
+                    ffprobeCommand,
                     "-v", "error",
                     "-show_entries", "format=duration",
                     "-of", "default=noprint_wrappers=1:nokey=1",

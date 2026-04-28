@@ -3,29 +3,20 @@ package com.whylog.server.domain.meeting.service;
 import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.domain.meeting.entity.Meeting;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
-import com.whylog.server.domain.meeting.exception.MeetingAudioNotReadyException;
-import com.whylog.server.domain.meeting.repository.MeetingRepository;
 import com.whylog.server.domain.user.entity.Member;
-import com.whylog.server.global.external.s3.S3Client;
 import com.whylog.server.global.apiPayload.exception.ParameterRequiredException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
 public class MeetingQueryService {
 
     private final MeetingUseCase meetingUseCase;
-    private final MeetingAudioFileService meetingAudioFileService;
-    private final MeetingAudioDurationService meetingAudioDurationService;
-    private final S3Client s3Client;
-    private final MeetingRepository meetingRepository;
-
-    private static final int presignedUrlExpirationTime = 10; // 2시간
+    private final MeetingAudioReplayService meetingAudioReplayService;
 
     // 미팅 목록 조회
     @Transactional(readOnly = true)
@@ -34,7 +25,7 @@ public class MeetingQueryService {
         // 기본값: 진행완료
         MeetingStatus targetStatus = status != null ? status : MeetingStatus.COMPLETED;
 
-        List<Meeting> meetings = meetingRepository.findByTeamId(teamId);
+        List<Meeting> meetings = meetingUseCase.findMeetingByTeamId(teamId);
 
         return meetings.stream()
                 .filter( m -> checkMeetingStatus(m, targetStatus)) // 상태 일치 체크
@@ -66,7 +57,7 @@ public class MeetingQueryService {
                 .duration(meeting.getDuration())
                 .memberCount( meetingUseCase.getMeetingMemberCount(meeting) )
                 .members( memberToParticipantsInfo(meetingUseCase.getParticipantsInfo(meeting)) )
-                .audioDuration(resolveAudioDuration(meeting))
+                .audioDuration( meetingAudioReplayService.resolveAudioDurationIfAvailable(meeting) )
                 .build();
     }
 
@@ -87,57 +78,7 @@ public class MeetingQueryService {
     @Transactional(readOnly = true)
     public MeetingResponse.AudioDTO getMeetingAudio(Long meetingId) {
         Meeting meeting = meetingUseCase.findMeetingById(meetingId);
-        String audioKey = resolveAudioKey(meeting);
-
-        return MeetingResponse.AudioDTO.builder()
-                .meetingId(meeting.getId())
-                .audioKey(audioKey)
-                .audioUrl(s3Client.getPresignedFileUrl(
-                        audioKey,
-                        Duration.ofMinutes(presignedUrlExpirationTime),
-                        meetingAudioFileService.resolveResponseContentType(audioKey)
-                ))
-                .audioDuration(resolveAudioDuration(audioKey))
-                .build();
-    }
-
-    private String resolveAudioKey(Meeting meeting) {
-        String audioKey = meeting.getAudioKey();
-        if (isPlayableAudioKey(audioKey)) {
-            return audioKey;
-        }
-
-        String alternateAudioKey = meetingAudioFileService.alternateKey(audioKey);
-        if (isPlayableAudioKey(alternateAudioKey)) {
-            return alternateAudioKey;
-        }
-
-        throw new MeetingAudioNotReadyException();
-    }
-
-    private boolean isPlayableAudioKey(String audioKey) {
-        return audioKey != null && !audioKey.isBlank() && s3Client.exists(audioKey);
-    }
-
-    private Integer resolveAudioDuration(String audioKey) {
-        if (audioKey == null || audioKey.isBlank()) {
-            return null;
-        }
-        return meetingAudioDurationService.resolveAudioDurationSeconds(audioKey);
-    }
-
-    private Integer resolveAudioDuration(Meeting meeting) {
-        String audioKey = meeting.getAudioKey();
-        if (isPlayableAudioKey(audioKey)) {
-            return resolveAudioDuration(audioKey);
-        }
-
-        String alternateAudioKey = meetingAudioFileService.alternateKey(audioKey);
-        if (isPlayableAudioKey(alternateAudioKey)) {
-            return resolveAudioDuration(alternateAudioKey);
-        }
-
-        return null;
+        return meetingAudioReplayService.buildAudioResponse(meeting);
     }
 
 }

@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.whylog.server.domain.meeting.service.MeetingAudioFileService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -28,7 +27,6 @@ public class S3Client {
 
     private final software.amazon.awssdk.services.s3.S3Client s3Client;
     private final S3Presigner s3Presigner;
-    private final MeetingAudioFileService meetingAudioFileService;
 
     @Value("${aws.s3.bucket}")
     private String bucket;
@@ -82,10 +80,6 @@ public class S3Client {
 
         String encodedFileName = encodeS3Key(fileName);
         return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + encodedFileName;
-    }
-
-    public String getPresignedFileUrl(String fileName, Duration duration) {
-        return getPresignedFileUrl(fileName, duration, meetingAudioFileService.resolveResponseContentType(fileName));
     }
 
     public String getPresignedFileUrl(String fileName, Duration duration, String responseContentType) {
