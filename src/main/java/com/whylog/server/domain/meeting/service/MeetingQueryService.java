@@ -3,22 +3,26 @@ package com.whylog.server.domain.meeting.service;
 import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.domain.meeting.entity.Meeting;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
-import com.whylog.server.domain.meeting.exception.MeetingNotFoundException;
+import com.whylog.server.domain.meeting.exception.MeetingAudioNotReadyException;
 import com.whylog.server.domain.meeting.repository.MeetingRepository;
 import com.whylog.server.domain.user.entity.Member;
+import com.whylog.server.global.external.s3.S3Client;
 import com.whylog.server.global.apiPayload.exception.ParameterRequiredException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
 public class MeetingQueryService {
 
-    private final MeetingRepository meetingRepository;
     private final MeetingUseCase meetingUseCase;
+    private final MeetingAudioFileService meetingAudioFileService;
+    private final S3Client s3Client;
+    private final MeetingRepository meetingRepository;
 
     // 미팅 목록 조회
     @Transactional(readOnly = true)
@@ -49,8 +53,7 @@ public class MeetingQueryService {
             throw new ParameterRequiredException();
         }
 
-        Meeting meeting = meetingRepository.findWithMembers(meetingId)
-                .orElseThrow(MeetingNotFoundException::new);
+        Meeting meeting = meetingUseCase.findMeetingById(meetingId);
 
         return MeetingResponse.MeetingDetailDTO.builder()
                 .meetingId(meeting.getId())
@@ -75,6 +78,40 @@ public class MeetingQueryService {
 
     private boolean checkMeetingStatus(Meeting meeting, MeetingStatus status){
         return meeting.getStatus() == status;
+    }
+
+    @Transactional(readOnly = true)
+    public MeetingResponse.AudioDTO getMeetingAudio(Long meetingId) {
+        Meeting meeting = meetingUseCase.findMeetingById(meetingId);
+        String audioKey = resolveAudioKey(meeting);
+
+        return MeetingResponse.AudioDTO.builder()
+                .meetingId(meeting.getId())
+                .audioKey(audioKey)
+                .audioUrl(s3Client.getPresignedFileUrl(
+                        audioKey,
+                        Duration.ofMinutes(10),
+                        meetingAudioFileService.resolveResponseContentType(audioKey)
+                ))
+                .build();
+    }
+
+    private String resolveAudioKey(Meeting meeting) {
+        String audioKey = meeting.getAudioKey();
+        if (isPlayableAudioKey(audioKey)) {
+            return audioKey;
+        }
+
+        String alternateAudioKey = meetingAudioFileService.alternateKey(audioKey);
+        if (isPlayableAudioKey(alternateAudioKey)) {
+            return alternateAudioKey;
+        }
+
+        throw new MeetingAudioNotReadyException();
+    }
+
+    private boolean isPlayableAudioKey(String audioKey) {
+        return audioKey != null && !audioKey.isBlank() && s3Client.exists(audioKey);
     }
 
 }

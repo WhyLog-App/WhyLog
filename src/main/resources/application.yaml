@@ -49,7 +49,6 @@ livekit:
   url: ${LIVEKIT_URL:wss://example.livekit.invalid}
   api-key: ${LIVEKIT_API_KEY:devkey}
   api-secret: ${LIVEKIT_API_SECRET:01234567890123456789012345678901}
-  token-expire-time: ${LIVEKIT_TOKEN_EXPIRE_TIME:3600000}
 
 github:
   token:

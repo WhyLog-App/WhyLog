@@ -13,10 +13,12 @@ import com.whylog.server.domain.meeting.repository.MeetingMemberRepository;
 import com.whylog.server.domain.meeting.repository.MeetingRepository;
 import com.whylog.server.domain.meeting.socket.MeetingSocketRoomService;
 import com.whylog.server.domain.meeting.service.MeetingCleanupService;
+import com.whylog.server.domain.meeting.service.LiveKitTokenService;
 import com.whylog.server.domain.team.entity.Team;
 import com.whylog.server.domain.team.service.TeamUseCase;
 import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.domain.user.service.MemberUseCase;
+import com.whylog.server.global.external.livekit.LiveKitEgressClient;
 import com.whylog.server.global.apiPayload.exception.handler.ErrorHandler;
 import com.whylog.server.global.apiPayload.exception.ParameterRequiredException;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,9 @@ public class MeetingCommandService {
     private final MeetingMemberRepository meetingMemberRepository;
     private final MeetingRepository meetingRepository;
     private final MeetingCleanupService meetingCleanupService;
+    private final MeetingAudioFileService meetingAudioFileService;
+    private final LiveKitTokenService liveKitTokenService;
+    private final LiveKitEgressClient liveKitEgressClient;
 
     private final MemberUseCase memberUseCase;
     private final TeamUseCase teamUseCase;
@@ -63,6 +68,9 @@ public class MeetingCommandService {
         // Meeting, MeetingMember 같이 저장
         Meeting meeting = Meeting.create(requestDTO, team);
         Meeting savedMeeting = meetingRepository.save(meeting);
+        String audioKey = meetingAudioFileService.buildRecordingKey(savedMeeting.getId());
+        savedMeeting.setAudioKey(audioKey);
+        meetingRepository.save(savedMeeting);
         MeetingMember meetingMember = MeetingMember.create(savedMeeting, member, MeetingRole.OWNER);
         meetingMemberRepository.save(meetingMember);
 
@@ -102,6 +110,7 @@ public class MeetingCommandService {
 
         // 웹소켓 메시지 전송
         meetingSocketRoomService.broadcastMeetingEnded(meetingId, endDateTime); // 회의 참여한 사람들에게 알림
+        stopRecording(meeting);
         meetingSocketRoomService.closeRoom(meetingId); // 메모리 내의 실시간 회의 정보 제거
 
         // TODO: 회의 종료 후 분석 비동기 작업 시작
@@ -121,6 +130,9 @@ public class MeetingCommandService {
         meetingMemberRepository.findOwnerMeetingMember(memberId, meetingId, MeetingRole.OWNER)
                 .orElseThrow(() -> new ErrorHandler(MeetingErrorCode.MEETING_NOT_OWNER));
 
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(MeetingNotFoundException::new);
+        stopRecording(meeting);
         meetingCleanupService.deleteByMeetingId(meetingId);
         scheduleAfterCommit(() -> meetingSocketRoomService.closeRoom(meetingId));
 
@@ -142,6 +154,16 @@ public class MeetingCommandService {
         }
 
         task.run();
+    }
+
+    private void stopRecording(Meeting meeting) {
+        if (meeting == null || meeting.getAudioEgressId() == null || meeting.getAudioEgressId().isBlank()) {
+            return;
+        }
+
+        String roomName = "meeting-" + meeting.getId();
+        String egressToken = liveKitTokenService.createRoomRecordToken("recording-" + meeting.getId(), roomName);
+        liveKitEgressClient.stopEgress(egressToken, meeting.getAudioEgressId());
     }
 
 }

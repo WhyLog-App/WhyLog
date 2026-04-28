@@ -226,12 +226,11 @@ public class MeetingResponse {
     @Builder
     @Schema(description = "회의 오디오 응답")
     public static class AudioDTO {
-
-        @Schema(description = "오디오 ID", example = "1")
-        private Long audioId;
-
         @Schema(description = "회의 ID", example = "1")
         private Long meetingId;
+
+        @Schema(description = "오디오 저장 키", example = "recordings/meeting-1/audio.mp4")
+        private String audioKey;
 
         @Schema(description = "오디오 URL", example = "https://example.com/audio/meeting-1.mp3")
         private String audioUrl;

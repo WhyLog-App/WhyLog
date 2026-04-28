@@ -3,16 +3,23 @@ package com.whylog.server.global.external.s3;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import com.whylog.server.domain.meeting.service.MeetingAudioFileService;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 
 @Slf4j
 @Component
@@ -20,6 +27,8 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 public class S3Client {
 
     private final software.amazon.awssdk.services.s3.S3Client s3Client;
+    private final S3Presigner s3Presigner;
+    private final MeetingAudioFileService meetingAudioFileService;
 
     @Value("${aws.s3.bucket}")
     private String bucket;
@@ -73,6 +82,54 @@ public class S3Client {
 
         String encodedFileName = encodeS3Key(fileName);
         return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + encodedFileName;
+    }
+
+    public String getPresignedFileUrl(String fileName, Duration duration) {
+        return getPresignedFileUrl(fileName, duration, meetingAudioFileService.resolveResponseContentType(fileName));
+    }
+
+    public String getPresignedFileUrl(String fileName, Duration duration, String responseContentType) {
+        if (!StringUtils.hasText(fileName)) {
+            return null;
+        }
+
+        GetObjectRequest.Builder getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(fileName);
+
+        if (StringUtils.hasText(responseContentType)) {
+            getObjectRequest.responseContentType(responseContentType);
+        }
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(duration)
+                .getObjectRequest(getObjectRequest.build())
+                .build();
+
+        PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+        return presignedRequest.url().toString();
+    }
+
+    public boolean exists(String fileName) {
+        if (!StringUtils.hasText(fileName)) {
+            return false;
+        }
+
+        try {
+            s3Client.headObject(HeadObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(fileName)
+                    .build());
+            return true;
+        } catch (software.amazon.awssdk.services.s3.model.S3Exception e) {
+            if (e.statusCode() == 404 || e.statusCode() == 403) {
+                return false;
+            }
+            throw e;
+        } catch (SdkClientException e) {
+            log.error("S3 존재 확인 에러 발생: {}", e.getMessage());
+            return false;
+        }
     }
 
     public void deleteFile(String fileName) {

@@ -202,7 +202,7 @@ public class MeetingController {
     })
     public ApiResponse<MeetingResponse.AudioDTO> getAudio(
             @PathVariable Long meetingId) {
-        return ApiResponse.onSuccess(null);
+        return ApiResponse.onSuccess(meetingQueryService.getMeetingAudio(meetingId));
     }
 
 //    @GetMapping("/meetings/{meetingId}/applications")

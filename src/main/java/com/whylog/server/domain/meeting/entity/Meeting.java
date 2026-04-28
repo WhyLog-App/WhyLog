@@ -13,10 +13,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Getter
@@ -41,6 +38,14 @@ public class Meeting extends BaseEntity {
 
     @Column(name = "end_date_time")
     private LocalDateTime endDateTime;
+
+    @Setter
+    @Column(name = "audio_key", length = 255)
+    private String audioKey;
+
+    @Setter
+    @Column(name = "audio_egress_id", length = 100)
+    private String audioEgressId;
 
     @Builder
     private Meeting(String name, Team team) {

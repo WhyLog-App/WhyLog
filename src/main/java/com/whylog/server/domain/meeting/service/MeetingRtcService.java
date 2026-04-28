@@ -9,17 +9,11 @@ import com.whylog.server.domain.meeting.repository.MeetingMemberRepository;
 import com.whylog.server.domain.meeting.repository.MeetingRepository;
 import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.domain.user.service.MemberUseCase;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
+import com.whylog.server.global.external.livekit.LiveKitEgressClient;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import java.util.Map;
 
 @Service
 public class MeetingRtcService {
@@ -27,27 +21,27 @@ public class MeetingRtcService {
     private final MeetingRepository meetingRepository;
     private final MeetingMemberRepository meetingMemberRepository;
     private final MemberUseCase memberUseCase;
+    private final MeetingAudioFileService meetingAudioFileService;
+    private final LiveKitTokenService liveKitTokenService;
+    private final LiveKitEgressClient liveKitEgressClient;
     private final String liveKitUrl;
-    private final String liveKitApiKey;
-    private final String liveKitApiSecret;
-    private final long liveKitTokenExpireTime;
 
     public MeetingRtcService(
             MeetingRepository meetingRepository,
             MeetingMemberRepository meetingMemberRepository,
             MemberUseCase memberUseCase,
-            @Value("${livekit.url}") @NotBlank String liveKitUrl,
-            @Value("${livekit.api-key}") @NotBlank String liveKitApiKey,
-            @Value("${livekit.api-secret}") @NotBlank String liveKitApiSecret,
-            @Value("${livekit.token-expire-time}") long liveKitTokenExpireTime
+            MeetingAudioFileService meetingAudioFileService,
+            LiveKitTokenService liveKitTokenService,
+            LiveKitEgressClient liveKitEgressClient,
+            @Value("${livekit.url}") @NotBlank String liveKitUrl
     ) {
         this.meetingRepository = meetingRepository;
         this.meetingMemberRepository = meetingMemberRepository;
         this.memberUseCase = memberUseCase;
+        this.meetingAudioFileService = meetingAudioFileService;
+        this.liveKitTokenService = liveKitTokenService;
+        this.liveKitEgressClient = liveKitEgressClient;
         this.liveKitUrl = liveKitUrl;
-        this.liveKitApiKey = liveKitApiKey;
-        this.liveKitApiSecret = liveKitApiSecret;
-        this.liveKitTokenExpireTime = liveKitTokenExpireTime;
     }
 
     @Transactional
@@ -58,8 +52,9 @@ public class MeetingRtcService {
         Member member = memberUseCase.findMemberById(memberId);
         ensureMeetingParticipant(meeting, member);
         String roomName = buildRoomName(meeting);
+        startRecordingIfAbsent(meeting, roomName);
         String identity = String.valueOf(member.getId());
-        String token = createJoinToken(identity, member.getName(), roomName);
+        String token = liveKitTokenService.createJoinToken(identity, member.getName(), roomName);
 
         return MeetingResponse.MeetingRtcTokenDTO.builder()
                 .meetingId(meetingId)
@@ -80,31 +75,23 @@ public class MeetingRtcService {
         return "meeting-" + meeting.getId();
     }
 
-    private String createJoinToken(String identity, String name, String roomName) {
-        Date now = new Date();
-        Date expiration = new Date(now.getTime() + liveKitTokenExpireTime);
+    private void startRecordingIfAbsent(Meeting meeting, String roomName) {
+        if (meeting.getAudioEgressId() != null && !meeting.getAudioEgressId().isBlank()) {
+            return;
+        }
 
-        Map<String, Object> videoGrant = Map.of(
-                "roomJoin", true,
-                "room", roomName,
-                "canPublish", true,
-                "canSubscribe", true,
-                "canPublishData", true
-        );
+        String audioKey = meeting.getAudioKey();
+        if (audioKey == null || audioKey.isBlank()) {
+            audioKey = meetingAudioFileService.buildRecordingKey(meeting.getId());
+            meeting.setAudioKey(audioKey);
+        }
 
-        return Jwts.builder()
-                .setIssuer(liveKitApiKey)
-                .setSubject(identity)
-                .setIssuedAt(now)
-                .setNotBefore(now)
-                .setExpiration(expiration)
-                .claim("name", name)
-                .claim("video", videoGrant)
-                .signWith(getSigningKey())
-                .compact();
-    }
+        String roomAdminToken = liveKitTokenService.createRoomCreateToken("room-admin");
+        liveKitEgressClient.createRoom(roomAdminToken, roomName);
 
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(liveKitApiSecret.getBytes(StandardCharsets.UTF_8));
+        String egressToken = liveKitTokenService.createRoomRecordToken("recording-" + meeting.getId(), roomName);
+        String egressId = liveKitEgressClient.startRoomAudioEgress(egressToken, roomName, audioKey);
+        meeting.setAudioEgressId(egressId);
+        meetingRepository.save(meeting);
     }
 }

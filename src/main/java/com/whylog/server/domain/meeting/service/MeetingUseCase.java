@@ -2,6 +2,7 @@ package com.whylog.server.domain.meeting.service;
 
 import com.whylog.server.domain.meeting.entity.Meeting;
 import com.whylog.server.domain.meeting.entity.MeetingMember;
+import com.whylog.server.domain.meeting.exception.MeetingNotFoundException;
 import com.whylog.server.domain.meeting.repository.MeetingRepository;
 import com.whylog.server.domain.user.entity.Member;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,15 @@ import java.util.List;
 public class MeetingUseCase {
 
     private final MeetingRepository meetingRepository;
+
+    public Meeting findMeetingById(Long id){
+        return meetingRepository.findById(id)
+                .orElseThrow(MeetingNotFoundException::new);
+    }
+
+    public List<Meeting> findMeetingByTeamId(Long teamId){
+        return meetingRepository.findByTeamId(teamId);
+    }
 
     // 회의 참여자 수
     public int getMeetingMemberCount(Meeting meeting){
