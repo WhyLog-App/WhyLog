@@ -3,6 +3,8 @@ package com.whylog.server.global.external.fast.client;
 import java.net.URI;
 import java.util.Map;
 
+import com.whylog.server.global.external.fast.exception.FastApiException;
+import com.whylog.server.global.external.fast.exception.FastApiErrorCode;
 import com.whylog.server.global.external.fast.FastApiInfo;
 import com.whylog.server.global.external.fast.FastApiRequestBodyType;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -56,34 +59,39 @@ public class FastApiClient {
                           @Nullable Object jsonBody,
                           @Nullable MultiValueMap<String, HttpEntity<?>> multipartBody,
                           ParameterizedTypeReference<T> responseType) {
-        URI uri = buildUri(fastApiInfo, pathVariables);
-        HttpMethod method = fastApiInfo.getMethod();
+        try {
+            URI uri = buildUri(fastApiInfo, pathVariables);
+            HttpMethod method = fastApiInfo.getMethod();
 
-        log.info("FastAPI request: {} {}", method, uri);
+            log.info("FastAPI request: {} {}", method, uri);
 
-        RestClient.RequestBodyUriSpec requestSpec = restClient.method(method);
-        RestClient.RequestBodySpec bodySpec = requestSpec.uri(uri);
+            RestClient.RequestBodyUriSpec requestSpec = restClient.method(method);
+            RestClient.RequestBodySpec bodySpec = requestSpec.uri(uri);
 
-        if (fastApiInfo.getFastApiRequestBodyType() == FastApiRequestBodyType.MULTIPART) {
-            if (multipartBody == null) {
-                throw new IllegalArgumentException("Multipart request body is required for " + fastApiInfo.name());
+            if (fastApiInfo.getFastApiRequestBodyType() == FastApiRequestBodyType.MULTIPART) {
+                if (multipartBody == null) {
+                    throw new FastApiException(FastApiErrorCode.FAST_API_INVALID_REQUEST_BODY);
+                }
+                bodySpec.contentType(MediaType.MULTIPART_FORM_DATA);
+                return bodySpec.body(multipartBody)
+                        .retrieve()
+                        .body(responseType);
             }
-            bodySpec.contentType(MediaType.MULTIPART_FORM_DATA);
-            return bodySpec.body(multipartBody)
-                    .retrieve()
-                    .body(responseType);
-        }
 
-        if (fastApiInfo.getFastApiRequestBodyType() == FastApiRequestBodyType.JSON) {
-            bodySpec.contentType(MediaType.APPLICATION_JSON);
-        }
-        if (jsonBody != null) {
-            return bodySpec.body(jsonBody)
-                    .retrieve()
-                    .body(responseType);
-        }
+            if (fastApiInfo.getFastApiRequestBodyType() == FastApiRequestBodyType.JSON) {
+                bodySpec.contentType(MediaType.APPLICATION_JSON);
+            }
+            if (jsonBody != null) {
+                return bodySpec.body(jsonBody)
+                        .retrieve()
+                        .body(responseType);
+            }
 
-        return bodySpec.retrieve().body(responseType);
+            return bodySpec.retrieve().body(responseType);
+        } catch (RestClientException e) {
+            log.warn("FastAPI request failed: {}", fastApiInfo.name(), e);
+            throw new FastApiException(FastApiErrorCode.FAST_API_REQUEST_FAILED, e);
+        }
     }
 
     private URI buildUri(FastApiInfo fastApiInfo, @Nullable Map<String, ?> pathVariables) {
