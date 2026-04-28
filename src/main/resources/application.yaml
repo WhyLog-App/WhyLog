@@ -65,3 +65,7 @@ audio:
   # Ubuntu: /usr/bin/ffprobe 또는 PATH의 ffprobe
   # macOS(Homebrew): /opt/homebrew/bin/ffprobe
   ffprobe-command: ${AUDIO_FFPROBE_COMMAND:/opt/homebrew/bin/ffprobe}
+
+fast:
+  api:
+    base-url: ${FAST_API_BASE_URL}
