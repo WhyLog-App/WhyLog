@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.OffsetDateTime;
 import java.util.List;
 
-@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Schema(description = "FastAPI 전사+회의 분석 비동기 실행 상태 조회 응답")
 public record TranscribeApplicationRunResponse(

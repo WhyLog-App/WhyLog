@@ -5,6 +5,9 @@ spring:
   config:
     import: optional:classpath:application-secret.properties
 
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DEV_DB_URL}
