@@ -2,6 +2,7 @@ package com.whylog.server.domain.meeting.service;
 
 import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.domain.meeting.entity.Meeting;
+import com.whylog.server.domain.meeting.entity.MeetingAnalysis;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
 import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.global.apiPayload.exception.ParameterRequiredException;
@@ -79,6 +80,21 @@ public class MeetingQueryService {
     public MeetingResponse.AudioDTO getMeetingAudio(Long meetingId) {
         Meeting meeting = meetingUseCase.findMeetingById(meetingId);
         return meetingAudioReplayService.buildAudioResponse(meeting);
+    }
+
+    @Transactional(readOnly = true)
+    public MeetingResponse.AnalysisResultDTO getAnalysis(Long meetingId) {
+
+        meetingUseCase.findMeetingById(meetingId); // 없으면 그거에 따른 예외 발생
+
+        MeetingAnalysis meetingAnalysis = meetingUseCase.findAnalysisByMeetingId(meetingId)
+                .orElse(null);
+
+        if(meetingAnalysis == null) // null이면 isAnalyzed = false인 응답 반환
+            return MeetingResponse.AnalysisResultDTO.createFalse(meetingId);
+
+        Integer audioDuration = meetingAudioReplayService.resolveAudioDurationIfAvailable(meetingAnalysis.getMeeting());
+        return MeetingResponse.AnalysisResultDTO.create(meetingAnalysis, audioDuration);
     }
 
 }

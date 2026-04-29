@@ -182,7 +182,14 @@ public class MeetingController {
     }
 
     @GetMapping("/meetings/{meetingId}/analysis")
-    @Operation(summary = "회의 분석 결과 조회 API", description = "회의 분석 결과를 조회하는 API입니다.")
+    @Operation(summary = "회의 분석 결과 조회 API", description = """
+            
+            회의 분석 결과를 조회하는 API입니다.<br>
+            회의가 존재하지 않으면 MEETING_NOT_FOUND(404)를 반환하고<br>
+            회의가 존재하지만 아직 분석 중이거나 분석 결과를 만들지 못 헀을 경우에는<br>
+            200응답으로 is_analyzed=false인 응답을 반환합니다.<br>
+            
+            """)
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
@@ -190,7 +197,7 @@ public class MeetingController {
     })
     public ApiResponse<MeetingResponse.AnalysisResultDTO> getAnalysisResult(
             @PathVariable Long meetingId) {
-        return ApiResponse.onSuccess(null);
+        return ApiResponse.onSuccess(meetingQueryService.getAnalysis(meetingId));
     }
 
     @GetMapping("/meetings/{meetingId}/audio")

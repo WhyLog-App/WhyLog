@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Optional;
+
 public interface MeetingAnalysisRepository extends JpaRepository<MeetingAnalysis, Long> {
 
     @Modifying
@@ -15,4 +17,11 @@ public interface MeetingAnalysisRepository extends JpaRepository<MeetingAnalysis
     @Modifying
     @Query("DELETE FROM MeetingAnalysis ma WHERE ma.meeting.id = :meetingId")
     void deleteByMeetingId(@Param("meetingId") Long meetingId);
+
+    @Query("""
+        SELECT ma FROM MeetingAnalysis ma
+        LEFT JOIN FETCH ma.meeting m
+            WHERE m.id = :meetingId
+    """)
+    Optional<MeetingAnalysis> findByMeetingId(@Param("meetingId") Long meetingId);
 }
