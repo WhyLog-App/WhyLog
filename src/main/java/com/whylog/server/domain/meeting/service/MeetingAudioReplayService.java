@@ -22,11 +22,7 @@ public class MeetingAudioReplayService {
     public MeetingResponse.AudioDTO buildAudioResponse(Meeting meeting) {
         String audioKey = meetingAudioKeyResolver.resolvePlayableAudioKey(meeting)
                 .orElseThrow(MeetingAudioNotReadyException::new);
-        String audioUrl = s3Client.getPresignedFileUrl(
-                audioKey,
-                AUDIO_URL_EXPIRE_DURATION,
-                meetingAudioFileService.resolveResponseContentType(audioKey)
-        );
+        String audioUrl = buildPlayableAudioUrl(audioKey);
 
         return MeetingResponse.AudioDTO.builder()
                 .meetingId(meeting.getId())
@@ -36,14 +32,24 @@ public class MeetingAudioReplayService {
                 .build();
     }
 
+    public String resolvePlayableAudioUrl(Meeting meeting) {
+        String audioKey = meetingAudioKeyResolver.resolvePlayableAudioKey(meeting)
+                .orElseThrow(MeetingAudioNotReadyException::new);
+        return buildPlayableAudioUrl(audioKey);
+    }
+
     public Integer resolveAudioDurationIfAvailable(Meeting meeting) {
         return meetingAudioKeyResolver.resolvePlayableAudioKey(meeting)
-                .map(audioKey -> s3Client.getPresignedFileUrl(
-                        audioKey,
-                        AUDIO_URL_EXPIRE_DURATION,
-                        meetingAudioFileService.resolveResponseContentType(audioKey)
-                ))
+                .map(this::buildPlayableAudioUrl)
                 .map(meetingAudioDurationService::resolveAudioDurationSeconds)
                 .orElse(null);
+    }
+
+    private String buildPlayableAudioUrl(String audioKey) {
+        return s3Client.getPresignedFileUrl(
+                audioKey,
+                AUDIO_URL_EXPIRE_DURATION,
+                meetingAudioFileService.resolveResponseContentType(audioKey)
+        );
     }
 }

@@ -40,4 +40,13 @@ public class Dialogue extends BaseEntity {
 
     @Column(name = "speech_datetime", nullable = false)
     private LocalDateTime speechDateTime;
+
+    public static Dialogue create(Meeting meeting, Member member, String content, LocalDateTime speechDateTime) {
+        Dialogue dialogue = new Dialogue();
+        dialogue.meeting = meeting;
+        dialogue.member = member;
+        dialogue.content = content;
+        dialogue.speechDateTime = speechDateTime;
+        return dialogue;
+    }
 }

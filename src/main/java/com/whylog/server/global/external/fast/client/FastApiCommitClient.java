@@ -5,7 +5,7 @@ import java.util.Map;
 
 import com.whylog.server.global.external.fast.FastApiInfo;
 import com.whylog.server.global.external.fast.dto.FastApiResponse;
-import com.whylog.server.global.external.fast.dto.CommitAnalyzeRequest;
+import com.whylog.server.global.external.fast.dto.request.CommitAnalyzeRequest;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 

@@ -104,4 +104,12 @@ public class Meeting extends BaseEntity {
 //
 //    @OneToOne(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private Decision decision;
+
+    public void attachMeetingAnalysis(MeetingAnalysis meetingAnalysis) {
+        this.meetingAnalysis = meetingAnalysis;
+    }
+
+    public void addDialogue(Dialogue dialogue) {
+        this.dialogues.add(dialogue);
+    }
 }

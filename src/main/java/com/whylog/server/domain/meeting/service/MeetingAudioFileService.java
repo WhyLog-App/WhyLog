@@ -15,6 +15,15 @@ public class MeetingAudioFileService {
         return RECORDING_PREFIX + meetingId + AUDIO_FILE_SUFFIX + MP4_EXTENSION;
     }
 
+    public String extractFileName(String audioKey) {
+        if (audioKey == null || audioKey.isBlank()) {
+            return null;
+        }
+
+        int lastSlashIndex = audioKey.lastIndexOf('/');
+        return lastSlashIndex >= 0 ? audioKey.substring(lastSlashIndex + 1) : audioKey;
+    }
+
     public String alternateKey(String audioKey) {
         if (audioKey == null || audioKey.isBlank()) {
             return null;

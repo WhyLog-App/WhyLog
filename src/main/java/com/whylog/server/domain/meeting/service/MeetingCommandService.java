@@ -12,6 +12,7 @@ import com.whylog.server.domain.meeting.exception.MeetingNotFoundException;
 import com.whylog.server.domain.meeting.repository.MeetingMemberRepository;
 import com.whylog.server.domain.meeting.repository.MeetingRepository;
 import com.whylog.server.domain.meeting.socket.MeetingSocketRoomService;
+import com.whylog.server.domain.meeting.service.MeetingAnalysisService;
 import com.whylog.server.domain.meeting.service.MeetingCleanupService;
 import com.whylog.server.domain.meeting.service.LiveKitTokenService;
 import com.whylog.server.domain.team.entity.Team;
@@ -21,15 +22,18 @@ import com.whylog.server.domain.user.service.MemberUseCase;
 import com.whylog.server.global.external.livekit.LiveKitEgressClient;
 import com.whylog.server.global.apiPayload.exception.handler.ErrorHandler;
 import com.whylog.server.global.apiPayload.exception.ParameterRequiredException;
+import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class MeetingCommandService {
 
@@ -37,6 +41,7 @@ public class MeetingCommandService {
     private final MeetingRepository meetingRepository;
     private final MeetingCleanupService meetingCleanupService;
     private final MeetingAudioFileService meetingAudioFileService;
+    private final MeetingAnalysisService meetingAnalysisService;
     private final LiveKitTokenService liveKitTokenService;
     private final LiveKitEgressClient liveKitEgressClient;
 
@@ -113,7 +118,11 @@ public class MeetingCommandService {
         stopRecording(meeting);
         meetingSocketRoomService.closeRoom(meetingId); // 메모리 내의 실시간 회의 정보 제거
 
-        // TODO: 회의 종료 후 분석 비동기 작업 시작
+        scheduleAfterCommit(() -> CompletableFuture.runAsync(() -> meetingAnalysisService.analyzeMeetingAudio(meeting.getId()))
+                .exceptionally(ex -> {
+                    log.error("회의 오디오 분석 실패: meetingId={}", meeting.getId(), ex);
+                    return null;
+                }));
 
         return MeetingResponse.MeetingEndResponseDTO.builder()
                 .meetingId(meeting.getId())

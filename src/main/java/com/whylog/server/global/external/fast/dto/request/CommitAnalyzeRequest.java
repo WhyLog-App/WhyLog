@@ -1,8 +1,11 @@
-package com.whylog.server.global.external.fast.dto;
+package com.whylog.server.global.external.fast.dto.request;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @Schema(description = "FastAPI 커밋 분석 요청")
 public record CommitAnalyzeRequest(
         @Schema(description = "커밋 ID")

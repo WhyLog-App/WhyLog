@@ -1,12 +1,13 @@
 package com.whylog.server.global.external.fast.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import com.whylog.server.global.external.fast.FastApiInfo;
 import com.whylog.server.global.external.fast.dto.FastApiResponse;
-import com.whylog.server.global.external.fast.dto.TranscribeRequest;
+import com.whylog.server.global.external.fast.dto.request.TranscribeRequest;
+import com.whylog.server.global.external.fast.dto.response.TranscribeApplicationRunCreateResponse;
+import com.whylog.server.global.external.fast.dto.response.TranscribeApplicationRunResponse;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
@@ -73,12 +74,12 @@ public class FastApiTranscribeClient extends FastApiClient {
         );
     }
 
-    public FastApiResponse<JsonNode> createTranscribeApplicationRun(Resource audio,
-                                                                    String filename,
-                                                                    String contentType,
-                                                                    Integer numSpeakers,
-                                                                    String meetingId,
-                                                                    String projectId) {
+    public FastApiResponse<TranscribeApplicationRunCreateResponse> createTranscribeApplicationRun(Resource audio,
+                                                                                                  String filename,
+                                                                                                  String contentType,
+                                                                                                  Integer numSpeakers,
+                                                                                                  String meetingId,
+                                                                                                  String projectId) {
         return postMultipart(
                 FastApiInfo.TRANSCRIBE_APPLICATION_RUNS,
                 buildTextParts(numSpeakers, meetingId, projectId),
@@ -88,7 +89,7 @@ public class FastApiTranscribeClient extends FastApiClient {
         );
     }
 
-    public FastApiResponse<JsonNode> createTranscribeApplicationRun(TranscribeRequest request) {
+    public FastApiResponse<TranscribeApplicationRunCreateResponse> createTranscribeApplicationRun(TranscribeRequest request) {
         return createTranscribeApplicationRun(
                 request.audio().resource(),
                 request.audio().filename(),
@@ -99,7 +100,7 @@ public class FastApiTranscribeClient extends FastApiClient {
         );
     }
 
-    public FastApiResponse<JsonNode> getTranscribeApplicationRun(Long runId) {
+    public FastApiResponse<TranscribeApplicationRunResponse> getTranscribeApplicationRun(String runId) {
         return get(
                 FastApiInfo.TRANSCRIBE_APPLICATION_RUN_STATUS,
                 Map.of("run_id", runId),

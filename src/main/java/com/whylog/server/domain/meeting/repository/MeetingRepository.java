@@ -21,7 +21,8 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
     @Query("""
         SELECT DISTINCT m
         FROM Meeting m
-        LEFT JOIN FETCH m.meetingMembers
+        LEFT JOIN FETCH m.meetingMembers mm
+        LEFT JOIN FETCH mm.member
         WHERE m.id = :meetingId
     """)
     Optional<Meeting> findWithMembers(@Param("meetingId") Long meetingId);

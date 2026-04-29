@@ -5,7 +5,7 @@ import java.util.Map;
 
 import com.whylog.server.global.external.fast.FastApiInfo;
 import com.whylog.server.global.external.fast.dto.FastApiResponse;
-import com.whylog.server.global.external.fast.dto.MeetingAnalysisRequest;
+import com.whylog.server.global.external.fast.dto.request.MeetingAnalysisRequest;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 

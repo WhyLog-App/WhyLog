@@ -21,6 +21,11 @@ public class MeetingUseCase {
                 .orElseThrow(MeetingNotFoundException::new);
     }
 
+    public Meeting findMeetingWithMembersById(Long id){
+        return meetingRepository.findWithMembers(id)
+                .orElseThrow(MeetingNotFoundException::new);
+    }
+
     public List<Meeting> findMeetingByTeamId(Long teamId){
         return meetingRepository.findByTeamId(teamId);
     }
