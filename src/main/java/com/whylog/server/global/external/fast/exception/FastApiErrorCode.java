@@ -1,4 +1,4 @@
-package com.whylog.server.domain.meeting.exception;
+package com.whylog.server.global.external.fast.exception;
 
 import com.whylog.server.global.apiPayload.code.BaseErrorCode;
 import com.whylog.server.global.apiPayload.code.ErrorReasonDTO;
@@ -8,14 +8,11 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 @RequiredArgsConstructor
-public enum MeetingErrorCode implements BaseErrorCode {
+public enum FastApiErrorCode implements BaseErrorCode {
 
-    MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "MEETING_404", "존재하지 않는 회의입니다."),
-    MEETING_ALREADY_ENDED(HttpStatus.CONFLICT, "MEETING_409", "이미 종료된 회의입니다."),
-    MEETING_INVALID_MEMBER(HttpStatus.CONFLICT, "MEETING_410", "회의에 소속된 참여자가 아닙니다."),
-    MEETING_NOT_OWNER(HttpStatus.FORBIDDEN, "MEETING_403", "회의 삭제 권한이 없습니다."),
-    MEETING_AUDIO_NOT_READY(HttpStatus.CONFLICT, "MEETING_411", "회의 녹음본이 아직 생성되지 않았거나 업로드가 완료되지 않았습니다."),
-    ;
+    FAST_API_REQUEST_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FAST_API_500_1", "FastAPI 요청에 실패했습니다."),
+    FAST_API_RESPONSE_EMPTY(HttpStatus.INTERNAL_SERVER_ERROR, "FAST_API_500_2", "FastAPI 응답이 비어있습니다."),
+    FAST_API_INVALID_REQUEST_BODY(HttpStatus.INTERNAL_SERVER_ERROR, "FAST_API_500_3", "FastAPI 요청 본문 형식이 올바르지 않습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

@@ -49,7 +49,6 @@ livekit:
   url: ${LIVEKIT_URL:wss://example.livekit.invalid}
   api-key: ${LIVEKIT_API_KEY:devkey}
   api-secret: ${LIVEKIT_API_SECRET:01234567890123456789012345678901}
-  token-expire-time: ${LIVEKIT_TOKEN_EXPIRE_TIME:3600000}
 
 github:
   token:
@@ -61,3 +60,12 @@ aws:
     region: ${AWS_REGION:ap-northeast-2}
     access-key: ${AWS_S3_ACCESS_KEY}
     secret-key: ${AWS_S3_SECRET_KEY}
+
+audio:
+  # Ubuntu: /usr/bin/ffprobe 또는 PATH의 ffprobe
+  # macOS(Homebrew): /opt/homebrew/bin/ffprobe
+  ffprobe-command: ${AUDIO_FFPROBE_COMMAND:/opt/homebrew/bin/ffprobe}
+
+fast:
+  api:
+    base-url: ${FAST_API_BASE_URL}

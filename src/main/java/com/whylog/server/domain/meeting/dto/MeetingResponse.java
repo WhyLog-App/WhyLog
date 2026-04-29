@@ -1,5 +1,6 @@
 package com.whylog.server.domain.meeting.dto;
 
+import com.whylog.server.domain.meeting.entity.MeetingAnalysis;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
 import com.whylog.server.domain.meeting.socket.MeetingParticipant;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -153,6 +154,13 @@ public class MeetingResponse {
 
         @Schema(description = "회의 참여자 목록", example = "[1, 2, 3]")
         private List<MeetingParticipantInfo> members;
+
+        @Schema(
+                description = "녹음 파일의 재생 시간(초). 녹음본이 아직 없거나 길이를 확인할 수 없으면 null 입니다.",
+                example = "120",
+                nullable = true
+        )
+        private Integer audioDuration;
     }
 
     @Getter
@@ -216,25 +224,78 @@ public class MeetingResponse {
         @Schema(description = "회의 ID", example = "1")
         private Long meetingId;
 
-        @Schema(description = "분석 내용", example = "뭐 이건 나중에 논의 주제, 핵심맥락 등 들어갈 자리입니다.")
-        private String content;
+        @Schema(description = "분석 완료 여부", example = "true")
+        private Boolean isAnalyzed;
+
+        @Schema(description = "회의 제목", example = "Whylog 프로젝트 서버 저장 및 배포 관련 논의", nullable = true)
+        private String meetingTitle;
+
+        @Schema(description = "회의 목적", example = "서버 저장 시도 및 배포 DB 상태 점검", nullable = true)
+        private String meetingPurpose;
+
+        @Schema(description = "회의 재생 시간(초)", example = "43", nullable = true)
+        private Integer audioDuration;
+
+        @Schema(description = "논의 주제 목록", example = "[\"서버 저장 상태 확인\", \"배포 DB 환경\"]", nullable = true)
+        private List<String> topics;
+
+        @Schema(description = "핵심 맥락 목록", example = "[\"서버에 데이터가 저장되지 않은 상태로 추정됨\"]", nullable = true)
+        private List<String> coreContext;
+
+        @Schema(description = "적용사항 제목 목록", example = "[\"서버 저장 절차 정리\", \"배포 DB 점검\"]", nullable = true)
+        private List<String> applicationTitles;
+
+        @Schema(description = "적용사항 사유 목록", example = "[\"저장 실패 원인을 추적하기 위해\", \"배포 환경 차이를 확인하기 위해\"]", nullable = true)
+        private List<String> applicationReasons;
+
+        public static AnalysisResultDTO createFalse(Long meetingId) {
+            return AnalysisResultDTO.builder()
+                    .meetingId(meetingId)
+                    .isAnalyzed(false)
+                    .build();
+        }
+
+        public static AnalysisResultDTO create(MeetingAnalysis ma, Integer audioDuration) {
+            return AnalysisResultDTO.builder()
+                    .analysisId(ma.getId())
+                    .meetingId(ma.getMeeting().getId())
+                    .isAnalyzed(true)
+                    .meetingTitle(ma.getMeetingTitle())
+                    .meetingPurpose(ma.getMeetingPurpose())
+                    .audioDuration(audioDuration)
+                    .topics(ma.getTopics())
+                    .coreContext(ma.getCoreContext())
+                    .applicationTitles(ma.getApplicationTitles())
+                    .applicationReasons(ma.getApplicationReasons())
+                    .build();
+        }
+
     }
 
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    @Schema(description = "회의 오디오 응답")
+    @Schema(description = "회의 오디오 응답. 프론트엔드는 audioUrl을 <audio src> 또는 Audio()로 바로 재생하면 됩니다.")
     public static class AudioDTO {
-
-        @Schema(description = "오디오 ID", example = "1")
-        private Long audioId;
-
         @Schema(description = "회의 ID", example = "1")
         private Long meetingId;
 
-        @Schema(description = "오디오 URL", example = "https://example.com/audio/meeting-1.mp3")
+        @Schema(description = "실제 재생 가능한 오디오 저장 키(S3 object key). 예: recordings/meeting-1-audio.mp4", example = "recordings/meeting-1-audio.mp4")
+        private String audioKey;
+
+        @Schema(
+                description = "10분짜리 presigned URL. 브라우저는 이 URL로 오디오를 직접 받아 재생합니다.",
+                example = "https://example.com/presigned-audio-url"
+        )
         private String audioUrl;
+
+        @Schema(
+                description = "녹음 파일의 재생 시간(초). 아직 파일이 없거나 길이를 알 수 없으면 null 입니다.",
+                example = "120",
+                nullable = true
+        )
+        private Integer audioDuration;
     }
 
     @Getter

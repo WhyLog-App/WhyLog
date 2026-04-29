@@ -25,7 +25,7 @@ public class MeetingCleanupService {
     @Transactional
     public List<Long> deleteByTeamId(Long teamId) {
         List<Long> meetingIds = meetingRepository.findIdsByTeamId(teamId);
-        deleteChildrenByTeamId(teamId);
+        deleteChildrenByTeamId(teamId, meetingIds);
         meetingRepository.deleteByTeamId(teamId);
         return meetingIds;
     }
@@ -36,7 +36,7 @@ public class MeetingCleanupService {
         meetingRepository.deleteById(meetingId);
     }
 
-    private void deleteChildrenByTeamId(Long teamId) {
+    private void deleteChildrenByTeamId(Long teamId, List<Long> meetingIds) {
         applicationRepository.deleteByTeamId(teamId);
         decisionRepository.deleteByTeamId(teamId);
         meetingAnalysisRepository.deleteByTeamId(teamId);

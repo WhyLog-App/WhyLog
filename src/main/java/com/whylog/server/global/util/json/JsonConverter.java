@@ -2,11 +2,14 @@ package com.whylog.server.global.util.json;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import org.springframework.web.socket.TextMessage;
 
 public class JsonConverter {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private static final ObjectMapper objectMapper = new ObjectMapper()
+            .findAndRegisterModules()
+            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
 
     // keyword 없을 때
     public static String toJson(Object value, String keyword) {

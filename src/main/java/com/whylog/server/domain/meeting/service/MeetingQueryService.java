@@ -2,9 +2,8 @@ package com.whylog.server.domain.meeting.service;
 
 import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.domain.meeting.entity.Meeting;
+import com.whylog.server.domain.meeting.entity.MeetingAnalysis;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
-import com.whylog.server.domain.meeting.exception.MeetingNotFoundException;
-import com.whylog.server.domain.meeting.repository.MeetingRepository;
 import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.global.apiPayload.exception.ParameterRequiredException;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +16,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MeetingQueryService {
 
-    private final MeetingRepository meetingRepository;
     private final MeetingUseCase meetingUseCase;
+    private final MeetingAudioReplayService meetingAudioReplayService;
 
     // 미팅 목록 조회
     @Transactional(readOnly = true)
@@ -27,7 +26,7 @@ public class MeetingQueryService {
         // 기본값: 진행완료
         MeetingStatus targetStatus = status != null ? status : MeetingStatus.COMPLETED;
 
-        List<Meeting> meetings = meetingRepository.findByTeamId(teamId);
+        List<Meeting> meetings = meetingUseCase.findMeetingByTeamId(teamId);
 
         return meetings.stream()
                 .filter( m -> checkMeetingStatus(m, targetStatus)) // 상태 일치 체크
@@ -49,8 +48,7 @@ public class MeetingQueryService {
             throw new ParameterRequiredException();
         }
 
-        Meeting meeting = meetingRepository.findWithMembers(meetingId)
-                .orElseThrow(MeetingNotFoundException::new);
+        Meeting meeting = meetingUseCase.findMeetingById(meetingId);
 
         return MeetingResponse.MeetingDetailDTO.builder()
                 .meetingId(meeting.getId())
@@ -60,6 +58,7 @@ public class MeetingQueryService {
                 .duration(meeting.getDuration())
                 .memberCount( meetingUseCase.getMeetingMemberCount(meeting) )
                 .members( memberToParticipantsInfo(meetingUseCase.getParticipantsInfo(meeting)) )
+                .audioDuration( meetingAudioReplayService.resolveAudioDurationIfAvailable(meeting) )
                 .build();
     }
 
@@ -75,6 +74,27 @@ public class MeetingQueryService {
 
     private boolean checkMeetingStatus(Meeting meeting, MeetingStatus status){
         return meeting.getStatus() == status;
+    }
+
+    @Transactional(readOnly = true)
+    public MeetingResponse.AudioDTO getMeetingAudio(Long meetingId) {
+        Meeting meeting = meetingUseCase.findMeetingById(meetingId);
+        return meetingAudioReplayService.buildAudioResponse(meeting);
+    }
+
+    @Transactional(readOnly = true)
+    public MeetingResponse.AnalysisResultDTO getAnalysis(Long meetingId) {
+
+        meetingUseCase.findMeetingById(meetingId); // 없으면 그거에 따른 예외 발생
+
+        MeetingAnalysis meetingAnalysis = meetingUseCase.findAnalysisByMeetingId(meetingId)
+                .orElse(null);
+
+        if(meetingAnalysis == null) // null이면 isAnalyzed = false인 응답 반환
+            return MeetingResponse.AnalysisResultDTO.createFalse(meetingId);
+
+        Integer audioDuration = meetingAudioReplayService.resolveAudioDurationIfAvailable(meetingAnalysis.getMeeting());
+        return MeetingResponse.AnalysisResultDTO.create(meetingAnalysis, audioDuration);
     }
 
 }
