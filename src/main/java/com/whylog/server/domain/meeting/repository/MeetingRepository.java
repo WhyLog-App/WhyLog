@@ -14,10 +14,11 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
     @Query("""
         SELECT m
         FROM Meeting m
+            LEFT JOIN FETCH m.meetingAnalysis
         WHERE m.team.id = :teamId
         ORDER BY m.startDateTime DESC
     """)
-    List<Meeting> findByTeamId(@Param("teamId") Long teamId);
+    List<Meeting> findWithAnalysis(@Param("teamId") Long teamId);
 
     @Query("""
         SELECT DISTINCT m
@@ -41,6 +42,13 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
         WHERE m.team.id = :teamId
     """)
     void deleteByTeamId(@Param("teamId") Long teamId);
+
+    @Query("""
+        SELECT m FROM Meeting m
+        LEFT JOIN FETCH m.meetingAnalysis ma
+            WHERE m.id = :meetingId
+    """)
+    Optional<Meeting> findByMeetingId(@Param("meetingId") Long meetingId);
 
 
 }

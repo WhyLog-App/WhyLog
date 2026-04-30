@@ -85,10 +85,9 @@ public class MeetingQueryService {
     @Transactional(readOnly = true)
     public MeetingResponse.AnalysisResultDTO getAnalysis(Long meetingId) {
 
-        meetingUseCase.findMeetingById(meetingId); // 없으면 그거에 따른 예외 발생
+        Meeting meeting = meetingUseCase.findWithAnalysisByMeetingId(meetingId);
 
-        MeetingAnalysis meetingAnalysis = meetingUseCase.findAnalysisByMeetingId(meetingId)
-                .orElse(null);
+        MeetingAnalysis meetingAnalysis = meeting.getMeetingAnalysis();
 
         if(meetingAnalysis == null) // null이면 isAnalyzed = false인 응답 반환
             return MeetingResponse.AnalysisResultDTO.createFalse(meetingId);
