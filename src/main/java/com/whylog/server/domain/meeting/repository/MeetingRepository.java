@@ -15,6 +15,7 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
         SELECT m
         FROM Meeting m
         WHERE m.team.id = :teamId
+        ORDER BY m.startDateTime DESC
     """)
     List<Meeting> findByTeamId(@Param("teamId") Long teamId);
 
