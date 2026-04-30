@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 public interface MeetingRepository extends JpaRepository<Meeting, Long> {
 
@@ -15,7 +16,7 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
         SELECT m
         FROM Meeting m
             LEFT JOIN FETCH m.meetingAnalysis
-        WHERE m.team.id = :teamId
+        WHERE m.team.id = :teamId AND m.isNormallyEnded IS TRUE
         ORDER BY m.startDateTime DESC
     """)
     List<Meeting> findWithAnalysis(@Param("teamId") Long teamId);
@@ -49,6 +50,14 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
             WHERE m.id = :meetingId
     """)
     Optional<Meeting> findByMeetingId(@Param("meetingId") Long meetingId);
+
+    @Modifying
+    @Query("""
+        UPDATE Meeting m
+        SET m.endDateTime = :endedAt
+        WHERE m.endDateTime IS NULL
+    """)
+    int markAllOngoingMeetingsAsEnded(@Param("endedAt") LocalDateTime endedAt);
 
 
 }
