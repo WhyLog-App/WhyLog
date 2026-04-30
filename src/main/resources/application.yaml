@@ -71,3 +71,7 @@ audio:
 fast:
   api:
     base-url: ${FAST_API_BASE_URL}
+
+springdoc:
+  swagger-ui:
+    persist-authorization: true
