@@ -15,6 +15,7 @@ public enum MeetingErrorCode implements BaseErrorCode {
     MEETING_INVALID_MEMBER(HttpStatus.CONFLICT, "MEETING_410", "회의에 소속된 참여자가 아닙니다."),
     MEETING_NOT_OWNER(HttpStatus.FORBIDDEN, "MEETING_403", "회의 삭제 권한이 없습니다."),
     MEETING_AUDIO_NOT_READY(HttpStatus.CONFLICT, "MEETING_411", "회의 녹음본이 아직 생성되지 않았거나 업로드가 완료되지 않았습니다."),
+    MEETING_ALREADY_PARTICIPATING(HttpStatus.CONFLICT, "MEETING_412", "이미 실시간으로 참여 중인 회의입니다."),
     ;
 
     private final HttpStatus httpStatus;

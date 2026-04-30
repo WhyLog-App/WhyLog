@@ -2,6 +2,7 @@ package com.whylog.server.domain.meeting.socket;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.whylog.server.domain.meeting.socket.message.*;
+import com.whylog.server.domain.meeting.service.MeetingCommandService;
 import com.whylog.server.global.util.json.JsonConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
     private static final int SESSION_BUFFER_SIZE_LIMIT_BYTES = 512 * 1024;
 
     private final MeetingSocketRoomService meetingSocketRoomService;
+    private final MeetingCommandService meetingCommandService;
 
     // 웹소켓 연결 직후 참가자를 방에 등록하고 현재 참여자 목록과 입장 이벤트를 전파합니다.
     @Override
@@ -39,6 +41,11 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
             return;
         }
 
+        if (meetingSocketRoomService.existsParticipant(participant.meetingId(), participant.memberId())) {
+        sendError(session, MeetingMessageType.PARTICIPANT_ALREADY_JOINED, "이미 실시간으로 참여 중인 회의입니다.");
+        session.close(CloseStatus.NORMAL);
+        return;
+        }
         meetingSocketRoomService.join(participant);
 
         ConnectedMessage connectedMessage = ConnectedMessage.create(
@@ -173,6 +180,10 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
                 now()
         )));
         broadcastRoster(meetingId);
+
+        if (meetingSocketRoomService.listParticipants(meetingId).isEmpty()) {
+            meetingCommandService.autoEndMeetingIfEmpty(meetingId);
+        }
     }
 
     // 현재 회의 참가자 목록을 모든 클라이언트에 전파합니다.
@@ -202,11 +213,15 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
 
     // 잘못된 요청이나 지원하지 않는 타입에 대한 에러 메시지를 클라이언트에 보냅니다.
     private void sendError(WebSocketSession session, String message) {
+        sendError(session, MeetingMessageType.ERROR, message);
+    }
+
+    private void sendError(WebSocketSession session, MeetingMessageType type, String message) {
         try {
             session.sendMessage(new TextMessage(
                     JsonConverter.toJson(
                             new ErrorMessage(
-                                    MeetingMessageType.ERROR, message
+                                    type, message
                             )
                     )));
         } catch (Exception exception) {

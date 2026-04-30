@@ -73,13 +73,54 @@ public class LiveKitEgressClient {
         post("/twirp/livekit.Egress/StopEgress", egressToken, request);
     }
 
+    public void removeParticipant(String roomAdminToken, String roomName, String identity) {
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("room", roomName);
+        request.put("identity", identity);
+        post("/twirp/livekit.RoomService/RemoveParticipant", roomAdminToken, request);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> listParticipants(String roomAdminToken, String roomName) {
+        Map<String, Object> response = post("/twirp/livekit.RoomService/ListParticipants", roomAdminToken, Map.of("room", roomName));
+        Object participants = response.get("participants");
+        if (participants instanceof List<?> participantList) {
+            return participantList.stream()
+                    .filter(Map.class::isInstance)
+                    .map(item -> (Map<String, Object>) item)
+                    .toList();
+        }
+
+        return List.of();
+    }
+
+    public void deleteRoom(String roomCreateToken, String roomName) {
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("room", roomName);
+        post("/twirp/livekit.RoomService/DeleteRoom", roomCreateToken, request);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> listRooms(String roomListToken) {
+        Map<String, Object> response = post("/twirp/livekit.RoomService/ListRooms", roomListToken, Map.of());
+        Object rooms = response.get("rooms");
+        if (rooms instanceof List<?> roomList) {
+            return roomList.stream()
+                    .filter(Map.class::isInstance)
+                    .map(item -> (Map<String, Object>) item)
+                    .toList();
+        }
+
+        return List.of();
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> post(String path, String egressToken, Map<String, Object> request) {
         String apiBaseUrl = toHttpsBaseUrl(liveKitUrl);
         URI uri = URI.create(apiBaseUrl + path);
 
         Object body = request;
-        String requestJson = JsonConverter.toJson(request);
+        String requestJson = JsonConverter.toJson(redactForLogging(request));
         log.info("LiveKit egress request: {}", requestJson);
 
         Map<String, Object> response = restClient.post()
@@ -96,6 +137,36 @@ public class LiveKitEgressClient {
 
         log.info("LiveKit egress response: {}", JsonConverter.toJson(response));
         return response;
+    }
+
+    private Map<String, Object> redactForLogging(Map<String, Object> request) {
+        Map<String, Object> sanitized = new LinkedHashMap<>();
+        request.forEach((key, value) -> sanitized.put(key, redactValue(key, value)));
+        return sanitized;
+    }
+
+    private Object redactValue(String key, Object value) {
+        if ("access_key".equals(key) || "secret".equals(key)) {
+            return "***";
+        }
+
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> sanitized = new LinkedHashMap<>();
+            map.forEach((nestedKey, nestedValue) ->
+                    sanitized.put(String.valueOf(nestedKey), redactValue(String.valueOf(nestedKey), nestedValue))
+            );
+            return sanitized;
+        }
+
+        if (value instanceof List<?> list) {
+            return list.stream()
+                    .map(item -> item instanceof Map<?, ?> mapItem
+                            ? redactForLogging((Map<String, Object>) mapItem)
+                            : item)
+                    .toList();
+        }
+
+        return value;
     }
 
     private Map<String, Object> buildFileOutput(String recordingKey) {

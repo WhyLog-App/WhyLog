@@ -13,6 +13,7 @@ public enum MeetingMessageType {
     PARTICIPANT_LEFT("participant_left"),
     ROSTER("roster"),
     ERROR("error"),
+    PARTICIPANT_ALREADY_JOINED("error_participant_already_joined"),
     CHAT("chat"),
     SPEECH("speech"),
     AUDIO_TEXT("audio_text"),

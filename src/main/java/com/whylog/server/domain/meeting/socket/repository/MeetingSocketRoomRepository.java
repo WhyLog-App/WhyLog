@@ -2,6 +2,8 @@ package com.whylog.server.domain.meeting.socket.repository;
 
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,5 +27,10 @@ public class MeetingSocketRoomRepository {
     // 회의방 저장소를 제거합니다.
     public void delete(Long meetingId) {
         rooms.remove(meetingId);
+    }
+
+    // 현재 메모리에 존재하는 회의방 id 목록을 반환합니다.
+    public List<Long> findAllMeetingIds() {
+        return new ArrayList<>(rooms.keySet());
     }
 }

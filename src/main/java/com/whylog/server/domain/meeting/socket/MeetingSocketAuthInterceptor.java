@@ -2,6 +2,7 @@ package com.whylog.server.domain.meeting.socket;
 
 import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.domain.user.service.MemberUseCase;
+import com.whylog.server.domain.meeting.socket.MeetingSocketRoomService;
 import com.whylog.server.global.auth.jwt.provider.JwtTokenProvider;
 import com.whylog.server.global.auth.jwt.provider.JwtValidationType;
 import jakarta.servlet.http.HttpServletResponse;
@@ -32,6 +33,7 @@ public class MeetingSocketAuthInterceptor implements HandshakeInterceptor {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final MemberUseCase memberUseCase;
+    private final MeetingSocketRoomService meetingSocketRoomService;
 
     // 웹소켓 연결 전에 meetingId, accessToken, 표시 이름을 확인하고 세션 속성을 초기화합니다.
     @Override

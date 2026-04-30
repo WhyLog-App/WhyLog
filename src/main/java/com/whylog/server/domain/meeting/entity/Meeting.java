@@ -19,7 +19,8 @@ import lombok.*;
 @Getter
 @Table(name = "Meeting")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Meeting extends BaseEntity {
+public class
+Meeting extends BaseEntity {
 
     @Id
     @Column(name = "meeting_id")
@@ -47,10 +48,14 @@ public class Meeting extends BaseEntity {
     @Column(name = "audio_egress_id", length = 100)
     private String audioEgressId;
 
+    @Column(name = "is_normally_ended", nullable = false)
+    private Boolean isNormallyEnded;
+
     @Builder
     private Meeting(String name, Team team) {
         this.name = name;
         this.team = team;
+        this.isNormallyEnded = false;
         this.startDateTime = LocalDateTime.now();
         this.endDateTime = null;
     }
@@ -72,6 +77,7 @@ public class Meeting extends BaseEntity {
 
     public LocalDateTime endMeeting() {
         this.endDateTime = LocalDateTime.now();
+        this.isNormallyEnded = true;
         return this.endDateTime;
     }
 
