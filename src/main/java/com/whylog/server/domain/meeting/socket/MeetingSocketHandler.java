@@ -41,6 +41,11 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
             return;
         }
 
+        if (meetingSocketRoomService.existsParticipant(participant.meetingId(), participant.memberId())) {
+        sendError(session, MeetingMessageType.PARTICIPANT_ALREADY_JOINED, "이미 실시간으로 참여 중인 회의입니다.");
+        session.close(CloseStatus.NORMAL);
+        return;
+        }
         meetingSocketRoomService.join(participant);
 
         ConnectedMessage connectedMessage = ConnectedMessage.create(
@@ -208,11 +213,15 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
 
     // 잘못된 요청이나 지원하지 않는 타입에 대한 에러 메시지를 클라이언트에 보냅니다.
     private void sendError(WebSocketSession session, String message) {
+        sendError(session, MeetingMessageType.ERROR, message);
+    }
+
+    private void sendError(WebSocketSession session, MeetingMessageType type, String message) {
         try {
             session.sendMessage(new TextMessage(
                     JsonConverter.toJson(
                             new ErrorMessage(
-                                    MeetingMessageType.ERROR, message
+                                    type, message
                             )
                     )));
         } catch (Exception exception) {

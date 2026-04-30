@@ -74,6 +74,16 @@ public class MeetingSocketRoomService {
         return removed;
     }
 
+    // 특정 멤버가 회의방에 이미 연결되어 있는지 확인합니다.
+    public boolean existsParticipant(Long meetingId, Long memberId) {
+        MeetingRoomRepository room = getRoom(meetingId);
+        if (room == null) {
+            return false;
+        }
+
+        return !room.participantsByMemberId(memberId).isEmpty();
+    }
+
     // 클라이언트에 보여 줄 현재 참가자 목록을 이름순으로 반환합니다.
     public List<ParticipantSummary> listParticipants(Long meetingId) {
         MeetingRoomRepository room = getRoom(meetingId);
