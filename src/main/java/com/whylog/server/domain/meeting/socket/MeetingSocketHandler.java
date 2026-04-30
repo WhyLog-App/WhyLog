@@ -2,6 +2,7 @@ package com.whylog.server.domain.meeting.socket;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.whylog.server.domain.meeting.socket.message.*;
+import com.whylog.server.domain.meeting.service.MeetingCommandService;
 import com.whylog.server.global.util.json.JsonConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
     private static final int SESSION_BUFFER_SIZE_LIMIT_BYTES = 512 * 1024;
 
     private final MeetingSocketRoomService meetingSocketRoomService;
+    private final MeetingCommandService meetingCommandService;
 
     // 웹소켓 연결 직후 참가자를 방에 등록하고 현재 참여자 목록과 입장 이벤트를 전파합니다.
     @Override
@@ -173,6 +175,10 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
                 now()
         )));
         broadcastRoster(meetingId);
+
+        if (meetingSocketRoomService.listParticipants(meetingId).isEmpty()) {
+            meetingCommandService.autoEndMeetingIfEmpty(meetingId);
+        }
     }
 
     // 현재 회의 참가자 목록을 모든 클라이언트에 전파합니다.

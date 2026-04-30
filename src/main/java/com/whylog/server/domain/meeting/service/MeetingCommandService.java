@@ -109,25 +109,21 @@ public class MeetingCommandService {
             throw new MeetingAlreadyEndedException();
         }
 
-        // 정보 갱신
-        LocalDateTime endDateTime = meeting.endMeeting();
-        meetingRepository.save(meeting);
+        return finishMeeting(meeting, true);
+    }
 
-        // 웹소켓 메시지 전송
-        meetingSocketRoomService.broadcastMeetingEnded(meetingId, endDateTime); // 회의 참여한 사람들에게 알림
-        stopRecording(meeting);
-        meetingSocketRoomService.closeRoom(meetingId); // 메모리 내의 실시간 회의 정보 제거
+    @Transactional
+    public void autoEndMeetingIfEmpty(Long meetingId) {
+        if (!meetingSocketRoomService.listParticipants(meetingId).isEmpty()) {
+            return;
+        }
 
-        scheduleAfterCommit(() -> CompletableFuture.runAsync(() -> meetingAnalysisService.analyzeMeetingAudio(meeting.getId()))
-                .exceptionally(ex -> {
-                    log.error("회의 오디오 분석 실패: meetingId={}", meeting.getId(), ex);
-                    return null;
-                }));
+        Meeting meeting = meetingRepository.findById(meetingId).orElse(null);
+        if (meeting == null || !meeting.isOngoing()) {
+            return;
+        }
 
-        return MeetingResponse.MeetingEndResponseDTO.builder()
-                .meetingId(meeting.getId())
-                .endDateTime(endDateTime)
-                .build();
+        finishMeeting(meeting, false);
     }
 
     @Transactional
@@ -173,6 +169,29 @@ public class MeetingCommandService {
         String roomName = "meeting-" + meeting.getId();
         String egressToken = liveKitTokenService.createRoomRecordToken("recording-" + meeting.getId(), roomName);
         liveKitEgressClient.stopEgress(egressToken, meeting.getAudioEgressId());
+    }
+
+    private MeetingResponse.MeetingEndResponseDTO finishMeeting(Meeting meeting, boolean broadcastEnded) {
+        LocalDateTime endDateTime = meeting.endMeeting();
+        meetingRepository.save(meeting);
+
+        if (broadcastEnded) {
+            meetingSocketRoomService.broadcastMeetingEnded(meeting.getId(), endDateTime);
+        }
+
+        stopRecording(meeting);
+        meetingSocketRoomService.closeRoom(meeting.getId());
+
+        scheduleAfterCommit(() -> CompletableFuture.runAsync(() -> meetingAnalysisService.analyzeMeetingAudio(meeting.getId()))
+                .exceptionally(ex -> {
+                    log.error("회의 오디오 분석 실패: meetingId={}", meeting.getId(), ex);
+                    return null;
+                }));
+
+        return MeetingResponse.MeetingEndResponseDTO.builder()
+                .meetingId(meeting.getId())
+                .endDateTime(endDateTime)
+                .build();
     }
 
 }
