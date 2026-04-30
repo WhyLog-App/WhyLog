@@ -7,6 +7,7 @@ spring:
 
   jackson:
     property-naming-strategy: SNAKE_CASE
+    time-zone: Asia/Seoul
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -30,6 +31,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
+        jdbc.time_zone: Asia/Seoul
 
   data:
     redis:

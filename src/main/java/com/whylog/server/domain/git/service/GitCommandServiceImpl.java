@@ -116,7 +116,7 @@ public class GitCommandServiceImpl implements GitCommandService {
             GHRepository ghRepository = gitHub.getRepository(repoPath);
 
             // 마지막 동기화 시간 이후의 커밋만 저장
-            LocalDateTime lastSyncedAt = repository.getLastSyncedAt();
+            var lastSyncedAt = repository.getLastSyncedAt();
             syncCommits(ghRepository, repository, lastSyncedAt);
 
             // 동기화 시간 업데이트
