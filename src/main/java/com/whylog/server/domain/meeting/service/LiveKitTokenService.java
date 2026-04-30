@@ -51,6 +51,21 @@ public class LiveKitTokenService {
         return createToken(identity, "room-admin", videoGrant);
     }
 
+    public String createRoomListToken(String identity) {
+        Map<String, Object> videoGrant = new LinkedHashMap<>();
+        videoGrant.put("roomList", true);
+
+        return createToken(identity, "room-admin", videoGrant);
+    }
+
+    public String createRoomAdminToken(String identity, String roomName) {
+        Map<String, Object> videoGrant = new LinkedHashMap<>();
+        videoGrant.put("roomAdmin", true);
+        videoGrant.put("room", roomName);
+
+        return createToken(identity, "room-admin", videoGrant);
+    }
+
     private String createToken(String identity, String name, Map<String, Object> videoGrant) {
         return Jwts.builder()
                 .setIssuer(liveKitApiKey)
