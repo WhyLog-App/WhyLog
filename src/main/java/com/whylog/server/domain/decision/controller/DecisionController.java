@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
 import java.util.List;
 
 @RestController
@@ -17,13 +18,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Decision", description = "결정사항 관련 API")
 public class DecisionController {
-
-    @GetMapping("/{decisionId}/applications")
-    @Operation(summary = "적용사항 목록 조회 API", description = "특정 결정사항의 적용사항 목록을 조회하는 API입니다.")
-    public ApiResponse<List<ApplicationResponse.ApplicationDTO>> getApplications(
-            @PathVariable Long decisionId) {
-        return ApiResponse.onSuccess(null);
-    }
 
     @GetMapping("/{decisionId}/reliability")
     @Operation(summary = "신뢰도 조회 API", description = "특정 결정사항의 신뢰도 정보를 조회하는 API입니다.")
