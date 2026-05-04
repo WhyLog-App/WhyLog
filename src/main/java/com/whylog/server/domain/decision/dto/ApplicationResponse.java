@@ -19,9 +19,6 @@ public class ApplicationResponse {
     @Schema(description = "적용사항 항목")
     public static class ApplicationDTO {
 
-        @Schema(description = "결정사항 ID", example = "1")
-        private Long decisionId;
-
         @Schema(description = "적용사항 ID", example = "1")
         private Long applicationId;
 
