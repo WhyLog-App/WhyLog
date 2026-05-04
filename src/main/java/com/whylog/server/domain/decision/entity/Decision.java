@@ -54,4 +54,11 @@ public class Decision extends BaseEntity {
 //
 //    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<EffectRatio> effectRatios = new ArrayList<>();
+
+    public static Decision create(Meeting meeting, boolean isCreated) {
+        Decision decision = new Decision();
+        decision.meeting = meeting;
+        decision.isCreated = isCreated;
+        return decision;
+    }
 }
