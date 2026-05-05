@@ -33,6 +33,9 @@ public class Application extends BaseEntity {
     @JoinColumn(name = "decision_id", nullable = false)
     private Decision decision;
 
+    @Column(name = "name")
+    private String name;
+
 //    @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<ApplicationTimeline> applicationTimelines = new ArrayList<>();
 //
@@ -41,4 +44,11 @@ public class Application extends BaseEntity {
 //
 //    @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<ApplicationBase> applicationBases = new ArrayList<>();
+
+    public static Application create(Decision decision, String name) {
+        Application application = new Application();
+        application.decision = decision;
+        application.name = name;
+        return application;
+    }
 }

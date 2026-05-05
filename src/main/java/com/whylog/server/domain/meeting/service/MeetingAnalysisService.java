@@ -2,6 +2,10 @@ package com.whylog.server.domain.meeting.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.whylog.server.domain.decision.entity.Application;
+import com.whylog.server.domain.decision.entity.Decision;
+import com.whylog.server.domain.decision.repository.ApplicationRepository;
+import com.whylog.server.domain.decision.repository.DecisionRepository;
 import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.domain.meeting.entity.Dialogue;
 import com.whylog.server.domain.meeting.entity.Meeting;
@@ -51,6 +55,8 @@ public class MeetingAnalysisService {
     private final MeetingAudioReplayService meetingAudioReplayService;
     private final MeetingAudioFileService meetingAudioFileService;
     private final FastApiTranscribeClient fastApiTranscribeClient;
+    private final ApplicationRepository applicationRepository;
+    private final DecisionRepository decisionRepository;
     private final MeetingAnalysisRepository meetingAnalysisRepository;
     private final DialogueRepository dialogueRepository;
     private final TransactionTemplate transactionTemplate;
@@ -179,6 +185,8 @@ public class MeetingAnalysisService {
         TranscribeApplicationRunResponse.AnalysisResultResponse analysisResult = runResult.analysisResult();
         TranscribeApplicationRunResponse.OverallAnalysisResponse overallAnalysis =
                 analysisResult != null ? analysisResult.overallAnalysis() : null;
+        List<TranscribeApplicationRunResponse.ApplicationResponse> applications =
+                analysisResult != null && analysisResult.applications() != null ? analysisResult.applications() : List.of();
         MeetingAnalysis.MeetingAnalysisPayload payload = buildMeetingAnalysisPayload(overallAnalysis);
 
         transactionTemplate.executeWithoutResult(status -> {
@@ -195,11 +203,40 @@ public class MeetingAnalysisService {
                 dialogueRepository.saveAll(dialogues);
                 dialogues.forEach(managedMeeting::addDialogue);
             }
+
+            Decision decision = createDecisionIfAbsent(managedMeeting);
+            replaceApplications(managedMeeting.getId(), decision, applications);
         });
 
         log.info("회의 오디오 분석 저장 완료: meetingId={}, transcriptSegmentCount={}", meeting.getId(), transcriptSegments.size());
-        // TODO: FastAPI의 applications 결과는 아직 저장하지 않는다.
         // TODO: applications 저장 후 applicationId를 발급해 /api/meeting-analysis/embeddings로 전달한다.
+    }
+
+    // Decision이 없을 때 새로 생성한다.
+    private Decision createDecisionIfAbsent(Meeting meeting) {
+        return decisionRepository.findByMeetingId(meeting.getId())
+                .orElseGet(() -> {
+                    Decision decision = decisionRepository.save(Decision.create(meeting, true));
+                    log.info("결정사항 저장 완료: meetingId={}, decisionId={}", meeting.getId(), decision.getId());
+                    return decision;
+                });
+    }
+
+    // 분석 결과의 적용사항 제목 목록을 저장한다.
+    private void replaceApplications(Long meetingId,
+                                     Decision decision,
+                                     List<TranscribeApplicationRunResponse.ApplicationResponse> applications) {
+        List<Application> newApplications = applications.stream()
+                .map(TranscribeApplicationRunResponse.ApplicationResponse::applicationTitle)
+                .filter(title -> title != null && !title.isBlank())
+                .map(title -> Application.create(decision, title.trim()))
+                .toList();
+
+        if (!newApplications.isEmpty()) {
+            applicationRepository.saveAll(newApplications);
+            log.info("적용사항 저장 완료: meetingId={}, decisionId={}, applicationCount={}",
+                    meetingId, decision.getId(), newApplications.size());
+        }
     }
 
 

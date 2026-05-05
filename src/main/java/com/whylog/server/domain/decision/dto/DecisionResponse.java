@@ -1,6 +1,7 @@
 package com.whylog.server.domain.decision.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,8 +22,8 @@ public class DecisionResponse {
         @Schema(description = "회의 명", example = "백엔드 비상대책회의")
         private String name;
 
-        @Schema(description = "적용사항 개수", example = "3")
-        private Integer applicationCount;
+        @Schema(description = "적용사항 목록")
+        private List<ApplicationResponse.ApplicationDTO> applications;
     }
 
     @Getter

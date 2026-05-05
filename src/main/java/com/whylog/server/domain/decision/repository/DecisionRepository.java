@@ -1,12 +1,15 @@
 package com.whylog.server.domain.decision.repository;
 
 import com.whylog.server.domain.decision.entity.Decision;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface DecisionRepository extends JpaRepository<Decision, Long> {
+
+    Optional<Decision> findByMeetingId(Long meetingId);
 
     @Modifying
     @Query("DELETE FROM Application a WHERE a.decision.meeting.team.id = :teamId")
