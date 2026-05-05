@@ -24,4 +24,12 @@ public class ApplicationBase extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "decision_base_pk", nullable = false)
     private DecisionBase decisionBase;
+
+    public static ApplicationBase create(Application application, DecisionBase decisionBase) {
+        ApplicationBase applicationBase = new ApplicationBase();
+        applicationBase.id = new ApplicationBaseId(application.getId(), decisionBase.getId());
+        applicationBase.application = application;
+        applicationBase.decisionBase = decisionBase;
+        return applicationBase;
+    }
 }

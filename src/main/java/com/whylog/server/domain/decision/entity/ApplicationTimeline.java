@@ -30,4 +30,12 @@ public class ApplicationTimeline extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "decision_timeline_pk", nullable = false)
     private DecisionTimeline decisionTimeline;
+
+    public static ApplicationTimeline create(Application application, DecisionTimeline decisionTimeline) {
+        ApplicationTimeline applicationTimeline = new ApplicationTimeline();
+        applicationTimeline.id = new ApplicationTimelineId(application.getId(), decisionTimeline.getId());
+        applicationTimeline.application = application;
+        applicationTimeline.decisionTimeline = decisionTimeline;
+        return applicationTimeline;
+    }
 }

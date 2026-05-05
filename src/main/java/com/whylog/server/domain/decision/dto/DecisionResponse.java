@@ -35,15 +35,6 @@ public class DecisionResponse {
 
         @Schema(description = "신뢰도 점수", example = "85")
         private Integer score;
-
-        @Schema(description = "근거발언 개수", example = "42")
-        private Integer reasonSpeechCount;
-
-        @Schema(description = "참여자 합의도", example = "HIGH")
-        private String participantConsensus;
-
-        @Schema(description = "결정 구현 일치율", example = "92")
-        private Integer matchRatio;
     }
 
 }

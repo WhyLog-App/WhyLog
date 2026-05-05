@@ -42,12 +42,14 @@ public class ApplicationResponse {
         @Schema(description = "결정 타임라인 목록")
         private List<DecisionTimelineItemDTO> decisionTimelines;
 
+        @Schema(description = "결정 원문 맥락 목록")
+        private List<DecisionContextItemDTO> decisionContexts;
+
+        @Schema(description = "결정근거 개수", example = "3")
+        private Integer decisionReasonCount;
+
         @Schema(description = "결정근거 목록")
         private List<DecisionReasonItemDTO> decisionReasons;
-
-        @Schema(description = "적용현황 (커밋 정보) 목록")
-        private List<ApplicationBaseItemDTO> applicationBases;
-
     }
 
     @Getter
@@ -60,12 +62,35 @@ public class ApplicationResponse {
         @Schema(description = "타임라인 시간", example = "2026-03-24T12:28:00")
         private String time;
 
+        @Schema(description = "타임라인 단계", example = "이슈제기")
+        private String step;
+
         @Schema(description = "타임라인 내용", example = "장애 이슈 제기")
         private String content;
 
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "결정 원문 맥락 항목")
+    public static class DecisionContextItemDTO {
+
+        @Schema(description = "타임라인 시간", example = "2026-03-24T12:28:00")
+        private String time;
+
+        @Schema(description = "발화자 ID", example = "1", nullable = true)
+        private Long memberId;
+
+        @Schema(description = "발화자 이름", example = "김주뇽", nullable = true)
+        private String memberName;
+
+        @Schema(description = "발화자 프로필 사진", example = "https://example.com/profile.jpg", nullable = true)
+        private String profileImage;
+
         @Schema(description = "대화 내용", example = "아니 우리 이거 버그난다니까?!?@??@")
         private String dialogueContent;
-
     }
 
 
