@@ -2,12 +2,7 @@ package com.whylog.server.domain.decision.controller;
 
 import com.whylog.server.domain.decision.dto.ApplicationResponse;
 import com.whylog.server.domain.decision.dto.DecisionResponse;
-import com.whylog.server.domain.decision.exception.DecisionErrorCode;
-import com.whylog.server.domain.decision.service.DecisionQueryService;
 import com.whylog.server.global.apiPayload.ApiResponse;
-import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExample;
-import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExamples;
-import com.whylog.server.global.apiPayload.code.status.ErrorStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,19 +18,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Decision", description = "결정사항 관련 API")
 public class DecisionController {
-
-    private final DecisionQueryService decisionQueryService;
-
-    @GetMapping("/{decisionId}")
-    @Operation(summary = "결정사항 상세 조회 API", description = "특정 결정사항의 상세 정보를 조회하는 API입니다. 적용사항 상세 조회 화면에서 상단의 결정사항 상세 정보를 조회합니다.")
-    @ApiErrorCodeExamples({
-            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
-            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "DECISION_NOT_FOUND")
-    })
-    public ApiResponse<DecisionResponse.DecisionDetailDTO> getDecision(
-            @PathVariable Long decisionId) {
-        return ApiResponse.onSuccess(decisionQueryService.getDecisionDetail(decisionId));
-    }
 
     @GetMapping("/{decisionId}/reliability")
     @Operation(summary = "신뢰도 조회 API", description = "특정 결정사항의 신뢰도 정보를 조회하는 API입니다.")

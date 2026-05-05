@@ -11,17 +11,6 @@ public interface DecisionRepository extends JpaRepository<Decision, Long> {
 
     Optional<Decision> findByMeetingId(Long meetingId);
 
-    // 결정사항 상세 조회에 필요한 회의와 참여자 정보를 함께 조회한다.
-    @Query("""
-            SELECT DISTINCT d
-            FROM Decision d
-            JOIN FETCH d.meeting m
-            LEFT JOIN FETCH m.meetingMembers mm
-            LEFT JOIN FETCH mm.member
-            WHERE d.id = :decisionId
-            """)
-    Optional<Decision> findDetailById(@Param("decisionId") Long decisionId);
-
     @Modifying
     @Query("DELETE FROM Application a WHERE a.decision.meeting.team.id = :teamId")
     void deleteApplicationsByTeamId(@Param("teamId") Long teamId);
