@@ -28,7 +28,6 @@ public class TeamQueryService {
                         .applications(
                                 d.getApplications().stream()
                                         .map(application -> ApplicationResponse.ApplicationDTO.builder()
-                                                .decisionId(d.getId())
                                                 .applicationId(application.getId())
                                                 .name(application.getName())
                                                 .build())
