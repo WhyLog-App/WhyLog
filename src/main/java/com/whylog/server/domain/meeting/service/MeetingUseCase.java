@@ -49,4 +49,8 @@ public class MeetingUseCase {
                 .orElseThrow(MeetingNotFoundException::new);
     }
 
+    public Long resolveMemberIdBySpeakerId(Long meetingId, String speakerId) {
+        // TODO: 대화 내역을 기준으로 speakerId와 실제 memberId를 매칭한다.
+        return 1L;
+    }
 }
