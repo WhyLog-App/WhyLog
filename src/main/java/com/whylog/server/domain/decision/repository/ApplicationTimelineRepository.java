@@ -3,6 +3,7 @@ package com.whylog.server.domain.decision.repository;
 import com.whylog.server.domain.decision.entity.ApplicationTimeline;
 import com.whylog.server.domain.decision.entity.ApplicationTimelineId;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,4 +20,12 @@ public interface ApplicationTimelineRepository extends JpaRepository<Application
             ORDER BY dt.timestamp ASC, dt.id ASC
             """)
     List<ApplicationTimeline> findByApplicationId(@Param("applicationId") Long applicationId);
+
+    @Modifying
+    @Query("DELETE FROM ApplicationTimeline at WHERE at.application.decision.meeting.team.id = :teamId")
+    void deleteByTeamId(@Param("teamId") Long teamId);
+
+    @Modifying
+    @Query("DELETE FROM ApplicationTimeline at WHERE at.application.decision.meeting.id = :meetingId")
+    void deleteByMeetingId(@Param("meetingId") Long meetingId);
 }

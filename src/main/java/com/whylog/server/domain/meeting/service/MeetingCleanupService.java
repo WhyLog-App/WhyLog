@@ -1,7 +1,11 @@
 package com.whylog.server.domain.meeting.service;
 
 import com.whylog.server.domain.decision.repository.ApplicationRepository;
+import com.whylog.server.domain.decision.repository.ApplicationBaseRepository;
+import com.whylog.server.domain.decision.repository.ApplicationTimelineRepository;
+import com.whylog.server.domain.decision.repository.DecisionBaseRepository;
 import com.whylog.server.domain.decision.repository.DecisionRepository;
+import com.whylog.server.domain.decision.repository.DecisionTimelineRepository;
 import com.whylog.server.domain.meeting.repository.DialogueRepository;
 import com.whylog.server.domain.meeting.repository.MeetingAnalysisRepository;
 import com.whylog.server.domain.meeting.repository.MeetingMemberRepository;
@@ -16,7 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class MeetingCleanupService {
 
     private final ApplicationRepository applicationRepository;
+    private final ApplicationBaseRepository applicationBaseRepository;
+    private final ApplicationTimelineRepository applicationTimelineRepository;
+    private final DecisionBaseRepository decisionBaseRepository;
     private final DecisionRepository decisionRepository;
+    private final DecisionTimelineRepository decisionTimelineRepository;
     private final MeetingAnalysisRepository meetingAnalysisRepository;
     private final DialogueRepository dialogueRepository;
     private final MeetingMemberRepository meetingMemberRepository;
@@ -37,6 +45,10 @@ public class MeetingCleanupService {
     }
 
     private void deleteChildrenByTeamId(Long teamId, List<Long> meetingIds) {
+        applicationTimelineRepository.deleteByTeamId(teamId);
+        applicationBaseRepository.deleteByTeamId(teamId);
+        decisionTimelineRepository.deleteByTeamId(teamId);
+        decisionBaseRepository.deleteByTeamId(teamId);
         applicationRepository.deleteByTeamId(teamId);
         decisionRepository.deleteByTeamId(teamId);
         meetingAnalysisRepository.deleteByTeamId(teamId);
@@ -45,6 +57,10 @@ public class MeetingCleanupService {
     }
 
     private void deleteChildrenByMeetingId(Long meetingId) {
+        applicationTimelineRepository.deleteByMeetingId(meetingId);
+        applicationBaseRepository.deleteByMeetingId(meetingId);
+        decisionTimelineRepository.deleteByMeetingId(meetingId);
+        decisionBaseRepository.deleteByMeetingId(meetingId);
         applicationRepository.deleteByMeetingId(meetingId);
         decisionRepository.deleteByMeetingId(meetingId);
         meetingAnalysisRepository.deleteByMeetingId(meetingId);
