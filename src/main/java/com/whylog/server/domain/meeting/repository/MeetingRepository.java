@@ -16,7 +16,7 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
         SELECT m
         FROM Meeting m
             LEFT JOIN FETCH m.meetingAnalysis
-        WHERE m.team.id = :teamId AND m.isNormallyEnded IS TRUE
+        WHERE m.team.id = :teamId
         ORDER BY m.startDateTime DESC
     """)
     List<Meeting> findWithAnalysis(@Param("teamId") Long teamId);
