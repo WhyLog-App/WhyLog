@@ -128,15 +128,12 @@ public class MeetingCommandService {
 
     @Transactional
     public MeetingResponse.MeetingDeleteResponseDTO deleteMeeting(Long memberId, Long meetingId) {
-
-        meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository.findById(meetingId)
                 .orElseThrow(MeetingNotFoundException::new);
 
         meetingMemberRepository.findOwnerMeetingMember(memberId, meetingId, MeetingRole.OWNER)
                 .orElseThrow(() -> new ErrorHandler(MeetingErrorCode.MEETING_NOT_OWNER));
 
-        Meeting meeting = meetingRepository.findById(meetingId)
-                .orElseThrow(MeetingNotFoundException::new);
         stopRecording(meeting);
         meetingCleanupService.deleteByMeetingId(meetingId);
         scheduleAfterCommit(() -> meetingSocketRoomService.closeRoom(meetingId));
@@ -182,16 +179,20 @@ public class MeetingCommandService {
         stopRecording(meeting);
         meetingSocketRoomService.closeRoom(meeting.getId());
 
-        scheduleAfterCommit(() -> CompletableFuture.runAsync(() -> meetingAnalysisService.analyzeMeetingAudio(meeting.getId()))
-                .exceptionally(ex -> {
-                    log.error("회의 오디오 분석 실패: meetingId={}", meeting.getId(), ex);
-                    return null;
-                }));
+        scheduleAfterCommit(() -> analyzeMeetingAudioAsync(meeting.getId()));
 
         return MeetingResponse.MeetingEndResponseDTO.builder()
                 .meetingId(meeting.getId())
                 .endDateTime(endDateTime)
                 .build();
+    }
+
+    private void analyzeMeetingAudioAsync(Long meetingId) {
+        CompletableFuture.runAsync(() -> meetingAnalysisService.analyzeMeetingAudio(meetingId))
+                .exceptionally(ex -> {
+                    log.error("회의 오디오 분석 실패: meetingId={}", meetingId, ex);
+                    return null;
+                });
     }
 
 }

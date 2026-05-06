@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.function.Function;
 
 // 회의별 참가자 세션 저장소 역할을 하며 텍스트/오디오 메시지 전달을 담당합니다.
 @Service
@@ -99,34 +98,12 @@ public class MeetingSocketRoomService {
 
     // 텍스트 메시지를 회의방의 모든 참가자에게 브로드캐스트합니다.
     public void broadcastText(Long meetingId, String payload) {
-        dispatch(() -> broadcast(
-                meetingId,
-                participant -> new TextMessage(payload),
-                participant -> false));
+        broadcastText(meetingId, new TextMessage(payload));
     }
 
-    // 채팅 메시지를 별도 경로로 브로드캐스트합니다.
-    public void broadcastChatText(Long meetingId, String payload) {
-        dispatch(() -> broadcast(
-                meetingId,
-                participant -> new TextMessage(payload),
-                participant -> false));
-    }
-
-    // 실시간 자막/STT 메시지를 채팅과 분리해 브로드캐스트합니다.
-    public void broadcastSpeechText(Long meetingId, String payload) {
-        dispatch(() -> broadcast(
-                meetingId,
-                participant -> new TextMessage(payload),
-                participant -> false));
-    }
-
-    // 오디오 텍스트 변환 결과를 별도 경로로 브로드캐스트합니다.
-    public void broadcastAudioText(Long meetingId, String payload) {
-        dispatch(() -> broadcast(
-                meetingId,
-                participant -> new TextMessage(payload),
-                participant -> false));
+    // 이미 직렬화된 텍스트 메시지를 회의방의 모든 참가자에게 브로드캐스트합니다.
+    public void broadcastText(Long meetingId, TextMessage message) {
+        dispatch(() -> broadcast(meetingId, message));
     }
 
     // 특정 대상 참가자 한 명에게만 시그널링 메시지를 전달합니다.
@@ -178,11 +155,7 @@ public class MeetingSocketRoomService {
     }
 
     // 회의방 참가자 전체를 순회하면서 메시지를 보내고 끊어진 세션은 정리합니다.
-    private void broadcast(
-            Long meetingId,
-            Function<MeetingParticipant, WebSocketMessage<?>> messageFactory,
-            Function<MeetingParticipant, Boolean> skipCondition
-    ) {
+    private void broadcast(Long meetingId, WebSocketMessage<?> message) {
 
         MeetingRoomRepository room = getRoom(meetingId);
         if (room == null) {
@@ -191,11 +164,7 @@ public class MeetingSocketRoomService {
 
         List<MeetingParticipant> disconnectedParticipants = new ArrayList<>();
         for (MeetingParticipant participant : new ArrayList<>(room.participants())) {
-            if (skipCondition.apply(participant)) {
-                continue;
-            }
-
-            if (!sendMessage(participant, messageFactory.apply(participant))) {
+            if (!sendMessage(participant, message)) {
                 disconnectedParticipants.add(participant);
             }
         }
