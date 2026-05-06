@@ -42,21 +42,22 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
         }
 
         if (meetingSocketRoomService.existsParticipant(participant.meetingId(), participant.memberId())) {
-        sendError(session, MeetingMessageType.PARTICIPANT_ALREADY_JOINED, "이미 실시간으로 참여 중인 회의입니다.");
-        session.close(CloseStatus.NORMAL);
-        return;
+            sendError(session, MeetingMessageType.PARTICIPANT_ALREADY_JOINED, "이미 실시간으로 참여 중인 회의입니다.");
+            session.close(CloseStatus.NORMAL);
+            return;
         }
         meetingSocketRoomService.join(participant);
 
+        List<ParticipantSummary> currentParticipants = participantSummaries(participant.meetingId());
         ConnectedMessage connectedMessage = ConnectedMessage.create(
-                participant, participantSummaries(participant.meetingId())
+                participant, currentParticipants
         );
         session.sendMessage(new TextMessage(JsonConverter.toJson(connectedMessage)));
 
-        broadcastRoster(participant.meetingId());
+        broadcastRoster(participant.meetingId(), currentParticipants);
         meetingSocketRoomService.broadcastText(
                 participant.meetingId(),
-                JsonConverter.toJson(ParticipantJoinedMessage.create(participant))
+                new TextMessage(JsonConverter.toJson(ParticipantJoinedMessage.create(participant)))
         );
     }
 
@@ -68,7 +69,8 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
         try {
             incoming = JsonConverter.readValue(message, MeetingSocketMessage.class);
         } catch (JsonProcessingException exception) {
-            throw new IllegalArgumentException("Invalid websocket message payload", exception);
+            sendError(session, "Invalid websocket message payload");
+            return;
         }
 
         MeetingMessageType type = incoming.type();
@@ -78,63 +80,8 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
         }
 
         switch (type) {
-            case CHAT -> {
-                logIncomingText(participant, type, incoming);
-                meetingSocketRoomService.broadcastChatText(
-                        participant.meetingId(),
-                        JsonConverter.toJson(MeetingTextMessage.createTextMessage(
-                                participant,
-                                type,
-                                null,
-                                Optional.ofNullable(incoming.text()).orElse(""),
-                                incoming.payload()
-                        ))
-                );
-            }
-            case SPEECH -> {
-                logIncomingText(participant, type, incoming);
-                meetingSocketRoomService.broadcastSpeechText(
-                        participant.meetingId(),
-                        JsonConverter.toJson(MeetingTextMessage.createTextMessage(
-                                participant,
-                                type,
-                                null,
-                                Optional.ofNullable(incoming.text()).orElse(""),
-                                incoming.payload()
-                        ))
-                );
-            }
-            case AUDIO_TEXT -> {
-                logIncomingText(participant, type, incoming);
-                meetingSocketRoomService.broadcastAudioText(
-                        participant.meetingId(),
-                        JsonConverter.toJson(MeetingTextMessage.createTextMessage(
-                                participant,
-                                type,
-                                null,
-                                Optional.ofNullable(incoming.text()).orElse(""),
-                                incoming.payload()
-                        ))
-                );
-            }
-            case OFFER, ANSWER, ICE -> {
-                if (incoming.targetMemberId() == null) {
-                    sendError(session, "targetMemberId is required for " + type.value());
-                    return;
-                }
-
-                meetingSocketRoomService.sendToMember(
-                        participant.meetingId(),
-                        incoming.targetMemberId(),
-                        JsonConverter.toJson(MeetingTextMessage.createTextMessage(
-                                participant,
-                                type,
-                                incoming.targetMemberId(),
-                                null,
-                                incoming.payload()
-                        ))
-                );
-            }
+            case CHAT, SPEECH, AUDIO_TEXT -> broadcastTextMessage(participant, type, incoming);
+            case OFFER, ANSWER, ICE -> forwardSignal(session, participant, type, incoming);
             default -> sendError(session, "Unsupported message type: " + type.value());
         }
     }
@@ -172,25 +119,26 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
             return;
         }
 
-        meetingSocketRoomService.broadcastText(meetingId, JsonConverter.toJson(new ParticipantLeftMessage(
+        List<ParticipantSummary> currentParticipants = participantSummaries(meetingId);
+        meetingSocketRoomService.broadcastText(meetingId, new TextMessage(JsonConverter.toJson(new ParticipantLeftMessage(
                 MeetingMessageType.PARTICIPANT_LEFT,
                 meetingId,
                 removed.memberId(),
                 removed.name(),
                 now()
-        )));
-        broadcastRoster(meetingId);
+        ))));
+        broadcastRoster(meetingId, currentParticipants);
 
-        if (meetingSocketRoomService.listParticipants(meetingId).isEmpty()) {
+        if (currentParticipants.isEmpty()) {
             meetingCommandService.autoEndMeetingIfEmpty(meetingId);
         }
     }
 
     // 현재 회의 참가자 목록을 모든 클라이언트에 전파합니다.
-    private void broadcastRoster(Long meetingId) {
+    private void broadcastRoster(Long meetingId, List<ParticipantSummary> participantSummaries) {
         meetingSocketRoomService.broadcastText(
                 meetingId,
-                JsonConverter.toJson(RosterMessage.create(meetingId, participantSummaries(meetingId)))
+                new TextMessage(JsonConverter.toJson(RosterMessage.create(meetingId, participantSummaries)))
         );
     }
 
@@ -242,8 +190,46 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
         return meetingSocketRoomService.listParticipants(meetingId);
     }
 
+    private void broadcastTextMessage(MeetingParticipant participant, MeetingMessageType type, MeetingSocketMessage incoming) {
+        logIncomingText(participant, type, incoming);
+        meetingSocketRoomService.broadcastText(
+                participant.meetingId(),
+                JsonConverter.toJson(MeetingTextMessage.createTextMessage(
+                        participant,
+                        type,
+                        null,
+                        Optional.ofNullable(incoming.text()).orElse(""),
+                        incoming.payload()
+                ))
+        );
+    }
+
+    private void forwardSignal(
+            WebSocketSession session,
+            MeetingParticipant participant,
+            MeetingMessageType type,
+            MeetingSocketMessage incoming
+    ) {
+        if (incoming.targetMemberId() == null) {
+            sendError(session, "targetMemberId is required for " + type.value());
+            return;
+        }
+
+        meetingSocketRoomService.sendToMember(
+                participant.meetingId(),
+                incoming.targetMemberId(),
+                JsonConverter.toJson(MeetingTextMessage.createTextMessage(
+                        participant,
+                        type,
+                        incoming.targetMemberId(),
+                        null,
+                        incoming.payload()
+                ))
+        );
+    }
+
     // 웹소켓 메시지에 사용할 현재 시각 문자열을 생성합니다.
-        private String now() {
+    private String now() {
         return Instant.now().toString();
     }
 
