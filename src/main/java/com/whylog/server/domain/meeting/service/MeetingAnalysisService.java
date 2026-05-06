@@ -2,14 +2,28 @@ package com.whylog.server.domain.meeting.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.whylog.server.domain.decision.entity.Application;
+import com.whylog.server.domain.decision.entity.ApplicationBase;
+import com.whylog.server.domain.decision.entity.ApplicationTimeline;
+import com.whylog.server.domain.decision.entity.Decision;
+import com.whylog.server.domain.decision.entity.DecisionBase;
+import com.whylog.server.domain.decision.entity.DecisionTimeline;
+import com.whylog.server.domain.decision.repository.ApplicationBaseRepository;
+import com.whylog.server.domain.decision.repository.ApplicationTimelineRepository;
+import com.whylog.server.domain.decision.repository.ApplicationRepository;
+import com.whylog.server.domain.decision.repository.DecisionBaseRepository;
+import com.whylog.server.domain.decision.repository.DecisionTimelineRepository;
+import com.whylog.server.domain.decision.repository.DecisionRepository;
 import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.domain.meeting.entity.Dialogue;
 import com.whylog.server.domain.meeting.entity.Meeting;
 import com.whylog.server.domain.meeting.entity.MeetingAnalysis;
 import com.whylog.server.domain.meeting.entity.MeetingMember;
+import com.whylog.server.domain.meeting.exception.MeetingInvalidMemberException;
 import com.whylog.server.domain.meeting.exception.MeetingAudioNotReadyException;
 import com.whylog.server.domain.meeting.repository.DialogueRepository;
 import com.whylog.server.domain.meeting.repository.MeetingAnalysisRepository;
+import com.whylog.server.domain.meeting.repository.MeetingMemberRepository;
 import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.global.external.fast.client.FastApiTranscribeClient;
 import com.whylog.server.global.external.fast.dto.FastApiResponse;
@@ -51,8 +65,15 @@ public class MeetingAnalysisService {
     private final MeetingAudioReplayService meetingAudioReplayService;
     private final MeetingAudioFileService meetingAudioFileService;
     private final FastApiTranscribeClient fastApiTranscribeClient;
+    private final ApplicationRepository applicationRepository;
+    private final ApplicationBaseRepository applicationBaseRepository;
+    private final ApplicationTimelineRepository applicationTimelineRepository;
+    private final DecisionBaseRepository decisionBaseRepository;
+    private final DecisionTimelineRepository decisionTimelineRepository;
+    private final DecisionRepository decisionRepository;
     private final MeetingAnalysisRepository meetingAnalysisRepository;
     private final DialogueRepository dialogueRepository;
+    private final MeetingMemberRepository meetingMemberRepository;
     private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
 
@@ -64,6 +85,23 @@ public class MeetingAnalysisService {
         String runId = createTranscribeApplicationRun(meeting, audioResponse);
         TranscribeApplicationRunResponse finalResponse = pollTranscribeApplicationRun(runId);
         persistMeetingAnalysis(meeting, finalResponse);
+    }
+
+    // FastAPI 응답 JSON을 받아 저장 로직을 테스트한다.
+    public void persistTestMeetingAnalysis(Long memberId,
+                                           Long meetingId,
+                                           com.whylog.server.domain.meeting.dto.MeetingRequest.MeetingAnalysisTestDTO request) {
+        if (!meetingMemberRepository.existsByMemberIdAndMeetingId(memberId, meetingId)) {
+            throw new MeetingInvalidMemberException();
+        }
+
+        Meeting meeting = meetingUseCase.findMeetingWithMembersById(meetingId);
+        TranscribeApplicationRunResponse response = request.getResult();
+        if (response == null) {
+            throw new FastApiException(FastApiErrorCode.FAST_API_RESPONSE_EMPTY);
+        }
+
+        persistMeetingAnalysis(meeting, response);
     }
 
     // 회의 오디오가 준비될 때까지 재시도하며 오디오 응답을 확보한다.
@@ -179,12 +217,12 @@ public class MeetingAnalysisService {
         TranscribeApplicationRunResponse.AnalysisResultResponse analysisResult = runResult.analysisResult();
         TranscribeApplicationRunResponse.OverallAnalysisResponse overallAnalysis =
                 analysisResult != null ? analysisResult.overallAnalysis() : null;
+        List<TranscribeApplicationRunResponse.ApplicationResponse> applications =
+                analysisResult != null && analysisResult.applications() != null ? analysisResult.applications() : List.of();
         MeetingAnalysis.MeetingAnalysisPayload payload = buildMeetingAnalysisPayload(overallAnalysis);
 
         transactionTemplate.executeWithoutResult(status -> {
             Meeting managedMeeting = meetingUseCase.findMeetingWithMembersById(meeting.getId());
-            meetingAnalysisRepository.deleteByMeetingId(managedMeeting.getId());
-            dialogueRepository.deleteByMeetingId(managedMeeting.getId());
 
             MeetingAnalysis meetingAnalysis = MeetingAnalysis.create(managedMeeting, payload);
             meetingAnalysisRepository.save(meetingAnalysis);
@@ -195,11 +233,118 @@ public class MeetingAnalysisService {
                 dialogueRepository.saveAll(dialogues);
                 dialogues.forEach(managedMeeting::addDialogue);
             }
+
+            Decision decision = createDecisionIfAbsent(managedMeeting);
+            replaceApplications(managedMeeting.getId(), decision, applications);
         });
 
         log.info("회의 오디오 분석 저장 완료: meetingId={}, transcriptSegmentCount={}", meeting.getId(), transcriptSegments.size());
-        // TODO: FastAPI의 applications 결과는 아직 저장하지 않는다.
         // TODO: applications 저장 후 applicationId를 발급해 /api/meeting-analysis/embeddings로 전달한다.
+    }
+
+    // Decision이 없을 때 새로 생성한다.
+    private Decision createDecisionIfAbsent(Meeting meeting) {
+        return decisionRepository.findByMeetingId(meeting.getId())
+                .orElseGet(() -> {
+                    Decision decision = decisionRepository.save(Decision.create(meeting, true));
+                    log.info("결정사항 저장 완료: meetingId={}, decisionId={}", meeting.getId(), decision.getId());
+                    return decision;
+                });
+    }
+
+    // 분석 결과의 적용사항 제목 목록을 저장한다.
+    private void replaceApplications(Long meetingId,
+                                     Decision decision,
+                                     List<TranscribeApplicationRunResponse.ApplicationResponse> applications) {
+        List<TranscribeApplicationRunResponse.ApplicationResponse> validApplications = applications.stream()
+                .filter(application -> application != null
+                        && application.applicationTitle() != null
+                        && !application.applicationTitle().isBlank())
+                .toList();
+
+        List<Application> newApplications = validApplications.stream()
+                .map(application -> Application.create(
+                        decision,
+                        application.applicationTitle().trim()
+                ))
+                .toList();
+
+        if (!newApplications.isEmpty()) {
+            List<Application> savedApplications = applicationRepository.saveAllAndFlush(newApplications);
+            persistApplicationDetails(savedApplications, validApplications);
+            log.info("적용사항 저장 완료: meetingId={}, decisionId={}, applicationCount={}",
+                    meetingId, decision.getId(), newApplications.size());
+        }
+    }
+
+    // 저장된 적용사항 엔티티에 reason/timeline 세부 정보를 순서대로 연결 저장한다.
+    private void persistApplicationDetails(List<Application> applications,
+                                           List<TranscribeApplicationRunResponse.ApplicationResponse> applicationResponses) {
+        for (int index = 0; index < applications.size(); index++) {
+            Application application = applications.get(index);
+            TranscribeApplicationRunResponse.ApplicationResponse response = applicationResponses.get(index);
+            persistApplicationReasons(application, response.applicationReasons());
+            persistApplicationTimelines(application, response.timeline());
+        }
+    }
+
+    // 적용사항 reason 목록을 DecisionBase/ApplicationBase로 분리 저장한다.
+    private void persistApplicationReasons(Application application, List<String> reasons) {
+        List<String> validReasons = safeStrings(reasons);
+        if (validReasons.isEmpty()) {
+            return;
+        }
+
+        List<DecisionBase> decisionBases = validReasons.stream()
+                .map(reason -> DecisionBase.create(application.getDecision(), reason.trim()))
+                .toList();
+        List<DecisionBase> savedDecisionBases = decisionBaseRepository.saveAllAndFlush(decisionBases);
+
+        List<ApplicationBase> applicationBases = savedDecisionBases.stream()
+                .map(decisionBase -> ApplicationBase.create(application, decisionBase))
+                .toList();
+        applicationBaseRepository.saveAllAndFlush(applicationBases);
+    }
+
+    // 적용사항 timeline 목록을 DecisionTimeline/ApplicationTimeline으로 분리 저장한다.
+    private void persistApplicationTimelines(Application application,
+                                             List<TranscribeApplicationRunResponse.TimelineResponse> timelines) {
+        if (timelines == null || timelines.isEmpty()) {
+            return;
+        }
+
+        List<DecisionTimeline> decisionTimelines = timelines.stream()
+                .filter(timeline -> timeline != null)
+                .map(timeline -> DecisionTimeline.create(
+                        application.getDecision(),
+                        timeline.timestamp(),
+                        timeline.step(),
+                        timeline.content(),
+                        meetingUseCase.resolveMemberIdBySpeakerId(application.getDecision().getMeeting().getId(), timeline.speakerId()),
+                        timeline.utterance()
+                ))
+                .toList();
+
+        if (decisionTimelines.isEmpty()) {
+            return;
+        }
+
+        List<DecisionTimeline> savedDecisionTimelines = decisionTimelineRepository.saveAllAndFlush(decisionTimelines);
+        List<ApplicationTimeline> applicationTimelines = savedDecisionTimelines.stream()
+                .map(decisionTimeline -> ApplicationTimeline.create(application, decisionTimeline))
+                .toList();
+        applicationTimelineRepository.saveAllAndFlush(applicationTimelines);
+    }
+
+    // null 이거나 비어 있는 문자열을 제외한 값만 반환한다.
+    private List<String> safeStrings(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+
+        return values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .toList();
     }
 
 

@@ -2,7 +2,12 @@ package com.whylog.server.domain.decision.controller;
 
 import com.whylog.server.domain.decision.dto.ApplicationResponse;
 import com.whylog.server.domain.decision.dto.DecisionRequest;
+import com.whylog.server.domain.decision.exception.DecisionErrorCode;
+import com.whylog.server.domain.decision.service.ApplicationQueryService;
 import com.whylog.server.global.apiPayload.ApiResponse;
+import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExample;
+import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExamples;
+import com.whylog.server.global.apiPayload.code.status.ErrorStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,12 +27,18 @@ import java.util.List;
 @Tag(name = "Application", description = "적용사항 관련 API")
 public class ApplicationController {
 
+    private final ApplicationQueryService applicationQueryService;
+
 
     @GetMapping("/{applicationId}")
-    @Operation(summary = "적용사항 상세 조회 API", description = "특정 적용사항의 상세 정보를 조회하는 API입니다.")
+    @Operation(summary = "적용사항 상세 조회 API", description = "특정 적용사항의 상세 정보를 조회하는 API입니다. 적용사항 상세 조회 화면에서 적용사항 제목, 타임라인, 결정원문 맥락, 결정근거를 조회합니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_NOT_FOUND")
+    })
     public ApiResponse<ApplicationResponse.ApplicationDetailDTO> getApplication(
             @PathVariable Long applicationId) {
-        return ApiResponse.onSuccess(null);
+        return ApiResponse.onSuccess(applicationQueryService.getApplicationDetail(applicationId));
     }
 
     @GetMapping("/{applicationId}/recommended-commits")
@@ -60,4 +71,5 @@ public class ApplicationController {
         return ApiResponse.onSuccess(null);
     }
 
+    // TODO: 적용현황 조회 api 추가
 }

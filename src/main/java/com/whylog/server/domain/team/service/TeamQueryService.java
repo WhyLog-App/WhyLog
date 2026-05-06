@@ -1,5 +1,6 @@
 package com.whylog.server.domain.team.service;
 
+import com.whylog.server.domain.decision.dto.ApplicationResponse;
 import com.whylog.server.domain.decision.dto.DecisionResponse;
 import com.whylog.server.domain.decision.entity.Decision;
 import com.whylog.server.domain.team.repository.TeamRepository;
@@ -24,7 +25,14 @@ public class TeamQueryService {
                 .map(d -> DecisionResponse.DecisionListDTO.builder()
                         .decisionId(d.getId())
                         .name(d.getMeeting().getName())
-                        .applicationCount( d.getApplications().size() )
+                        .applications(
+                                d.getApplications().stream()
+                                        .map(application -> ApplicationResponse.ApplicationDTO.builder()
+                                                .applicationId(application.getId())
+                                                .name(application.getName())
+                                                .build())
+                                        .toList()
+                        )
                         .build()
                 ).toList();
     }

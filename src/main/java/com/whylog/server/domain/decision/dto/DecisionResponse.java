@@ -1,6 +1,7 @@
 package com.whylog.server.domain.decision.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,8 +22,8 @@ public class DecisionResponse {
         @Schema(description = "회의 명", example = "백엔드 비상대책회의")
         private String name;
 
-        @Schema(description = "적용사항 개수", example = "3")
-        private Integer applicationCount;
+        @Schema(description = "적용사항 목록")
+        private List<ApplicationResponse.ApplicationDTO> applications;
     }
 
     @Getter
@@ -34,15 +35,6 @@ public class DecisionResponse {
 
         @Schema(description = "신뢰도 점수", example = "85")
         private Integer score;
-
-        @Schema(description = "근거발언 개수", example = "42")
-        private Integer reasonSpeechCount;
-
-        @Schema(description = "참여자 합의도", example = "HIGH")
-        private String participantConsensus;
-
-        @Schema(description = "결정 구현 일치율", example = "92")
-        private Integer matchRatio;
     }
 
 }

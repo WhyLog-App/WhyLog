@@ -28,4 +28,39 @@ public class DecisionTimeline extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "decision_id", nullable = false)
     private Decision decision;
+
+    @Column(name = "timestamp", length = 30)
+    private String timestamp;
+
+    // 타임라인 단계
+    @Column(name = "step", length = 10)
+    private String step;
+
+    // 타임라인 내용 요약
+    @Column(name = "content", columnDefinition = "TEXT")
+    private String content;
+
+    // 발화자
+    @Column(name = "member_id")
+    private Long memberId;
+
+    // 발화 원문
+    @Column(name = "utterance", columnDefinition = "TEXT")
+    private String utterance;
+
+    public static DecisionTimeline create(Decision decision,
+                                          String timestamp,
+                                          String step,
+                                          String content,
+                                          Long memberId,
+                                          String utterance) {
+        DecisionTimeline decisionTimeline = new DecisionTimeline();
+        decisionTimeline.decision = decision;
+        decisionTimeline.timestamp = timestamp;
+        decisionTimeline.step = step;
+        decisionTimeline.content = content;
+        decisionTimeline.memberId = memberId;
+        decisionTimeline.utterance = utterance;
+        return decisionTimeline;
+    }
 }

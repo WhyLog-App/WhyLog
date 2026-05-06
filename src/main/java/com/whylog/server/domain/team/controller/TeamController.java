@@ -37,7 +37,14 @@ public class TeamController {
     private final TeamQueryService teamQueryService;
 
     @GetMapping("/{teamId}/decisions")
-    @Operation(summary = "결정사항 목록 조회 API", description = "특정 팀의 결정사항 목록을 조회하는 API입니다.")
+    @Operation(
+            summary = "결정사항 목록 조회 API",
+            description = """
+                    특정 팀의 결정사항 목록을 조회하는 API입니다.
+                    각 결정사항에는 해당 결정사항에 연결된 적용사항 목록도 함께 포함됩니다.
+                    페이징 없습니다.
+                    """
+    )
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST")

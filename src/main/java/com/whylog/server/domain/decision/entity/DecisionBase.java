@@ -14,7 +14,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-// 적용현황
+// 결정근거
 @Entity
 @Getter
 @Table(name = "Decision_Base")
@@ -29,4 +29,14 @@ public class DecisionBase extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "decision_id", nullable = false)
     private Decision decision;
+
+    @Column(name = "content", columnDefinition = "TEXT")
+    private String content;
+
+    public static DecisionBase create(Decision decision, String content) {
+        DecisionBase decisionBase = new DecisionBase();
+        decisionBase.decision = decision;
+        decisionBase.content = content;
+        return decisionBase;
+    }
 }

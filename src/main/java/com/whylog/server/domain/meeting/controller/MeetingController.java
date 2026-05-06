@@ -5,6 +5,7 @@ import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
 import com.whylog.server.domain.meeting.exception.MeetingErrorCode;
 import com.whylog.server.domain.meeting.service.MeetingCommandService;
+import com.whylog.server.domain.meeting.service.MeetingAnalysisService;
 import com.whylog.server.domain.meeting.service.MeetingQueryService;
 import com.whylog.server.domain.meeting.service.MeetingRtcService;
 import com.whylog.server.domain.team.exception.TeamErrorCode;
@@ -39,6 +40,7 @@ public class MeetingController {
     private final MeetingCommandService meetingCommandService;
     private final MeetingQueryService meetingQueryService;
     private final MeetingRtcService meetingRtcService;
+    private final MeetingAnalysisService meetingAnalysisService;
 
     @GetMapping("/teams/{teamId}/meetings")
     @Operation(summary = "회의 목록 조회 API", description = """
@@ -132,6 +134,20 @@ public class MeetingController {
             @Parameter(hidden= true) @CurrentMember Long memberId,
             @PathVariable Long meetingId) {
         return ApiResponse.onSuccess(meetingCommandService.endMeeting(memberId, meetingId));
+    }
+
+    @PostMapping("/meetings/{meetingId}/analysis-test")
+    @Operation(summary = "회의 분석 저장 테스트 API", description = """
+            FastAPI 상태 조회 응답 JSON을 그대로 전달해 결정사항/적용사항 저장 로직만 테스트하는 API입니다.
+            외부 분석 호출 없이 저장 흐름만 검증할 때 사용합니다.
+            """)
+    public ApiResponse<Void> analyzeTestResponse(
+            @Parameter(hidden = true) @CurrentMember Long memberId,
+            @PathVariable Long meetingId,
+            @RequestBody MeetingRequest.MeetingAnalysisTestDTO request
+    ) {
+        meetingAnalysisService.persistTestMeetingAnalysis(memberId, meetingId, request);
+        return ApiResponse.onSuccess(null);
     }
 
     @DeleteMapping("/meetings/{meetingId}")
