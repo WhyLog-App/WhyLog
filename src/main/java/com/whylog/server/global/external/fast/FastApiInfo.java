@@ -19,7 +19,8 @@ public enum FastApiInfo {
     MEETING_ANALYSIS_EXTRACT(HttpMethod.POST, "/api/meeting-analysis/extract", FastApiRequestBodyType.JSON),
     MEETING_ANALYSIS_EMBEDDINGS(HttpMethod.POST, "/api/meeting-analysis/embeddings", FastApiRequestBodyType.JSON),
 
-    COMMIT_ANALYZE(HttpMethod.POST, "/api/commit/analyze", FastApiRequestBodyType.JSON),
+    COMMIT_ANALYZE(HttpMethod.POST, "/api/commit/analyze/runs", FastApiRequestBodyType.JSON),
+    COMMIT_ANALYZE_RUN_STATUS(HttpMethod.GET, "/api/commit/analyze/runs/{run_id}", FastApiRequestBodyType.NONE),
     COMMIT_MATCH(HttpMethod.POST, "/api/commit/match", FastApiRequestBodyType.JSON);
 
     private final HttpMethod method;

@@ -1,15 +1,24 @@
 package com.whylog.server.domain.git.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.whylog.server.domain.git.dto.GitRequest;
 import com.whylog.server.domain.git.dto.GitResponse;
+import com.whylog.server.domain.git.entity.CommitAnalysis;
 import com.whylog.server.domain.git.entity.Commit;
 import com.whylog.server.domain.git.entity.Repository;
 import com.whylog.server.domain.git.exception.GitErrorCode;
 import com.whylog.server.domain.git.exception.GitTokenNotRegisteredException;
 import com.whylog.server.domain.git.exception.RepositoryNotFoundException;
+import com.whylog.server.domain.git.repository.CommitAnalysisRepository;
 import com.whylog.server.domain.git.repository.CommitRepository;
 import com.whylog.server.domain.git.repository.RepositoryRepository;
 import com.whylog.server.global.apiPayload.exception.handler.ErrorHandler;
+import com.whylog.server.global.external.fast.client.FastApiCommitClient;
+import com.whylog.server.global.external.fast.dto.FastApiResponse;
+import com.whylog.server.global.external.fast.dto.request.ChangedFile;
+import com.whylog.server.global.external.fast.dto.request.CommitAnalyzeRequest;
+import com.whylog.server.global.external.fast.exception.FastApiErrorCode;
+import com.whylog.server.global.external.fast.exception.FastApiException;
 import com.whylog.server.global.util.github.GitHubUtil;
 import com.whylog.server.domain.team.entity.Team;
 import com.whylog.server.domain.team.service.TeamUseCase;
@@ -24,11 +33,14 @@ import org.kohsuke.github.GitHub;
 import org.kohsuke.github.HttpException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +49,8 @@ public class GitCommandServiceImpl implements GitCommandService {
 
     private final RepositoryRepository repositoryRepository;
     private final CommitRepository commitRepository;
+    private final CommitAnalysisRepository commitAnalysisRepository;
+    private final FastApiCommitClient fastApiCommitClient;
     private final TeamUseCase teamUseCase;
     private final MemberUseCase memberUseCase;
 
@@ -197,10 +211,176 @@ public class GitCommandServiceImpl implements GitCommandService {
                 .toList();
 
         if (!newCommits.isEmpty()) {
-            commitRepository.saveAll(newCommits);
+            List<Commit> savedCommits = commitRepository.saveAllAndFlush(newCommits);
+            triggerCommitAnalyzeRunsAfterCommit(ghRepository, repository, savedCommits);
             log.info("새로운 커밋 {}개 동기화 완료: {}", newCommits.size(), ghRepository.getFullName());
         } else {
             log.info("새로 동기화할 커밋이 없습니다: {}", ghRepository.getFullName());
+        }
+    }
+
+    /**
+     * 커밋 저장 커밋 이후에 분석 run 생성을 비동기로 시작합니다.
+     */
+    private void triggerCommitAnalyzeRunsAfterCommit(GHRepository ghRepository, Repository repository, List<Commit> commits) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    triggerCommitAnalyzeRunsAsync(ghRepository, repository, commits);
+                }
+            });
+            return;
+        }
+
+        triggerCommitAnalyzeRunsAsync(ghRepository, repository, commits);
+    }
+
+    /**
+     * 저장된 커밋들에 대해 FastAPI 분석 run 생성을 비동기로 순차 실행합니다.
+     */
+    private void triggerCommitAnalyzeRunsAsync(GHRepository ghRepository, Repository repository, List<Commit> commits) {
+        CompletableFuture.runAsync(() -> commits.forEach(commit -> createCommitAnalyzeRun(ghRepository, repository, commit)))
+                .exceptionally(ex -> {
+                    log.warn("커밋 분석 run 생성 비동기 작업 실패: repositoryId={}", repository.getId(), ex);
+                    return null;
+                });
+    }
+
+    /**
+     * 커밋별 변경 파일을 수집해 FastAPI 분석 run을 생성하고 완료 결과를 저장합니다.
+     */
+    private void createCommitAnalyzeRun(GHRepository ghRepository, Repository repository, Commit commit) {
+        try {
+            GHCommit ghCommit = ghRepository.getCommit(commit.getHash());
+            List<ChangedFile> changedFiles = ghCommit.listFiles().toList().stream()
+                    .map(this::toChangedFile)
+                    .toList();
+
+            CommitAnalyzeRequest request = new CommitAnalyzeRequest(
+                    null,
+                    commit.getHash(),
+                    repository.getId().intValue(),
+                    commit.getMessage(),
+                    changedFiles
+            );
+
+            FastApiResponse<JsonNode> createResponse = fastApiCommitClient.analyzeCommit(request);
+            JsonNode createResult = requireResult(createResponse);
+            String runId = readText(createResult, "run_id");
+            if (runId == null || runId.isBlank()) {
+                throw new FastApiException(FastApiErrorCode.FAST_API_RESPONSE_EMPTY);
+            }
+
+            JsonNode runResult = pollCommitAnalyzeRun(runId);
+            saveCommitAnalysis(commit, runResult);
+        } catch (Exception e) {
+            log.warn("커밋 분석 run 생성 실패: commitHash={}", commit.getHash(), e);
+        }
+    }
+
+    /**
+     * FastAPI 분석 run 상태를 폴링해 summary가 준비된 최종 결과를 가져옵니다.
+     */
+    private JsonNode pollCommitAnalyzeRun(String runId) {
+        for (int attempt = 1; attempt <= 120; attempt++) {
+            FastApiResponse<JsonNode> response = fastApiCommitClient.getCommitAnalyzeRun(runId);
+            JsonNode runResult = response != null ? response.result() : null;
+
+            if (runResult == null) {
+                sleep(3000L);
+                continue;
+            }
+
+            String status = readText(runResult, "status");
+            String phase = readText(runResult, "phase");
+            String summary = readNestedText(runResult, "result", "summary");
+
+            if (isFailed(status, phase)) {
+                throw new FastApiException(FastApiErrorCode.FAST_API_REQUEST_FAILED);
+            }
+
+            if (summary != null && !summary.isBlank()) {
+                return runResult;
+            }
+
+            sleep(3000L);
+        }
+
+        throw new FastApiException(FastApiErrorCode.FAST_API_REQUEST_FAILED);
+    }
+
+    /**
+     * 완료된 분석 결과에서 summary를 upsert 저장합니다.
+     */
+    private void saveCommitAnalysis(Commit commit, JsonNode runResult) {
+        String summary = readNestedText(runResult, "result", "summary");
+
+        if (summary == null || summary.isBlank()) {
+            throw new FastApiException(FastApiErrorCode.FAST_API_RESPONSE_EMPTY);
+        }
+
+        CommitAnalysis commitAnalysis = commitAnalysisRepository.findByCommitId(commit.getId())
+                .orElseGet(() -> CommitAnalysis.create(commit));
+        commitAnalysis.updateSummary(summary);
+        commitAnalysisRepository.save(commitAnalysis);
+
+        log.info("커밋 분석 저장 완료: commitHash={}", commit.getHash());
+    }
+
+    /**
+     * FastAPI run 상태가 실패인지 확인합니다.
+     */
+    private boolean isFailed(String status, String phase) {
+        return "failed".equalsIgnoreCase(status) || "failed".equalsIgnoreCase(phase);
+    }
+
+    /**
+     * JSON 필드의 문자열 값을 안전하게 읽습니다.
+     */
+    private String readText(JsonNode node, String fieldName) {
+        JsonNode value = node != null ? node.get(fieldName) : null;
+        return value != null ? value.asText(null) : null;
+    }
+
+    /**
+     * 중첩 JSON 필드의 문자열 값을 안전하게 읽습니다.
+     */
+    private String readNestedText(JsonNode node, String parentFieldName, String childFieldName) {
+        JsonNode parent = node != null ? node.get(parentFieldName) : null;
+        JsonNode child = parent != null ? parent.get(childFieldName) : null;
+        return child != null ? child.asText(null) : null;
+    }
+
+    /**
+     * FastAPI 응답의 result가 비어 있으면 예외를 던집니다.
+     */
+    private <T> T requireResult(FastApiResponse<T> response) {
+        if (response == null || response.result() == null) {
+            throw new FastApiException(FastApiErrorCode.FAST_API_RESPONSE_EMPTY);
+        }
+        return response.result();
+    }
+
+    /**
+     * GitHub 커밋 파일 정보를 FastAPI 요청용 changed file로 변환합니다.
+     */
+    private ChangedFile toChangedFile(GHCommit.File file) {
+        return new ChangedFile(
+                file.getFileName(),
+                file.getPatch() != null ? file.getPatch() : ""
+        );
+    }
+
+    /**
+     * 폴링 사이에 잠시 대기합니다.
+     */
+    private void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new FastApiException(FastApiErrorCode.FAST_API_REQUEST_FAILED, e);
         }
     }
 
