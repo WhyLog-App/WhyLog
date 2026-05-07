@@ -168,7 +168,7 @@ public class GitCommandServiceImpl implements GitCommandService {
                         var shortInfo = ghCommit.getCommitShortInfo();
                         String message = shortInfo.getMessage();
 
-                        if (message.startsWith("Merge pull request")) return null;
+                        if (ghCommit.getParentSHA1s().size() > 1) return null;
 
                         String authorProfileImage = (ghCommit.getAuthor() != null)
                                 ? ghCommit.getAuthor().getAvatarUrl() : null;
