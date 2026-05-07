@@ -13,6 +13,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.lang.Nullable;
 import org.springframework.util.LinkedMultiValueMap;
@@ -30,8 +31,12 @@ public class FastApiClient {
     @Value("${fast.api.base-url}")
     private String baseUrl;
 
-    protected FastApiClient() {
-        this.restClient = RestClient.create();
+    protected FastApiClient(RestClient.Builder restClientBuilder) {
+        // Spring Boot가 application.yaml(SNAKE_CASE 등)을 적용해 구성한 Builder를 그대로 사용해야
+        // 요청 직렬화에서도 글로벌 Jackson 설정이 반영된다.
+        this.restClient = restClientBuilder
+                .requestFactory(new SimpleClientHttpRequestFactory())
+                .build();
     }
 
     protected <T> T get(FastApiInfo fastApiInfo,
@@ -78,10 +83,8 @@ public class FastApiClient {
                         .body(responseType);
             }
 
-            if (fastApiInfo.getFastApiRequestBodyType() == FastApiRequestBodyType.JSON) {
-                bodySpec.contentType(MediaType.APPLICATION_JSON);
-            }
             if (jsonBody != null) {
+                bodySpec.contentType(MediaType.APPLICATION_JSON);
                 return bodySpec.body(jsonBody)
                         .retrieve()
                         .body(responseType);

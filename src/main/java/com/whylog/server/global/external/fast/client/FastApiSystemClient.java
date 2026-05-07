@@ -6,9 +6,14 @@ import com.whylog.server.global.external.fast.FastApiInfo;
 import com.whylog.server.global.external.fast.dto.FastApiResponse;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 
 @Component
 public class FastApiSystemClient extends FastApiClient {
+
+    public FastApiSystemClient(RestClient.Builder restClientBuilder) {
+        super(restClientBuilder);
+    }
 
     public FastApiResponse<Map<String, String>> readRoot() {
         return get(
