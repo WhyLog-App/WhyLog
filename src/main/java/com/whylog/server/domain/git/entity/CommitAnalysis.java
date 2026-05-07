@@ -8,7 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -25,7 +25,20 @@ public class CommitAnalysis extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "commit_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "commit_id", nullable = false, unique = true)
     private Commit commit;
+
+    @Column(name = "summary", columnDefinition = "TEXT")
+    private String summary;
+
+    public static CommitAnalysis create(Commit commit) {
+        CommitAnalysis commitAnalysis = new CommitAnalysis();
+        commitAnalysis.commit = commit;
+        return commitAnalysis;
+    }
+
+    public void updateSummary(String summary) {
+        this.summary = summary;
+    }
 }
