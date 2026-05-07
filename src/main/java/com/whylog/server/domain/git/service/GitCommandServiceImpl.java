@@ -1,6 +1,8 @@
 package com.whylog.server.domain.git.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.whylog.server.domain.git.dto.GitRequest;
 import com.whylog.server.domain.git.dto.GitResponse;
 import com.whylog.server.domain.git.entity.CommitAnalysis;
@@ -28,6 +30,7 @@ import com.whylog.server.global.apiPayload.exception.ParameterRequiredException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kohsuke.github.GHCommit;
+import org.kohsuke.github.GHContent;
 import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GitHub;
 import org.kohsuke.github.HttpException;
@@ -35,6 +38,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -47,12 +51,17 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class GitCommandServiceImpl implements GitCommandService {
 
+    private static final int MAX_COMMIT_ANALYZE_RETRY_ATTEMPTS = 3;
+    private static final long COMMIT_ANALYZE_FIRST_RETRY_INTERVAL_MILLIS = 30000L;
+    private static final long COMMIT_ANALYZE_SECOND_RETRY_INTERVAL_MILLIS = 60000L;
+
     private final RepositoryRepository repositoryRepository;
     private final CommitRepository commitRepository;
     private final CommitAnalysisRepository commitAnalysisRepository;
     private final FastApiCommitClient fastApiCommitClient;
     private final TeamUseCase teamUseCase;
     private final MemberUseCase memberUseCase;
+    private final ObjectMapper objectMapper;
 
     /**
      * 사용자의 GitHub Access Token을 등록합니다.
@@ -251,13 +260,20 @@ public class GitCommandServiceImpl implements GitCommandService {
      * 커밋별 변경 파일을 수집해 FastAPI 분석 run을 생성하고 완료 결과를 저장합니다.
      */
     private void createCommitAnalyzeRun(GHRepository ghRepository, Repository repository, Commit commit) {
+        CommitAnalyzeRequest request = null;
         try {
             GHCommit ghCommit = ghRepository.getCommit(commit.getHash());
             List<ChangedFile> changedFiles = ghCommit.listFiles().toList().stream()
-                    .map(this::toChangedFile)
+                    .map(file -> toChangedFile(ghRepository, ghCommit, file))
+                    .filter(Objects::nonNull)
                     .toList();
 
-            CommitAnalyzeRequest request = new CommitAnalyzeRequest(
+            if (changedFiles.isEmpty()) {
+                log.info("분석 가능한 변경 파일이 없어 커밋 분석을 건너뜁니다: commitHash={}", commit.getHash());
+                return;
+            }
+
+            request = new CommitAnalyzeRequest(
                     null,
                     commit.getHash(),
                     repository.getId().intValue(),
@@ -265,16 +281,31 @@ public class GitCommandServiceImpl implements GitCommandService {
                     changedFiles
             );
 
-            FastApiResponse<JsonNode> createResponse = fastApiCommitClient.analyzeCommit(request);
-            JsonNode createResult = requireResult(createResponse);
-            String runId = readText(createResult, "run_id");
-            if (runId == null || runId.isBlank()) {
-                throw new FastApiException(FastApiErrorCode.FAST_API_RESPONSE_EMPTY);
-            }
+            for (int attempt = 1; attempt <= MAX_COMMIT_ANALYZE_RETRY_ATTEMPTS; attempt++) {
+                try {
+                    FastApiResponse<JsonNode> createResponse = fastApiCommitClient.analyzeCommit(request);
+                    JsonNode createResult = requireResult(createResponse);
+                    String runId = readText(createResult, "run_id");
+                    if (runId == null || runId.isBlank()) {
+                        throw new FastApiException(FastApiErrorCode.FAST_API_RESPONSE_EMPTY);
+                    }
 
-            JsonNode runResult = pollCommitAnalyzeRun(runId);
-            saveCommitAnalysis(commit, runResult);
+                    JsonNode runResult = pollCommitAnalyzeRun(runId);
+                    saveCommitAnalysis(commit, runResult);
+                    return;
+                } catch (FastApiException e) {
+                    if (!isRetryableCommitAnalyzeFailure(e) || attempt == MAX_COMMIT_ANALYZE_RETRY_ATTEMPTS) {
+                        throw e;
+                    }
+
+                    long retryIntervalMillis = resolveCommitAnalyzeRetryIntervalMillis(attempt);
+                    log.warn("커밋 분석 재시도: commitHash={}, attempt={}/{}",
+                            commit.getHash(), attempt + 1, MAX_COMMIT_ANALYZE_RETRY_ATTEMPTS);
+                    sleep(retryIntervalMillis);
+                }
+            }
         } catch (Exception e) {
+            logCommitAnalyzeRequestOnClientError(commit, request, e);
             log.warn("커밋 분석 run 생성 실패: commitHash={}", commit.getHash(), e);
         }
     }
@@ -294,10 +325,14 @@ public class GitCommandServiceImpl implements GitCommandService {
 
             String status = readText(runResult, "status");
             String phase = readText(runResult, "phase");
+            String error = readText(runResult, "error");
             String summary = readNestedText(runResult, "result", "summary");
 
             if (isFailed(status, phase)) {
-                throw new FastApiException(FastApiErrorCode.FAST_API_REQUEST_FAILED);
+                throw new FastApiException(
+                        FastApiErrorCode.FAST_API_REQUEST_FAILED,
+                        new IllegalStateException(error != null ? error : "commit analyze run failed")
+                );
             }
 
             if (summary != null && !summary.isBlank()) {
@@ -307,7 +342,10 @@ public class GitCommandServiceImpl implements GitCommandService {
             sleep(3000L);
         }
 
-        throw new FastApiException(FastApiErrorCode.FAST_API_REQUEST_FAILED);
+        throw new FastApiException(
+                FastApiErrorCode.FAST_API_REQUEST_FAILED,
+                new IllegalStateException("commit analyze run poll timeout")
+        );
     }
 
     /**
@@ -333,6 +371,61 @@ public class GitCommandServiceImpl implements GitCommandService {
      */
     private boolean isFailed(String status, String phase) {
         return "failed".equalsIgnoreCase(status) || "failed".equalsIgnoreCase(phase);
+    }
+
+    /**
+     * 커밋 분석 실패가 재시도 가능한 일시적 오류인지 확인합니다.
+     */
+    private boolean isRetryableCommitAnalyzeFailure(FastApiException exception) {
+        Throwable cause = exception.getCause();
+        while (cause != null) {
+            if (cause instanceof RestClientResponseException restClientResponseException) {
+                return restClientResponseException.getStatusCode().is5xxServerError();
+            }
+
+            String message = cause.getMessage();
+            if (message != null) {
+                if (message.contains("Gemini 응답 시간이 초과되었습니다.")
+                        || message.contains("504")
+                        || message.contains("poll timeout")) {
+                    return true;
+                }
+            }
+
+            cause = cause.getCause();
+        }
+        return false;
+    }
+
+    /**
+     * 요청 본문 검증 실패가 발생한 경우 FastAPI로 전달한 요청 JSON을 함께 기록합니다.
+     */
+    private void logCommitAnalyzeRequestOnClientError(Commit commit, CommitAnalyzeRequest request, Exception exception) {
+        Throwable cause = exception;
+        while (cause != null) {
+            if (cause instanceof RestClientResponseException restClientResponseException
+                    && restClientResponseException.getStatusCode().is4xxClientError()) {
+                try {
+                    log.warn("커밋 분석 요청 본문: commitHash={}, payload={}",
+                            commit.getHash(),
+                            objectMapper.writeValueAsString(request));
+                } catch (JsonProcessingException jsonProcessingException) {
+                    log.warn("커밋 분석 요청 본문 직렬화 실패: commitHash={}", commit.getHash(), jsonProcessingException);
+                }
+                return;
+            }
+            cause = cause.getCause();
+        }
+    }
+
+    /**
+     * 커밋 분석 재시도 순서에 맞는 대기 시간을 반환합니다.
+     */
+    private long resolveCommitAnalyzeRetryIntervalMillis(int attempt) {
+        if (attempt == 1) {
+            return COMMIT_ANALYZE_FIRST_RETRY_INTERVAL_MILLIS;
+        }
+        return COMMIT_ANALYZE_SECOND_RETRY_INTERVAL_MILLIS;
     }
 
     /**
@@ -365,11 +458,27 @@ public class GitCommandServiceImpl implements GitCommandService {
     /**
      * GitHub 커밋 파일 정보를 FastAPI 요청용 changed file로 변환합니다.
      */
-    private ChangedFile toChangedFile(GHCommit.File file) {
-        return new ChangedFile(
-                file.getFileName(),
-                file.getPatch() != null ? file.getPatch() : ""
-        );
+    private ChangedFile toChangedFile(GHRepository ghRepository, GHCommit ghCommit, GHCommit.File file) {
+        String patch = file.getPatch();
+        if (patch != null && !patch.isBlank()) {
+            return new ChangedFile(file.getFileName(), patch);
+        }
+
+        try {
+            if (isBinaryFile(file)) {
+                return null;
+            }
+
+            String fallbackPatch = buildFallbackPatch(ghRepository, ghCommit, file);
+            if (fallbackPatch == null || fallbackPatch.isBlank()) {
+                return null;
+            }
+
+            return new ChangedFile(file.getFileName(), fallbackPatch);
+        } catch (IOException e) {
+            log.warn("변경 파일 patch 생성 실패: fileName={}, message={}", file.getFileName(), e.getMessage());
+            return null;
+        }
     }
 
     /**
@@ -382,6 +491,136 @@ public class GitCommandServiceImpl implements GitCommandService {
             Thread.currentThread().interrupt();
             throw new FastApiException(FastApiErrorCode.FAST_API_REQUEST_FAILED, e);
         }
+    }
+
+    /**
+     * patch 가 없는 파일에 대해 before/after 내용을 다시 조회하여 fallback diff 를 생성합니다.
+     */
+    private String buildFallbackPatch(GHRepository ghRepository, GHCommit ghCommit, GHCommit.File file) throws IOException {
+        String beforePath = file.getPreviousFilename() != null ? file.getPreviousFilename() : file.getFileName();
+        String afterPath = file.getFileName();
+        String status = file.getStatus();
+
+        String beforeContent = null;
+        String afterContent = null;
+
+        if (!"added".equalsIgnoreCase(status)) {
+            beforeContent = readFileContentIfExists(ghRepository, beforePath, resolveParentSha(ghCommit));
+        }
+        if (!"removed".equalsIgnoreCase(status)) {
+            afterContent = readFileContentIfExists(ghRepository, afterPath, resolveCurrentSha(ghCommit));
+        }
+
+        if (beforeContent == null && afterContent == null) {
+            return null;
+        }
+
+        return buildUnifiedDiff(beforePath, afterPath, beforeContent, afterContent);
+    }
+
+    /**
+     * 현재 파일이 바이너리 파일인지 추정합니다.
+     */
+    private boolean isBinaryFile(GHCommit.File file) {
+        String fileName = file.getFileName().toLowerCase();
+        return fileName.endsWith(".png")
+                || fileName.endsWith(".jpg")
+                || fileName.endsWith(".jpeg")
+                || fileName.endsWith(".gif")
+                || fileName.endsWith(".webp")
+                || fileName.endsWith(".svg")
+                || fileName.endsWith(".pdf")
+                || fileName.endsWith(".zip")
+                || fileName.endsWith(".jar")
+                || fileName.endsWith(".war")
+                || fileName.endsWith(".class")
+                || fileName.endsWith(".mp3")
+                || fileName.endsWith(".mp4")
+                || fileName.endsWith(".mov")
+                || fileName.endsWith(".avi")
+                || fileName.endsWith(".wav")
+                || fileName.endsWith(".ttf")
+                || fileName.endsWith(".otf")
+                || fileName.endsWith(".woff")
+                || fileName.endsWith(".woff2")
+                || fileName.endsWith(".ico");
+    }
+
+    /**
+     * 특정 ref 기준 파일 내용을 조회하고 없으면 null 을 반환합니다.
+     */
+    private String readFileContentIfExists(GHRepository ghRepository, String path, String ref) throws IOException {
+        if (path == null || ref == null || ref.isBlank()) {
+            return null;
+        }
+
+        try {
+            GHContent content = ghRepository.getFileContent(path, ref);
+            try (var inputStream = content.read()) {
+                byte[] bytes = inputStream.readAllBytes();
+                if (containsNullByte(bytes)) {
+                    return null;
+                }
+                return new String(bytes);
+            }
+        } catch (HttpException e) {
+            return null;
+        }
+    }
+
+    /**
+     * fallback diff 생성을 위해 현재 커밋 sha 를 반환합니다.
+     */
+    private String resolveCurrentSha(GHCommit ghCommit) {
+        return ghCommit.getSHA1();
+    }
+
+    /**
+     * fallback diff 생성을 위해 부모 커밋 sha 를 반환합니다.
+     */
+    private String resolveParentSha(GHCommit ghCommit) {
+        List<String> parentSha1s = ghCommit.getParentSHA1s();
+        if (parentSha1s == null || parentSha1s.isEmpty()) {
+            return null;
+        }
+        return parentSha1s.get(0);
+    }
+
+    /**
+     * before/after 전체 내용을 기반으로 단순 unified diff 문자열을 생성합니다.
+     */
+    private String buildUnifiedDiff(String beforePath, String afterPath, String beforeContent, String afterContent) {
+        List<String> beforeLines = beforeContent == null ? List.of() : Arrays.asList(beforeContent.split("\\R", -1));
+        List<String> afterLines = afterContent == null ? List.of() : Arrays.asList(afterContent.split("\\R", -1));
+
+        if (beforeLines.equals(afterLines)) {
+            return null;
+        }
+
+        StringBuilder diff = new StringBuilder();
+        diff.append("--- a/").append(beforePath).append("\n");
+        diff.append("+++ b/").append(afterPath).append("\n");
+        diff.append("@@ -1,").append(beforeLines.size()).append(" +1,").append(afterLines.size()).append(" @@\n");
+
+        for (String line : beforeLines) {
+            diff.append("-").append(line).append("\n");
+        }
+        for (String line : afterLines) {
+            diff.append("+").append(line).append("\n");
+        }
+        return diff.toString();
+    }
+
+    /**
+     * 파일 바이트 배열에 null byte 가 포함되어 있으면 바이너리로 간주합니다.
+     */
+    private boolean containsNullByte(byte[] bytes) {
+        for (byte value : bytes) {
+            if (value == 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
