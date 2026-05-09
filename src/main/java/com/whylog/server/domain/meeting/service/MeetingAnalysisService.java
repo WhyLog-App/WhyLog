@@ -38,6 +38,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -226,12 +228,17 @@ public class MeetingAnalysisService {
 
         transactionTemplate.executeWithoutResult(status -> {
             Meeting managedMeeting = meetingUseCase.findMeetingWithMembersById(meeting.getId());
-
-            MeetingAnalysis meetingAnalysis = MeetingAnalysis.create(managedMeeting, payload);
+            MeetingAnalysis meetingAnalysis = meetingAnalysisRepository.findByMeetingId(managedMeeting.getId())
+                    .map(existingMeetingAnalysis -> {
+                        existingMeetingAnalysis.updateAnalysis(payload);
+                        return existingMeetingAnalysis;
+                    })
+                    .orElseGet(() -> MeetingAnalysis.create(managedMeeting, payload));
             meetingAnalysisRepository.save(meetingAnalysis);
             managedMeeting.attachMeetingAnalysis(meetingAnalysis);
 
             List<Dialogue> dialogues = buildDialogues(managedMeeting, transcriptSegments);
+            dialogueRepository.deleteByMeetingId(managedMeeting.getId());
             if (!dialogues.isEmpty()) {
                 dialogueRepository.saveAll(dialogues);
                 dialogues.forEach(managedMeeting::addDialogue);
@@ -420,6 +427,7 @@ public class MeetingAnalysisService {
         }
 
         List<Dialogue> dialogues = new ArrayList<>();
+        Set<String> seenDialogueKeys = new HashSet<>();
         for (int index = 0; index < transcriptSegments.size(); index++) {
             TranscribeApplicationRunResponse.TranscriptSegmentResponse segment = transcriptSegments.get(index);
             if (segment == null || segment.text() == null || segment.text().isBlank()) {
@@ -428,10 +436,31 @@ public class MeetingAnalysisService {
 
             Member member = resolveMemberForSegment(members, segment.speaker(), index);
             LocalDateTime speechDateTime = resolveSpeechDateTime(meeting.getStartDateTime(), segment.startTime(), index);
+            String dialogueKey = buildDialogueKey(segment, member, speechDateTime);
+            if (!seenDialogueKeys.add(dialogueKey)) {
+                continue;
+            }
             dialogues.add(Dialogue.create(meeting, member, segment.text().trim(), speechDateTime));
         }
 
         return dialogues;
+    }
+
+    private String buildDialogueKey(TranscribeApplicationRunResponse.TranscriptSegmentResponse segment,
+                                    Member member,
+                                    LocalDateTime speechDateTime) {
+        if (segment.messageId() != null) {
+            return "messageId:" + segment.messageId();
+        }
+
+        return String.join("|",
+                String.valueOf(member.getId()),
+                speechDateTime != null ? speechDateTime.toString() : "",
+                segment.text() != null ? segment.text().trim() : "",
+                segment.speaker() != null ? segment.speaker().trim() : "",
+                segment.startTime() != null ? segment.startTime().trim() : "",
+                segment.endTime() != null ? segment.endTime().trim() : ""
+        );
     }
 
     // 세그먼트의 화자 정보를 기반으로 회의 참여자를 선택한다.
