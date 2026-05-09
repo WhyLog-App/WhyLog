@@ -74,6 +74,7 @@ public class MeetingAnalysisService {
     private final MeetingAnalysisRepository meetingAnalysisRepository;
     private final DialogueRepository dialogueRepository;
     private final MeetingMemberRepository meetingMemberRepository;
+    private final MeetingLiveMessageBundleService meetingLiveMessageBundleService;
     private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
 
@@ -129,6 +130,7 @@ public class MeetingAnalysisService {
         String audioUrl = audioResponse.getAudioUrl();
         String audioFilename = meetingAudioFileService.extractFileName(audioKey);
         String contentType = meetingAudioFileService.resolveResponseContentType(audioKey);
+        String liveMessagesJson = meetingLiveMessageBundleService.buildLiveMessagesJson(meeting);
 
         FastApiResponse<TranscribeApplicationRunCreateResponse> createResponse = fastApiTranscribeClient.createTranscribeApplicationRun(
                 buildAudioResource(audioUrl),
@@ -136,7 +138,8 @@ public class MeetingAnalysisService {
                 contentType,
                 null,
                 String.valueOf(meeting.getId()),
-                null
+                null,
+                liveMessagesJson
         );
 
         String runId = requireResult(createResponse).runId();
