@@ -3,10 +3,12 @@ package com.whylog.server.domain.meeting.socket;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.whylog.server.domain.meeting.socket.message.*;
 import com.whylog.server.domain.meeting.service.MeetingCommandService;
+import com.whylog.server.domain.meeting.socket.repository.MeetingLiveMessageRepository;
 import com.whylog.server.global.util.json.JsonConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.socket.BinaryMessage;
@@ -16,6 +18,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.BinaryWebSocketHandler;
 
+import java.time.LocalDateTime;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +34,7 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
 
     private final MeetingSocketRoomService meetingSocketRoomService;
     private final MeetingCommandService meetingCommandService;
+    private final MeetingLiveMessageRepository meetingLiveMessageRepository;
 
     // 웹소켓 연결 직후 참가자를 방에 등록하고 현재 참여자 목록과 입장 이벤트를 전파합니다.
     @Override
@@ -202,6 +206,31 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
                         incoming.payload()
                 ))
         );
+        if (type == MeetingMessageType.AUDIO_TEXT
+                && StringUtils.hasText(incoming.text())
+                && !isInterim(incoming.payload())) {
+            meetingLiveMessageRepository.append(
+                    participant.meetingId(),
+                    new LiveMessageEntry(
+                            participant.meetingId(),
+                            participant.memberId(),
+                            participant.name(),
+                            incoming.targetMemberId(),
+                            incoming.text(),
+                            incoming.payload(),
+                            LocalDateTime.now()
+                )
+            );
+        }
+    }
+
+    private static boolean isInterim(JsonNode payload) {
+        if (payload == null) {
+            return false;
+        }
+
+        JsonNode isFinal = payload.get("is_final");
+        return isFinal != null && isFinal.isBoolean() && !isFinal.booleanValue();
     }
 
     private void forwardSignal(
