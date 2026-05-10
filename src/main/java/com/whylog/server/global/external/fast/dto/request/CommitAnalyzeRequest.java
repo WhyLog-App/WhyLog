@@ -5,9 +5,9 @@ import java.util.List;
 
 @Schema(description = "FastAPI 커밋 분석 요청")
 public record CommitAnalyzeRequest(
-        @Schema(description = "커밋 ID")
+        @Schema(description = "커밋 ID", nullable = true)
         Integer commitId,
-        @Schema(description = "Git 커밋 해시", nullable = true)
+        @Schema(description = "Git 커밋 해시")
         String commitHash,
         @Schema(description = "Spring 레포지토리 ID")
         Integer repositoryId,

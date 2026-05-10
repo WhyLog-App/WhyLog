@@ -11,9 +11,14 @@ import java.util.Map;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 
 @Component
 public class FastApiTranscribeClient extends FastApiClient {
+
+    public FastApiTranscribeClient(RestClient.Builder restClientBuilder) {
+        super(restClientBuilder);
+    }
 
     public FastApiResponse<JsonNode> transcribeAudio(Resource audio,
                                                      String filename,
