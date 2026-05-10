@@ -9,9 +9,10 @@ import org.springframework.data.repository.query.Param;
 public interface DecisionTimelineRepository extends JpaRepository<DecisionTimeline, Long> {
 
     @Modifying
-    @Query("""
-            DELETE FROM DecisionTimeline dt
-            WHERE dt.decision.meeting.id = :meetingId
-            """)
+    @Query("DELETE FROM DecisionTimeline dt WHERE dt.decision.meeting.team.id = :teamId")
+    void deleteByTeamId(@Param("teamId") Long teamId);
+
+    @Modifying
+    @Query("DELETE FROM DecisionTimeline dt WHERE dt.decision.meeting.id = :meetingId")
     void deleteByMeetingId(@Param("meetingId") Long meetingId);
 }

@@ -22,9 +22,10 @@ public interface ApplicationTimelineRepository extends JpaRepository<Application
     List<ApplicationTimeline> findByApplicationId(@Param("applicationId") Long applicationId);
 
     @Modifying
-    @Query("""
-            DELETE FROM ApplicationTimeline at
-            WHERE at.application.decision.meeting.id = :meetingId
-            """)
+    @Query("DELETE FROM ApplicationTimeline at WHERE at.application.decision.meeting.team.id = :teamId")
+    void deleteByTeamId(@Param("teamId") Long teamId);
+
+    @Modifying
+    @Query("DELETE FROM ApplicationTimeline at WHERE at.application.decision.meeting.id = :meetingId")
     void deleteByMeetingId(@Param("meetingId") Long meetingId);
 }

@@ -22,9 +22,10 @@ public interface ApplicationBaseRepository extends JpaRepository<ApplicationBase
     List<ApplicationBase> findByApplicationId(@Param("applicationId") Long applicationId);
 
     @Modifying
-    @Query("""
-            DELETE FROM ApplicationBase ab
-            WHERE ab.application.decision.meeting.id = :meetingId
-            """)
+    @Query("DELETE FROM ApplicationBase ab WHERE ab.application.decision.meeting.team.id = :teamId")
+    void deleteByTeamId(@Param("teamId") Long teamId);
+
+    @Modifying
+    @Query("DELETE FROM ApplicationBase ab WHERE ab.application.decision.meeting.id = :meetingId")
     void deleteByMeetingId(@Param("meetingId") Long meetingId);
 }

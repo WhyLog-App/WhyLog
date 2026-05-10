@@ -9,9 +9,10 @@ import org.springframework.data.repository.query.Param;
 public interface DecisionBaseRepository extends JpaRepository<DecisionBase, Long> {
 
     @Modifying
-    @Query("""
-            DELETE FROM DecisionBase db
-            WHERE db.decision.meeting.id = :meetingId
-            """)
+    @Query("DELETE FROM DecisionBase db WHERE db.decision.meeting.team.id = :teamId")
+    void deleteByTeamId(@Param("teamId") Long teamId);
+
+    @Modifying
+    @Query("DELETE FROM DecisionBase db WHERE db.decision.meeting.id = :meetingId")
     void deleteByMeetingId(@Param("meetingId") Long meetingId);
 }

@@ -1,6 +1,6 @@
 package com.whylog.server.domain.git.entity;
 
-import com.whylog.server.domain.decision.entity.Decision;
+import com.whylog.server.domain.decision.entity.Application;
 import com.whylog.server.global.entity.BaseEntity;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -15,20 +15,28 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Commit_Connection")
+@Table(name = "commit_connection")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CommitConnection extends BaseEntity {
 
     @EmbeddedId
     private CommitConnectionId id;
 
-    @MapsId("decisionId")
+    @MapsId("applicationId")
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "decision_id", nullable = false)
-    private Decision decision;
+    @JoinColumn(name = "application_id", nullable = false)
+    private Application application;
 
     @MapsId("commitId")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "commit_id", nullable = false)
     private Commit commit;
+
+    public static CommitConnection create(Application application, Commit commit) {
+        CommitConnection commitConnection = new CommitConnection();
+        commitConnection.id = new CommitConnectionId(application.getId(), commit.getId());
+        commitConnection.application = application;
+        commitConnection.commit = commit;
+        return commitConnection;
+    }
 }
