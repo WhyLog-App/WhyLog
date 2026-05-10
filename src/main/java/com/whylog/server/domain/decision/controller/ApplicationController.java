@@ -3,6 +3,7 @@ package com.whylog.server.domain.decision.controller;
 import com.whylog.server.domain.decision.dto.ApplicationResponse;
 import com.whylog.server.domain.decision.dto.DecisionRequest;
 import com.whylog.server.domain.decision.exception.DecisionErrorCode;
+import com.whylog.server.domain.decision.service.ApplicationCommandService;
 import com.whylog.server.domain.decision.service.ApplicationQueryService;
 import com.whylog.server.domain.git.exception.GitErrorCode;
 import com.whylog.server.global.apiPayload.ApiResponse;
@@ -28,6 +29,7 @@ import java.util.List;
 @Tag(name = "Application", description = "적용사항 관련 API")
 public class ApplicationController {
 
+    private final ApplicationCommandService applicationCommandService;
     private final ApplicationQueryService applicationQueryService;
 
 
@@ -47,6 +49,7 @@ public class ApplicationController {
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
             @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_NOT_FOUND"),
+            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_COMMIT_ALREADY_CONNECTED"),
             @ApiErrorCodeExample(value = GitErrorCode.class, name = "COMMIT_NOT_FOUND")
     })
     public ApiResponse<List<ApplicationResponse.RecommendedCommitDTO>> getRecommendedCommits(
@@ -77,7 +80,14 @@ public class ApplicationController {
     }
 
     @PostMapping("/{applicationId}/commits")
-    @Operation(summary = "커밋 연결 API", description = "적용사항에 커밋을 연결하는 API입니다.")
+    @Operation(summary = "커밋 연결 API", description = """
+            적용사항에 커밋을 연결하는 API입니다.
+            
+            단일 연결과 다중 연결 모두 `commit_ids` 배열로 전달합니다.
+            단건 연결 예시: `{ "commit_ids": [1] }`
+            다건 연결 예시: `{ "commit_ids": [1, 2, 3] }`
+            요청한 커밋 중 하나라도 이미 연결되어 있으면 전체 요청이 실패합니다.
+            """)
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
             @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_NOT_FOUND"),
@@ -86,7 +96,7 @@ public class ApplicationController {
     public ApiResponse<ApplicationResponse.CommitConnectionResponseDTO> connectCommit(
             @PathVariable Long applicationId,
             @Valid @RequestBody DecisionRequest.CommitConnectionDTO request) {
-        return ApiResponse.onSuccess(null);
+        return ApiResponse.onSuccess(applicationCommandService.connectCommit(applicationId, request));
     }
 
     @PostMapping("/{decisionId}/recommendations")

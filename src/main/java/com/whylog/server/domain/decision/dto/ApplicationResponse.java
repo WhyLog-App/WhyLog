@@ -190,9 +190,11 @@ public class ApplicationResponse {
         @Schema(description = "적용사항 ID", example = "1")
         private Long applicationId;
 
-        @Schema(description = "커밋 ID", example = "abc123def456")
-        private String commitId;
+        @Schema(description = "연결된 커밋 ID 목록", example = "[1, 2, 3]")
+        private List<Long> commitIds;
 
+        @Schema(description = "연결된 커밋 개수", example = "3")
+        private Integer connectedCount;
     }
 
 }

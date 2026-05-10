@@ -31,4 +31,12 @@ public class CommitConnection extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "commit_id", nullable = false)
     private Commit commit;
+
+    public static CommitConnection create(Application application, Commit commit) {
+        CommitConnection commitConnection = new CommitConnection();
+        commitConnection.id = new CommitConnectionId(application.getId(), commit.getId());
+        commitConnection.application = application;
+        commitConnection.commit = commit;
+        return commitConnection;
+    }
 }
