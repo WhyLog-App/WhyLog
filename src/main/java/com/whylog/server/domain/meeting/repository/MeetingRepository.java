@@ -59,5 +59,13 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
     """)
     int markAllOngoingMeetingsAsEnded(@Param("endedAt") LocalDateTime endedAt);
 
+    @Query("""
+        SELECT m FROM Meeting m
+        LEFT JOIN FETCH m.dialogues d
+        LEFT JOIN FETCH m.meetingMembers mm
+        JOIN FETCH d.member dm
+        WHERE m.id = :meetingId
+    """)
+    Optional<Meeting> findWithDialogue(@Param("meetingId") Long meetingId);
 
 }
