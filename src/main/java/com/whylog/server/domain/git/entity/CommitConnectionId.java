@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import java.io.Serializable;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,11 +12,12 @@ import lombok.NoArgsConstructor;
 @Getter
 @Embeddable
 @EqualsAndHashCode
+@AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CommitConnectionId implements Serializable {
 
-    @Column(name = "decision_id")
-    private Long decisionId;
+    @Column(name = "application_id")
+    private Long applicationId;
 
     @Column(name = "commit_id")
     private Long commitId;

@@ -12,6 +12,7 @@ public enum DecisionErrorCode implements BaseErrorCode {
 
     DECISION_NOT_FOUND(HttpStatus.NOT_FOUND, "DECISION_404", "존재하지 않는 결정사항입니다."),
     APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "APPLICATION_404", "존재하지 않는 적용사항입니다."),
+    APPLICATION_COMMIT_ALREADY_CONNECTED(HttpStatus.CONFLICT, "APPLICATION_COMMIT_409", "이미 연결된 커밋입니다."),
     ;
 
     private final HttpStatus httpStatus;

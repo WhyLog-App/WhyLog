@@ -113,7 +113,21 @@ public class ApplicationResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    @Schema(description = "적용현황 항목")
+    @Schema(description = "적용현황 조회 응답")
+    public static class ApplicationStatusDTO {
+
+        @Schema(description = "연결된 커밋 개수", example = "3")
+        private Integer commitCount;
+
+        @Schema(description = "적용현황 커밋 목록")
+        private List<ApplicationBaseItemDTO> commits;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "적용현황 커밋 항목")
     public static class ApplicationBaseItemDTO {
 
         @Schema(description = "커밋 해시", example = "b8fd9ad")
@@ -121,9 +135,6 @@ public class ApplicationResponse {
 
         @Schema(description = "커밋 메시지", example = "feat: API 구현")
         private String commitMessage;
-
-        @Schema(description = "세부 사항 목록", example = "SessionRepository 추상화 도입")
-        private List<String> details; //ai 분석 응답
     }
 
     @Getter
@@ -132,9 +143,6 @@ public class ApplicationResponse {
     @Builder
     @Schema(description = "추천 커밋 응답")
     public static class RecommendedCommitDTO {
-
-        @Schema(description = "적용사항 ID", example = "1")
-        private Long applicationId;
 
         @Schema(description = "저장소 이름", example = "whyLog-Backend")
         private String repositoryName;
@@ -150,6 +158,20 @@ public class ApplicationResponse {
 
         @Schema(description = "추천 사유", example = "이 커밋은 관련된 이슈를 해결하는 커밋입니다.")
         private String reason;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "연결된 커밋 목록 조회 응답")
+    public static class ConnectedCommitListDTO {
+
+        @Schema(description = "연결된 커밋 개수", example = "3")
+        private Integer commitCount;
+
+        @Schema(description = "연결된 커밋 목록")
+        private List<ConnectedCommitDTO> commits;
     }
 
     @Getter
@@ -182,9 +204,8 @@ public class ApplicationResponse {
         @Schema(description = "적용사항 ID", example = "1")
         private Long applicationId;
 
-        @Schema(description = "커밋 ID", example = "abc123def456")
-        private String commitId;
-
+        @Schema(description = "연결된 커밋 ID 목록", example = "[1, 2, 3]")
+        private List<Long> commitIds;
     }
 
 }

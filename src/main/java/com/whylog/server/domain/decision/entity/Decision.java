@@ -37,6 +37,9 @@ public class Decision extends BaseEntity {
     @Column(name = "is_created")
     private Boolean isCreated;
 
+    @Column(name = "reliability_score")
+    private Integer reliabilityScore;
+
     @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<Application> applications = new ArrayList<>();
 //
@@ -45,20 +48,15 @@ public class Decision extends BaseEntity {
 //
 //    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<DecisionBase> decisionBases = new ArrayList<>();
-//
-//    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<DecisionCommits> decisionCommits = new ArrayList<>();
-//
-//    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<com.whylog.server.domain.git.entity.CommitConnection> commitConnections = new ArrayList<>();
-//
-//    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<EffectRatio> effectRatios = new ArrayList<>();
 
     public static Decision create(Meeting meeting, boolean isCreated) {
         Decision decision = new Decision();
         decision.meeting = meeting;
         decision.isCreated = isCreated;
         return decision;
+    }
+
+    public void updateReliabilityScore(Integer reliabilityScore) {
+        this.reliabilityScore = reliabilityScore;
     }
 }
