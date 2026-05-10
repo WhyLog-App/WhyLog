@@ -113,7 +113,21 @@ public class ApplicationResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    @Schema(description = "적용현황 항목")
+    @Schema(description = "적용현황 조회 응답")
+    public static class ApplicationStatusDTO {
+
+        @Schema(description = "연결된 커밋 개수", example = "3")
+        private Integer commitCount;
+
+        @Schema(description = "적용현황 커밋 목록")
+        private List<ApplicationBaseItemDTO> commits;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "적용현황 커밋 항목")
     public static class ApplicationBaseItemDTO {
 
         @Schema(description = "커밋 해시", example = "b8fd9ad")
@@ -121,9 +135,6 @@ public class ApplicationResponse {
 
         @Schema(description = "커밋 메시지", example = "feat: API 구현")
         private String commitMessage;
-
-        @Schema(description = "세부 사항 목록", example = "SessionRepository 추상화 도입")
-        private List<String> details; //ai 분석 응답
     }
 
     @Getter

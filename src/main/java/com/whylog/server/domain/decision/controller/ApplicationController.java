@@ -4,6 +4,7 @@ import com.whylog.server.domain.decision.dto.ApplicationResponse;
 import com.whylog.server.domain.decision.dto.DecisionRequest;
 import com.whylog.server.domain.decision.exception.DecisionErrorCode;
 import com.whylog.server.domain.decision.service.ApplicationQueryService;
+import com.whylog.server.domain.git.exception.GitErrorCode;
 import com.whylog.server.global.apiPayload.ApiResponse;
 import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExample;
 import com.whylog.server.global.apiPayload.annotation.ApiErrorCodeExamples;
@@ -50,18 +51,38 @@ public class ApplicationController {
     })
     public ApiResponse<List<ApplicationResponse.RecommendedCommitDTO>> getRecommendedCommits(
             @PathVariable Long applicationId) {
-        return ApiResponse.onSuccess(null);
+        return ApiResponse.onSuccess(applicationQueryService.getRecommendedCommits(applicationId));
     }
 
     @GetMapping("/{applicationId}/connected-commits")
-    @Operation(summary = "연결된 커밋 조회 API", description = "특정 적용사항에 연결된 커밋 목록을 조회하는 API입니다.")
+    @Operation(summary = "연결된 커밋 조회 API", description = "특정 적용사항에 연결된 커밋 목록을 조회하는 API입니다.최신순으로 조회, 페이징 없습니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_NOT_FOUND")
+    })
     public ApiResponse<List<ApplicationResponse.ConnectedCommitDTO>> getConnectedCommits(
             @PathVariable Long applicationId) {
-        return ApiResponse.onSuccess(null);
+        return ApiResponse.onSuccess(applicationQueryService.getConnectedCommits(applicationId));
+    }
+
+    @GetMapping("/{applicationId}/status")
+    @Operation(summary = "적용현황 조회 API", description = "특정 적용사항에 연결된 커밋 해시, 커밋 메시지, 연결된 커밋 개수를 조회하는 API입니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_NOT_FOUND")
+    })
+    public ApiResponse<ApplicationResponse.ApplicationStatusDTO> getApplicationStatus(
+            @PathVariable Long applicationId) {
+        return ApiResponse.onSuccess(applicationQueryService.getApplicationStatus(applicationId));
     }
 
     @PostMapping("/{applicationId}/commits")
     @Operation(summary = "커밋 연결 API", description = "적용사항에 커밋을 연결하는 API입니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_NOT_FOUND"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "COMMIT_NOT_FOUND")
+    })
     public ApiResponse<ApplicationResponse.CommitConnectionResponseDTO> connectCommit(
             @PathVariable Long applicationId,
             @Valid @RequestBody DecisionRequest.CommitConnectionDTO request) {
@@ -70,11 +91,15 @@ public class ApplicationController {
 
     @PostMapping("/{decisionId}/recommendations")
     @Operation(summary = "추천 결과 저장 API", description = "적용사항의 추천 결과를 저장하는 API입니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "DECISION_NOT_FOUND"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "COMMIT_NOT_FOUND")
+    })
     public ApiResponse<ApplicationResponse.RecommendedCommitDTO> saveRecommendation(
             @PathVariable Long decisionId,
             @Valid @RequestBody DecisionRequest.RecommendationDTO request) {
         return ApiResponse.onSuccess(null);
     }
 
-    // TODO: 적용현황 조회 api 추가
 }
