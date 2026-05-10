@@ -45,13 +45,6 @@ public class Decision extends BaseEntity {
 //
 //    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<DecisionBase> decisionBases = new ArrayList<>();
-//
-//    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<DecisionCommits> decisionCommits = new ArrayList<>();
-//
-//    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<com.whylog.server.domain.git.entity.CommitConnection> commitConnections = new ArrayList<>();
-//
 //    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
 //    private final List<EffectRatio> effectRatios = new ArrayList<>();
 

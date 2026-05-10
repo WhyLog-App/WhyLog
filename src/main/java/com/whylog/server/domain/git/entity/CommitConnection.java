@@ -1,6 +1,6 @@
 package com.whylog.server.domain.git.entity;
 
-import com.whylog.server.domain.decision.entity.Decision;
+import com.whylog.server.domain.decision.entity.Application;
 import com.whylog.server.global.entity.BaseEntity;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -22,10 +22,10 @@ public class CommitConnection extends BaseEntity {
     @EmbeddedId
     private CommitConnectionId id;
 
-    @MapsId("decisionId")
+    @MapsId("applicationId")
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "decision_id", nullable = false)
-    private Decision decision;
+    @JoinColumn(name = "application_id", nullable = false)
+    private Application application;
 
     @MapsId("commitId")
     @ManyToOne(fetch = FetchType.LAZY)

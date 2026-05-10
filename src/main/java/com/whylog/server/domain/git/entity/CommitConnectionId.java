@@ -14,8 +14,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CommitConnectionId implements Serializable {
 
-    @Column(name = "decision_id")
-    private Long decisionId;
+    @Column(name = "application_id")
+    private Long applicationId;
 
     @Column(name = "commit_id")
     private Long commitId;
