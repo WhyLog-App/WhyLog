@@ -19,23 +19,17 @@ public class MeetingUseCase{
     private final MeetingRepository meetingRepository;
 
     public Meeting findMeetingById(Long id) {
-        Meeting meeting = meetingRepository.findById(id)
+        return meetingRepository.findById(id)
                 .orElseThrow(MeetingNotFoundException::new);
-        checkMeeting(meeting);
-        return meeting;
     }
 
     public Meeting findMeetingWithMembersById(Long id) {
-        Meeting meeting = meetingRepository.findWithMembers(id)
+        return meetingRepository.findWithMembers(id)
                 .orElseThrow(MeetingNotFoundException::new);
-        checkMeeting(meeting);
-        return meeting;
     }
 
     public List<Meeting> findMeetingByTeamId(Long teamId) {
-        List<Meeting> meetings = meetingRepository.findWithAnalysis(teamId);
-        checkMeeting(meetings);
-        return meetings;
+        return meetingRepository.findWithAnalysis(teamId);
     }
 
     // 회의 참여자 수
@@ -51,34 +45,14 @@ public class MeetingUseCase{
     }
 
     public Meeting findWithAnalysisByMeetingId(Long meetingId) {
-        Meeting meeting = meetingRepository.findByMeetingId(meetingId)
+        return meetingRepository.findByMeetingId(meetingId)
                 .orElseThrow(MeetingNotFoundException::new);
-        checkMeeting(meeting);
-        return meeting;
     }
 
     public Meeting findWithDialogue(Long meetingId) {
-        Meeting meeting = meetingRepository.findByMeetingId(meetingId)
+        return meetingRepository.findByMeetingId(meetingId)
                 .orElseThrow(MeetingNotFoundException::new);
-        checkMeeting(meeting);
-        return meeting;
     }
 
-    private void checkMeeting(Meeting meeting) {
-        if (meeting.getEndDateTime() == null) {
-            throw new GeneralException(MeetingErrorCode.MEETING_NOT_END);
-        }
-
-        if ( !meeting.getIsNormallyEnded() ){
-            throw new GeneralException(MeetingErrorCode.MEETING_UNNORMAL_END);
-        }
-    }
-
-    private void checkMeeting(List<Meeting> meetings) {
-        meetings.removeIf(meeting ->
-                meeting.getEndDateTime() == null
-                        || !meeting.getIsNormallyEnded()
-        );
-    }
 
 }
