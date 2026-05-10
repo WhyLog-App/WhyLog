@@ -25,7 +25,10 @@ import com.whylog.server.domain.meeting.repository.MeetingAnalysisRepository;
 import com.whylog.server.domain.meeting.repository.MeetingMemberRepository;
 import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.global.external.fast.client.FastApiTranscribeClient;
+import com.whylog.server.global.external.fast.client.FastApiMeetingAnalysisClient;
 import com.whylog.server.global.external.fast.dto.FastApiResponse;
+import com.whylog.server.global.external.fast.dto.request.ApplicationEmbeddingsRequest;
+import com.whylog.server.global.external.fast.dto.response.ApplicationEmbeddingsResponse;
 import com.whylog.server.global.external.fast.dto.response.TranscribeApplicationRunCreateResponse;
 import com.whylog.server.global.external.fast.dto.response.TranscribeApplicationRunResponse;
 import com.whylog.server.global.external.fast.exception.FastApiErrorCode;
@@ -62,6 +65,7 @@ public class MeetingAnalysisService {
     private final MeetingAudioReplayService meetingAudioReplayService;
     private final MeetingAudioFileService meetingAudioFileService;
     private final FastApiTranscribeClient fastApiTranscribeClient;
+    private final FastApiMeetingAnalysisClient fastApiMeetingAnalysisClient;
     private final ApplicationRepository applicationRepository;
     private final ApplicationBaseRepository applicationBaseRepository;
     private final ApplicationTimelineRepository applicationTimelineRepository;
@@ -220,7 +224,7 @@ public class MeetingAnalysisService {
                 analysisResult != null && analysisResult.applications() != null ? analysisResult.applications() : List.of();
         MeetingAnalysis.MeetingAnalysisPayload payload = buildMeetingAnalysisPayload(overallAnalysis);
 
-        transactionTemplate.executeWithoutResult(status -> {
+        SavedApplications savedApplications = transactionTemplate.execute(status -> {
             Meeting managedMeeting = meetingUseCase.findMeetingWithMembersById(meeting.getId());
             MeetingAnalysis meetingAnalysis = meetingAnalysisRepository.findByMeetingId(managedMeeting.getId())
                     .map(existingMeetingAnalysis -> {
@@ -236,11 +240,15 @@ public class MeetingAnalysisService {
             managedMeeting.getDialogues().addAll(dialogues);
 
             Decision decision = createDecisionIfAbsent(managedMeeting);
-            replaceApplications(managedMeeting.getId(), decision, applications);
+            return replaceApplications(managedMeeting.getId(), decision, applications);
         });
+        if (savedApplications == null) {
+            savedApplications = SavedApplications.empty();
+        }
 
         log.info("회의 오디오 분석 저장 완료: meetingId={}, transcriptSegmentCount={}", meeting.getId(), transcriptSegments.size());
-        // TODO: applications 저장 후 applicationId를 발급해 /api/meeting-analysis/embeddings로 전달한다.
+        sendApplicationEmbeddingsSafely(meeting, response, savedApplications);
+
     }
 
     // Decision이 없을 때 새로 생성한다.
@@ -254,9 +262,9 @@ public class MeetingAnalysisService {
     }
 
     // 분석 결과의 적용사항 제목 목록을 저장한다.
-    private void replaceApplications(Long meetingId,
-                                     Decision decision,
-                                     List<TranscribeApplicationRunResponse.ApplicationResponse> applications) {
+    private SavedApplications replaceApplications(Long meetingId,
+                                                  Decision decision,
+                                                  List<TranscribeApplicationRunResponse.ApplicationResponse> applications) {
         applicationBaseRepository.deleteByMeetingId(meetingId);
         applicationTimelineRepository.deleteByMeetingId(meetingId);
         decisionBaseRepository.deleteByMeetingId(meetingId);
@@ -281,7 +289,10 @@ public class MeetingAnalysisService {
             persistApplicationDetails(savedApplications, validApplications);
             log.info("적용사항 저장 완료: meetingId={}, decisionId={}, applicationCount={}",
                     meetingId, decision.getId(), newApplications.size());
+            return new SavedApplications(savedApplications, validApplications);
         }
+
+        return SavedApplications.empty();
     }
 
     // 저장된 적용사항 엔티티에 reason/timeline 세부 정보를 순서대로 연결 저장한다.
@@ -341,6 +352,82 @@ public class MeetingAnalysisService {
                 .map(decisionTimeline -> ApplicationTimeline.create(application, decisionTimeline))
                 .toList();
         applicationTimelineRepository.saveAllAndFlush(applicationTimelines);
+    }
+
+    // 저장된 적용사항을 FastAPI 임베딩 요청으로 전달한다.
+    private void sendApplicationEmbeddingsSafely(Meeting meeting,
+                                                 TranscribeApplicationRunResponse runResponse,
+                                                 SavedApplications savedApplications) {
+        if (savedApplications.savedApplications().isEmpty()) {
+            log.info("저장된 적용사항이 없어 임베딩 호출을 생략한다: meetingId={}", meeting.getId());
+            return;
+        }
+
+        try {
+            ApplicationEmbeddingsRequest request = buildEmbeddingsRequest(meeting, runResponse, savedApplications);
+            FastApiResponse<ApplicationEmbeddingsResponse> response = fastApiMeetingAnalysisClient.createApplicationEmbeddings(request);
+            Integer totalDocuments = response != null && response.result() != null ? response.result().totalDocuments() : null;
+            log.info("적용사항 임베딩 저장 완료: meetingId={}, totalDocuments={}", meeting.getId(), totalDocuments);
+        } catch (Exception exception) {
+            log.error("적용사항 임베딩 호출 실패: meetingId={}", meeting.getId(), exception);
+        }
+    }
+
+    // FastAPI 임베딩 요청을 생성한다.
+    private ApplicationEmbeddingsRequest buildEmbeddingsRequest(Meeting meeting,
+                                                                TranscribeApplicationRunResponse runResponse,
+                                                                SavedApplications savedApplications) {
+        TranscribeApplicationRunResponse.TranscribeApplicationRunResult runResult = runResponse.result();
+        TranscribeApplicationRunResponse.AnalysisResultResponse analysisResult =
+                runResult != null ? runResult.analysisResult() : null;
+        TranscribeApplicationRunResponse.OverallAnalysisResponse overallAnalysis =
+                analysisResult != null ? analysisResult.overallAnalysis() : null;
+        List<String> otherMentions =
+                analysisResult != null && analysisResult.otherMentions() != null ? analysisResult.otherMentions() : List.of();
+
+        List<ApplicationEmbeddingsRequest.ApplicationPayload> applicationPayloads = new ArrayList<>();
+        List<Application> applications = savedApplications.savedApplications();
+        List<TranscribeApplicationRunResponse.ApplicationResponse> sourceApplications = savedApplications.sourceApplications();
+        for (int index = 0; index < applications.size(); index++) {
+            Application savedApplication = applications.get(index);
+            TranscribeApplicationRunResponse.ApplicationResponse sourceApplication = sourceApplications.get(index);
+            applicationPayloads.add(new ApplicationEmbeddingsRequest.ApplicationPayload(
+                    savedApplication.getId(),
+                    sourceApplication.applicationTitle(),
+                    sourceApplication.applicationReasons(),
+                    mapTimelinePayloads(sourceApplication.timeline())
+            ));
+        }
+
+        return new ApplicationEmbeddingsRequest(
+                String.valueOf(meeting.getId()),
+                null,
+                new ApplicationEmbeddingsRequest.AnalysisResultPayload(
+                        overallAnalysis,
+                        applicationPayloads,
+                        otherMentions
+                )
+        );
+    }
+
+    // FastAPI 응답 타임라인을 임베딩 요청 payload로 변환한다.
+    private List<ApplicationEmbeddingsRequest.TimelinePayload> mapTimelinePayloads(
+            List<TranscribeApplicationRunResponse.TimelineResponse> timelines
+    ) {
+        if (timelines == null || timelines.isEmpty()) {
+            return List.of();
+        }
+
+        return timelines.stream()
+                .filter(timeline -> timeline != null)
+                .map(timeline -> new ApplicationEmbeddingsRequest.TimelinePayload(
+                        timeline.timestamp(),
+                        timeline.step(),
+                        timeline.memberId(),
+                        timeline.content(),
+                        timeline.utterance()
+                ))
+                .toList();
     }
 
     // null 이거나 비어 있는 문자열을 제외한 값만 반환한다.
@@ -475,6 +562,14 @@ public class MeetingAnalysisService {
                     .plusMillis(Math.round(seconds * 1000));
         } catch (NumberFormatException e) {
             return null;
+        }
+    }
+
+    private record SavedApplications(List<Application> savedApplications,
+                                     List<TranscribeApplicationRunResponse.ApplicationResponse> sourceApplications) {
+
+        private static SavedApplications empty() {
+            return new SavedApplications(List.of(), List.of());
         }
     }
 
