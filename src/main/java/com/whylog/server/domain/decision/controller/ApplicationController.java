@@ -49,7 +49,6 @@ public class ApplicationController {
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
             @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_NOT_FOUND"),
-            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_COMMIT_ALREADY_CONNECTED"),
             @ApiErrorCodeExample(value = GitErrorCode.class, name = "COMMIT_NOT_FOUND")
     })
     public ApiResponse<List<ApplicationResponse.RecommendedCommitDTO>> getRecommendedCommits(
@@ -61,9 +60,9 @@ public class ApplicationController {
     @Operation(summary = "연결된 커밋 조회 API", description = "특정 적용사항에 연결된 커밋 목록을 조회하는 API입니다.최신순으로 조회, 페이징 없습니다.")
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
-            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_NOT_FOUND")
+            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_NOT_FOUND"),
     })
-    public ApiResponse<List<ApplicationResponse.ConnectedCommitDTO>> getConnectedCommits(
+    public ApiResponse<ApplicationResponse.ConnectedCommitListDTO> getConnectedCommits(
             @PathVariable Long applicationId) {
         return ApiResponse.onSuccess(applicationQueryService.getConnectedCommits(applicationId));
     }
@@ -91,7 +90,8 @@ public class ApplicationController {
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
             @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_NOT_FOUND"),
-            @ApiErrorCodeExample(value = GitErrorCode.class, name = "COMMIT_NOT_FOUND")
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "COMMIT_NOT_FOUND"),
+            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_COMMIT_ALREADY_CONNECTED")
     })
     public ApiResponse<ApplicationResponse.CommitConnectionResponseDTO> connectCommit(
             @PathVariable Long applicationId,

@@ -67,7 +67,6 @@ public class ApplicationCommandService {
         return ApplicationResponse.CommitConnectionResponseDTO.builder()
                 .applicationId(applicationId)
                 .commitIds(commitIds)
-                .connectedCount(commitIds.size())
                 .build();
     }
 }

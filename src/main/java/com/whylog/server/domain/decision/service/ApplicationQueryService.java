@@ -60,7 +60,7 @@ public class ApplicationQueryService {
     }
 
     // 적용사항에 연결된 커밋 목록을 조회
-    public List<ApplicationResponse.ConnectedCommitDTO> getConnectedCommits(Long applicationId) {
+    public ApplicationResponse.ConnectedCommitListDTO getConnectedCommits(Long applicationId) {
         // 적용사항 존재 여부검증
         applicationRepository.findById(applicationId)
                 .orElseThrow(ApplicationNotFoundException::new);
@@ -69,7 +69,7 @@ public class ApplicationQueryService {
         List<CommitConnection> commitConnections = commitConnectionRepository.findByApplicationId(applicationId);
 
         // 연결된 커밋 엔티티를 응답 DTO로 변환
-        return commitConnections.stream()
+        List<ApplicationResponse.ConnectedCommitDTO> commits = commitConnections.stream()
                 .map(commitConnection -> ApplicationResponse.ConnectedCommitDTO.builder()
                         .repositoryName(commitConnection.getCommit().getRepository().getName())
                         .commitHash(commitConnection.getCommit().getHash())
@@ -77,6 +77,11 @@ public class ApplicationQueryService {
                         .committedDate(commitConnection.getCommit().getDateTime())
                 .build())
                 .toList();
+
+        return ApplicationResponse.ConnectedCommitListDTO.builder()
+                .commitCount(commits.size())
+                .commits(commits)
+                .build();
     }
 
     // 적용사항의 적용현황 요약 정보를 조회

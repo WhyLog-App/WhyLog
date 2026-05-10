@@ -164,6 +164,20 @@ public class ApplicationResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    @Schema(description = "연결된 커밋 목록 조회 응답")
+    public static class ConnectedCommitListDTO {
+
+        @Schema(description = "연결된 커밋 개수", example = "3")
+        private Integer commitCount;
+
+        @Schema(description = "연결된 커밋 목록")
+        private List<ConnectedCommitDTO> commits;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     @Schema(description = "연결된 커밋 조회 응답")
     public static class ConnectedCommitDTO {
 
@@ -192,9 +206,6 @@ public class ApplicationResponse {
 
         @Schema(description = "연결된 커밋 ID 목록", example = "[1, 2, 3]")
         private List<Long> commitIds;
-
-        @Schema(description = "연결된 커밋 개수", example = "3")
-        private Integer connectedCount;
     }
 
 }
