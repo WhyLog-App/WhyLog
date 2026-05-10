@@ -21,7 +21,6 @@ import com.whylog.server.domain.meeting.entity.MeetingAnalysis;
 import com.whylog.server.domain.meeting.entity.MeetingMember;
 import com.whylog.server.domain.meeting.exception.MeetingInvalidMemberException;
 import com.whylog.server.domain.meeting.exception.MeetingAudioNotReadyException;
-import com.whylog.server.domain.meeting.repository.DialogueRepository;
 import com.whylog.server.domain.meeting.repository.MeetingAnalysisRepository;
 import com.whylog.server.domain.meeting.repository.MeetingMemberRepository;
 import com.whylog.server.domain.user.entity.Member;
@@ -34,15 +33,12 @@ import com.whylog.server.global.external.fast.exception.FastApiException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Map;
 import java.util.List;
-import java.util.Locale;
+import java.util.function.Function;
 import java.util.Optional;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.UrlResource;
@@ -61,7 +57,6 @@ public class MeetingAnalysisService {
     private static final int MAX_AUDIO_READY_ATTEMPTS = 20;
     private static final Duration RUN_POLL_WAIT_INTERVAL = Duration.ofSeconds(3);
     private static final int MAX_RUN_POLL_ATTEMPTS = 120;
-    private static final Pattern SPEAKER_INDEX_PATTERN = Pattern.compile("(\\d+)");
 
     private final MeetingUseCase meetingUseCase;
     private final MeetingAudioReplayService meetingAudioReplayService;
@@ -74,7 +69,6 @@ public class MeetingAnalysisService {
     private final DecisionTimelineRepository decisionTimelineRepository;
     private final DecisionRepository decisionRepository;
     private final MeetingAnalysisRepository meetingAnalysisRepository;
-    private final DialogueRepository dialogueRepository;
     private final MeetingMemberRepository meetingMemberRepository;
     private final MeetingLiveMessageBundleService meetingLiveMessageBundleService;
     private final TransactionTemplate transactionTemplate;
@@ -238,11 +232,8 @@ public class MeetingAnalysisService {
             managedMeeting.attachMeetingAnalysis(meetingAnalysis);
 
             List<Dialogue> dialogues = buildDialogues(managedMeeting, transcriptSegments);
-            dialogueRepository.deleteByMeetingId(managedMeeting.getId());
-            if (!dialogues.isEmpty()) {
-                dialogueRepository.saveAll(dialogues);
-                dialogues.forEach(managedMeeting::addDialogue);
-            }
+            managedMeeting.getDialogues().clear();
+            managedMeeting.getDialogues().addAll(dialogues);
 
             Decision decision = createDecisionIfAbsent(managedMeeting);
             replaceApplications(managedMeeting.getId(), decision, applications);
@@ -266,6 +257,12 @@ public class MeetingAnalysisService {
     private void replaceApplications(Long meetingId,
                                      Decision decision,
                                      List<TranscribeApplicationRunResponse.ApplicationResponse> applications) {
+        applicationBaseRepository.deleteByMeetingId(meetingId);
+        applicationTimelineRepository.deleteByMeetingId(meetingId);
+        decisionBaseRepository.deleteByMeetingId(meetingId);
+        decisionTimelineRepository.deleteByMeetingId(meetingId);
+        applicationRepository.deleteByMeetingId(meetingId);
+
         List<TranscribeApplicationRunResponse.ApplicationResponse> validApplications = applications.stream()
                 .filter(application -> application != null
                         && application.applicationTitle() != null
@@ -330,7 +327,7 @@ public class MeetingAnalysisService {
                         timeline.timestamp(),
                         timeline.step(),
                         timeline.content(),
-                        meetingUseCase.resolveMemberIdBySpeakerId(application.getDecision().getMeeting().getId(), timeline.speakerId()),
+                        timeline.memberId(),
                         timeline.utterance()
                 ))
                 .toList();
@@ -417,82 +414,31 @@ public class MeetingAnalysisService {
             return List.of();
         }
 
-        List<Member> members = meeting.getMeetingMembers().stream()
+        Map<Long, Member> membersById = meeting.getMeetingMembers().stream()
                 .map(MeetingMember::getMember)
-                .sorted(Comparator.comparing(Member::getId))
-                .toList();
+                .collect(Collectors.toMap(Member::getId, Function.identity()));
 
-        if (members.isEmpty()) {
+        if (membersById.isEmpty()) {
             return List.of();
         }
 
         List<Dialogue> dialogues = new ArrayList<>();
-        Set<String> seenDialogueKeys = new HashSet<>();
         for (int index = 0; index < transcriptSegments.size(); index++) {
             TranscribeApplicationRunResponse.TranscriptSegmentResponse segment = transcriptSegments.get(index);
             if (segment == null || segment.text() == null || segment.text().isBlank()) {
                 continue;
             }
 
-            Member member = resolveMemberForSegment(members, segment.speaker(), index);
-            LocalDateTime speechDateTime = resolveSpeechDateTime(meeting.getStartDateTime(), segment.startTime(), index);
-            String dialogueKey = buildDialogueKey(segment, member, speechDateTime);
-            if (!seenDialogueKeys.add(dialogueKey)) {
+            Member member = segment.memberId() != null ? membersById.get(segment.memberId()) : null;
+            if (member == null) {
                 continue;
             }
+
+            LocalDateTime speechDateTime = resolveSpeechDateTime(meeting.getStartDateTime(), segment.startTime(), index);
             dialogues.add(Dialogue.create(meeting, member, segment.text().trim(), speechDateTime));
         }
 
         return dialogues;
-    }
-
-    private String buildDialogueKey(TranscribeApplicationRunResponse.TranscriptSegmentResponse segment,
-                                    Member member,
-                                    LocalDateTime speechDateTime) {
-        if (segment.messageId() != null) {
-            return "messageId:" + segment.messageId();
-        }
-
-        return String.join("|",
-                String.valueOf(member.getId()),
-                speechDateTime != null ? speechDateTime.toString() : "",
-                segment.text() != null ? segment.text().trim() : "",
-                segment.speaker() != null ? segment.speaker().trim() : "",
-                segment.startTime() != null ? segment.startTime().trim() : "",
-                segment.endTime() != null ? segment.endTime().trim() : ""
-        );
-    }
-
-    // 세그먼트의 화자 정보를 기반으로 회의 참여자를 선택한다.
-    private Member resolveMemberForSegment(List<Member> members, String speaker, int index) {
-        if (speaker != null && !speaker.isBlank()) {
-            String normalizedSpeaker = speaker.trim().toLowerCase(Locale.ROOT);
-            for (Member member : members) {
-                if (member.getName() != null && member.getName().trim().toLowerCase(Locale.ROOT).equals(normalizedSpeaker)) {
-                    return member;
-                }
-            }
-
-            Integer speakerIndex = extractSpeakerIndex(speaker);
-            if (speakerIndex != null && speakerIndex >= 0 && speakerIndex < members.size()) {
-                return members.get(speakerIndex);
-            }
-        }
-
-        return members.get(Math.min(index, members.size() - 1));
-    }
-
-    // 화자 문자열에서 숫자 인덱스를 추출한다.
-    private Integer extractSpeakerIndex(String speaker) {
-        Matcher matcher = SPEAKER_INDEX_PATTERN.matcher(speaker);
-        if (matcher.find()) {
-            try {
-                return Integer.parseInt(matcher.group(1));
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
     }
 
     // 전사 시작 시각 offset을 회의 시작 시각 기준 LocalDateTime으로 변환한다.

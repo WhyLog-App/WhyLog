@@ -53,8 +53,8 @@ public record TranscribeApplicationRunResponse(
     public record TranscriptSegmentResponse(
             @Schema(description = "메시지 ID", example = "1", nullable = true)
             Long messageId,
-            @Schema(description = "화자명", example = "Speaker 0", nullable = true)
-            String speaker,
+            @Schema(description = "발화자 멤버 ID", example = "1", nullable = true)
+            Long memberId,
             @Schema(description = "시작 시각", example = "00:00:00", nullable = true)
             String startTime,
             @Schema(description = "종료 시각", example = "00:00:04", nullable = true)
@@ -132,8 +132,8 @@ public record TranscribeApplicationRunResponse(
             String timestamp,
             @Schema(description = "단계", example = "이슈제기", nullable = true)
             String step,
-            @Schema(description = "화자 ID", example = "Speaker 0", nullable = true)
-            String speakerId,
+            @Schema(description = "발화자 멤버 ID", example = "1", nullable = true)
+            Long memberId,
             @Schema(description = "내용", nullable = true)
             String content,
             @Schema(description = "원문 발화", nullable = true)

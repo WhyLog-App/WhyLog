@@ -2,13 +2,17 @@ package com.whylog.server.domain.meeting.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.whylog.server.domain.decision.entity.Application;
+import com.whylog.server.domain.decision.entity.Decision;
+import com.whylog.server.domain.decision.entity.DecisionTimeline;
 import com.whylog.server.domain.decision.repository.ApplicationBaseRepository;
 import com.whylog.server.domain.decision.repository.ApplicationRepository;
 import com.whylog.server.domain.decision.repository.ApplicationTimelineRepository;
@@ -16,28 +20,34 @@ import com.whylog.server.domain.decision.repository.DecisionBaseRepository;
 import com.whylog.server.domain.decision.repository.DecisionRepository;
 import com.whylog.server.domain.decision.repository.DecisionTimelineRepository;
 import com.whylog.server.domain.meeting.dto.MeetingRequest;
-import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.domain.meeting.entity.Meeting;
-import com.whylog.server.domain.meeting.repository.DialogueRepository;
+import com.whylog.server.domain.meeting.entity.MeetingAnalysis;
+import com.whylog.server.domain.meeting.entity.MeetingMember;
+import com.whylog.server.domain.meeting.enums.MeetingRole;
 import com.whylog.server.domain.meeting.repository.MeetingAnalysisRepository;
 import com.whylog.server.domain.meeting.repository.MeetingMemberRepository;
 import com.whylog.server.domain.team.entity.Team;
+import com.whylog.server.domain.user.entity.Member;
+import com.whylog.server.domain.user.enums.Role;
 import com.whylog.server.global.external.fast.client.FastApiTranscribeClient;
-import com.whylog.server.global.external.fast.dto.FastApiResponse;
-import com.whylog.server.global.external.fast.dto.response.TranscribeApplicationRunCreateResponse;
+import com.whylog.server.global.external.fast.dto.response.TranscribeApplicationRunResponse;
 import java.lang.reflect.Method;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.Resource;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 class MeetingAnalysisServiceTest {
 
-    private FastApiTranscribeClient fastApiTranscribeClient;
+    private MeetingUseCase meetingUseCase;
     private MeetingAudioReplayService meetingAudioReplayService;
     private MeetingAudioFileService meetingAudioFileService;
-    private MeetingUseCase meetingUseCase;
+    private FastApiTranscribeClient fastApiTranscribeClient;
     private ApplicationRepository applicationRepository;
     private ApplicationBaseRepository applicationBaseRepository;
     private ApplicationTimelineRepository applicationTimelineRepository;
@@ -45,18 +55,18 @@ class MeetingAnalysisServiceTest {
     private DecisionTimelineRepository decisionTimelineRepository;
     private DecisionRepository decisionRepository;
     private MeetingAnalysisRepository meetingAnalysisRepository;
-    private DialogueRepository dialogueRepository;
     private MeetingMemberRepository meetingMemberRepository;
     private MeetingLiveMessageBundleService meetingLiveMessageBundleService;
+    private PlatformTransactionManager transactionManager;
     private TransactionTemplate transactionTemplate;
     private MeetingAnalysisService meetingAnalysisService;
 
     @BeforeEach
     void setUp() {
-        fastApiTranscribeClient = mock(FastApiTranscribeClient.class);
+        meetingUseCase = mock(MeetingUseCase.class);
         meetingAudioReplayService = mock(MeetingAudioReplayService.class);
         meetingAudioFileService = mock(MeetingAudioFileService.class);
-        meetingUseCase = mock(MeetingUseCase.class);
+        fastApiTranscribeClient = mock(FastApiTranscribeClient.class);
         applicationRepository = mock(ApplicationRepository.class);
         applicationBaseRepository = mock(ApplicationBaseRepository.class);
         applicationTimelineRepository = mock(ApplicationTimelineRepository.class);
@@ -64,10 +74,23 @@ class MeetingAnalysisServiceTest {
         decisionTimelineRepository = mock(DecisionTimelineRepository.class);
         decisionRepository = mock(DecisionRepository.class);
         meetingAnalysisRepository = mock(MeetingAnalysisRepository.class);
-        dialogueRepository = mock(DialogueRepository.class);
         meetingMemberRepository = mock(MeetingMemberRepository.class);
         meetingLiveMessageBundleService = mock(MeetingLiveMessageBundleService.class);
-        transactionTemplate = mock(TransactionTemplate.class);
+        transactionManager = mock(PlatformTransactionManager.class);
+        transactionTemplate = new TransactionTemplate(transactionManager);
+
+        when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+
+        when(meetingAnalysisRepository.findByMeetingId(anyLong())).thenReturn(Optional.empty());
+        when(meetingAnalysisRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(decisionRepository.findByMeetingId(anyLong())).thenReturn(Optional.empty());
+        when(decisionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(applicationRepository.saveAllAndFlush(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(decisionBaseRepository.saveAllAndFlush(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(applicationBaseRepository.saveAllAndFlush(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(decisionTimelineRepository.saveAllAndFlush(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(applicationTimelineRepository.saveAllAndFlush(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(meetingLiveMessageBundleService.buildLiveMessagesJson(any())).thenReturn(null);
 
         meetingAnalysisService = new MeetingAnalysisService(
                 meetingUseCase,
@@ -81,7 +104,6 @@ class MeetingAnalysisServiceTest {
                 decisionTimelineRepository,
                 decisionRepository,
                 meetingAnalysisRepository,
-                dialogueRepository,
                 meetingMemberRepository,
                 meetingLiveMessageBundleService,
                 transactionTemplate,
@@ -90,93 +112,141 @@ class MeetingAnalysisServiceTest {
     }
 
     @Test
-    void createTranscribeApplicationRunTransfersDrainedLiveMessages() throws Exception {
-        Meeting meeting = meeting();
+    void timelineMemberIdIsStoredDirectly() throws Exception {
+        Meeting meeting = meetingWithMembers();
+        when(meetingMemberRepository.existsByMemberIdAndMeetingId(1L, 10L)).thenReturn(true);
+        when(meetingUseCase.findMeetingWithMembersById(10L)).thenReturn(meeting);
 
-        when(meetingAudioFileService.extractFileName("audio-key")).thenReturn("audio.mp3");
-        when(meetingAudioFileService.resolveResponseContentType("audio-key")).thenReturn("audio/mpeg");
-        when(meetingLiveMessageBundleService.buildLiveMessagesJson(meeting)).thenReturn("[{\"type\":\"TEXT\",\"timestamp\":\"01:02:03\"}]");
-        when(fastApiTranscribeClient.createTranscribeApplicationRun(
-                any(Resource.class),
-                eq("audio.mp3"),
-                eq("audio/mpeg"),
-                eq(null),
-                eq("123"),
-                eq(null),
-                anyString()
-        )).thenReturn(new FastApiResponse<>(
-                true,
-                "ok",
-                "ok",
-                new TranscribeApplicationRunCreateResponse("run-1", "queued", "queued", null, null)
-        ));
-
-        String runId = invokeCreateTranscribeApplicationRun(meeting);
-
-        assertThat(runId).isEqualTo("run-1");
-
-        org.mockito.ArgumentCaptor<String> liveMessagesCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(fastApiTranscribeClient).createTranscribeApplicationRun(
-                any(Resource.class),
-                eq("audio.mp3"),
-                eq("audio/mpeg"),
-                eq(null),
-                eq("123"),
-                eq(null),
-                liveMessagesCaptor.capture()
+        TranscribeApplicationRunResponse response = response(
+                timeline(100L, 2L, "핵심", "발화"),
+                transcriptSegment(1L, 2L, "00:00:01", null, "안녕하세요"),
+                transcriptSegment(2L, null, "00:00:02", null, "스킵"),
+                transcriptSegment(3L, 999L, "00:00:03", null, "스킵2")
         );
 
-        String liveMessagesJson = liveMessagesCaptor.getValue();
-        assertThat(liveMessagesJson).isEqualTo("[{\"type\":\"TEXT\",\"timestamp\":\"01:02:03\"}]");
+        meetingAnalysisService.persistTestMeetingAnalysis(1L, 10L, MeetingRequest.MeetingAnalysisTestDTO.builder()
+                .isSuccess(true)
+                .code("OK")
+                .message("ok")
+                .result(response)
+                .build());
+
+        @SuppressWarnings("unchecked")
+        var timelineCaptor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(decisionTimelineRepository).saveAllAndFlush(timelineCaptor.capture());
+        assertThat(timelineCaptor.getValue()).hasSize(1);
+        assertThat(((DecisionTimeline) timelineCaptor.getValue().get(0)).getMemberId()).isEqualTo(2L);
     }
 
     @Test
-    void createTranscribeApplicationRunPassesNullWhenNoLiveMessagesExist() throws Exception {
-        Meeting meeting = meeting();
+    void segmentMemberIdIsUsedAndInvalidSegmentsAreSkipped() throws Exception {
+        Meeting meeting = meetingWithMembers();
+        when(meetingMemberRepository.existsByMemberIdAndMeetingId(1L, 10L)).thenReturn(true);
+        when(meetingUseCase.findMeetingWithMembersById(10L)).thenReturn(meeting);
 
-        when(meetingAudioFileService.extractFileName("audio-key")).thenReturn("audio.mp3");
-        when(meetingAudioFileService.resolveResponseContentType("audio-key")).thenReturn("audio/mpeg");
-        when(meetingLiveMessageBundleService.buildLiveMessagesJson(meeting)).thenReturn(null);
-        when(fastApiTranscribeClient.createTranscribeApplicationRun(
-                any(Resource.class),
-                eq("audio.mp3"),
-                eq("audio/mpeg"),
-                eq(null),
-                eq("123"),
-                eq(null),
-                eq(null)
-        )).thenReturn(new FastApiResponse<>(
-                true,
-                "ok",
-                "ok",
-                new TranscribeApplicationRunCreateResponse("run-2", "queued", "queued", null, null)
-        ));
-
-        String runId = invokeCreateTranscribeApplicationRun(meeting);
-
-        assertThat(runId).isEqualTo("run-2");
-    }
-
-    private String invokeCreateTranscribeApplicationRun(Meeting meeting) throws Exception {
-        MeetingResponse.AudioDTO audioResponse = mock(MeetingResponse.AudioDTO.class);
-        when(audioResponse.getAudioKey()).thenReturn("audio-key");
-        when(audioResponse.getAudioUrl()).thenReturn("https://example.com/audio.mp3");
-
-        Method method = MeetingAnalysisService.class.getDeclaredMethod(
-                "createTranscribeApplicationRun",
-                Meeting.class,
-                MeetingResponse.AudioDTO.class
+        TranscribeApplicationRunResponse response = response(
+                timeline(100L, 2L, "핵심", "발화"),
+                transcriptSegment(1L, 2L, "00:00:01", null, "memberId 우선"),
+                transcriptSegment(2L, null, "00:00:02", null, "skip"),
+                transcriptSegment(3L, 999L, "00:00:03", null, "skip2")
         );
-        method.setAccessible(true);
-        return (String) method.invoke(meetingAnalysisService, meeting, audioResponse);
+
+        meetingAnalysisService.persistTestMeetingAnalysis(1L, 10L, MeetingRequest.MeetingAnalysisTestDTO.builder()
+                .isSuccess(true)
+                .code("OK")
+                .message("ok")
+                .result(response)
+                .build());
+
+        assertThat(meeting.getDialogues()).hasSize(1);
+        assertThat(meeting.getDialogues().get(0).getMember().getId()).isEqualTo(2L);
     }
 
-    private Meeting meeting() {
+    private Meeting meetingWithMembers() {
         Meeting meeting = Meeting.create(
                 MeetingRequest.MeetingCreateDTO.builder().name("회의").build(),
                 mock(Team.class)
         );
-        ReflectionTestUtils.setField(meeting, "id", 123L);
+        ReflectionTestUtils.setField(meeting, "id", 10L);
+        ReflectionTestUtils.setField(meeting, "startDateTime", LocalDateTime.of(2026, 1, 1, 9, 0, 0));
+
+        meeting.getMeetingMembers().add(MeetingMember.create(meeting, member(1L, "first"), MeetingRole.OWNER));
+        meeting.getMeetingMembers().add(MeetingMember.create(meeting, member(2L, "second"), MeetingRole.GENERAL));
         return meeting;
+    }
+
+    private Member member(Long id, String name) {
+        Member member = Member.builder()
+                .name(name)
+                .email(name + "@example.com")
+                .password("pw")
+                .role(Role.USER)
+                .build();
+        ReflectionTestUtils.setField(member, "id", id);
+        return member;
+    }
+
+    private TranscribeApplicationRunResponse response(TranscribeApplicationRunResponse.ApplicationResponse applicationResponse,
+                                                      TranscribeApplicationRunResponse.TranscriptSegmentResponse... segments) {
+        return new TranscribeApplicationRunResponse(
+                "run-1",
+                "completed",
+                "applications_ready",
+                "10",
+                null,
+                null,
+                null,
+                null,
+                null,
+                new TranscribeApplicationRunResponse.TranscribeApplicationRunResult(
+                        "10",
+                        null,
+                        List.of(segments),
+                        new TranscribeApplicationRunResponse.AnalysisResultResponse(
+                                new TranscribeApplicationRunResponse.OverallAnalysisResponse(
+                                        new TranscribeApplicationRunResponse.MeetingInfoResponse("제목", "목적", "00:10:00"),
+                                        List.of("토픽"),
+                                        List.of("맥락"),
+                                        List.of("적용사항"),
+                                        List.of("사유")
+                                ),
+                                List.of(applicationResponse),
+                                List.of()
+                        )
+                )
+        );
+    }
+
+    private TranscribeApplicationRunResponse.ApplicationResponse timeline(Long applicationId,
+                                                                          Long memberId,
+                                                                          String content,
+                                                                          String utterance) {
+        return new TranscribeApplicationRunResponse.ApplicationResponse(
+                applicationId,
+                "적용사항",
+                List.of("사유"),
+                List.of(new TranscribeApplicationRunResponse.TimelineResponse(
+                        "00:01:00",
+                        "step",
+                        memberId,
+                        content,
+                        utterance
+                ))
+        );
+    }
+
+    private TranscribeApplicationRunResponse.TranscriptSegmentResponse transcriptSegment(Long messageId,
+                                                                                         Long memberId,
+                                                                                         String startTime,
+                                                                                         String endTime,
+                                                                                         String text) {
+        return new TranscribeApplicationRunResponse.TranscriptSegmentResponse(
+                messageId,
+                memberId,
+                startTime,
+                endTime,
+                text,
+                true
+        );
     }
 }
