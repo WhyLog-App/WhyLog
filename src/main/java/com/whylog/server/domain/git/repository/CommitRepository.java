@@ -27,6 +27,15 @@ public interface CommitRepository extends JpaRepository<Commit, Long> {
             @Param("hashes") List<String> hashes
     );
 
+    // 커밋 ID 목록에 해당하는 커밋과 저장소 정보를 함께 조회
+    @Query("""
+            SELECT c
+            FROM Commit c
+            JOIN FETCH c.repository
+            WHERE c.id IN :commitIds
+            """)
+    List<Commit> findAllWithRepositoryByIdIn(@Param("commitIds") List<Long> commitIds);
+
     // 커서 기반 무한스크롤 - 커밋 목록 조회
     @Query("SELECT c FROM Commit c " +
             "WHERE c.repository.id = :repositoryId " +

@@ -42,7 +42,12 @@ public class ApplicationController {
     }
 
     @GetMapping("/{applicationId}/recommended-commits")
-    @Operation(summary = "추천 커밋 조회 API", description = "특정 적용사항의 추천 커밋 목록을 조회하는 API입니다.")
+    @Operation(summary = "추천 커밋 조회 API", description = "특정 적용사항의 추천 커밋 목록을 조회하는 API입니다.최신순으로 조회, 페이징 없습니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "APPLICATION_NOT_FOUND"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "COMMIT_NOT_FOUND")
+    })
     public ApiResponse<List<ApplicationResponse.RecommendedCommitDTO>> getRecommendedCommits(
             @PathVariable Long applicationId) {
         return ApiResponse.onSuccess(null);

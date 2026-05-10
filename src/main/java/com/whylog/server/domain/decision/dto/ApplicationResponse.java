@@ -133,9 +133,6 @@ public class ApplicationResponse {
     @Schema(description = "추천 커밋 응답")
     public static class RecommendedCommitDTO {
 
-        @Schema(description = "적용사항 ID", example = "1")
-        private Long applicationId;
-
         @Schema(description = "저장소 이름", example = "whyLog-Backend")
         private String repositoryName;
 
