@@ -69,4 +69,25 @@ public class ApplicationCommandService {
                 .commitIds(commitIds)
                 .build();
     }
+
+    // 적용사항에 연결된 커밋 하나를 해제합니다.
+    @Transactional
+    public ApplicationResponse.CommitConnectionResponseDTO disconnectCommit(Long applicationId,
+                                                                            DecisionRequest.CommitDisconnectionDTO request) {
+        applicationRepository.findById(applicationId)
+                .orElseThrow(ApplicationNotFoundException::new);
+
+        Long commitId = request.getCommitId();
+        CommitConnectionId commitConnectionId = new CommitConnectionId(applicationId, commitId);
+        if (!commitConnectionRepository.existsById(commitConnectionId)) {
+            throw new ErrorHandler(DecisionErrorCode.APPLICATION_COMMIT_NOT_CONNECTED);
+        }
+
+        commitConnectionRepository.deleteById(commitConnectionId);
+
+        return ApplicationResponse.CommitConnectionResponseDTO.builder()
+                .applicationId(applicationId)
+                .commitIds(List.of(commitId))
+                .build();
+    }
 }
