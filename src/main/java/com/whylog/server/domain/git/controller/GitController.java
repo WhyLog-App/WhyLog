@@ -50,6 +50,18 @@ public class GitController {
         return ApiResponse.onSuccess(gitCommandService.registerGitHubToken(memberId, request.getAccessToken()));
     }
 
+    @DeleteMapping("/github/token")
+    @Operation(
+            summary = "GitHub Access Token 삭제 API",
+            description = "현재 로그인한 사용자의 GitHub Access Token을 삭제합니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST")
+    })
+    public ApiResponse<GitResponse.GitHubTokenDeleteResponseDTO> deleteGitHubToken(
+            @Parameter(hidden = true) @CurrentMember Long memberId) {
+        return ApiResponse.onSuccess(gitCommandService.deleteGitHubToken(memberId));
+    }
+
     @GetMapping("/github/token/status")
     @Operation(
             summary = "GitHub Access Token 등록 여부 조회 API",

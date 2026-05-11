@@ -87,6 +87,17 @@ public class GitCommandServiceImpl implements GitCommandService {
                 .build();
     }
 
+    @Override
+    @Transactional
+    public GitResponse.GitHubTokenDeleteResponseDTO deleteGitHubToken(Long memberId) {
+        if (memberId == null) throw new ParameterRequiredException();
+
+        Member member = memberUseCase.findMemberById(memberId);
+        member.clearGithubToken();
+
+        return GitResponse.GitHubTokenDeleteResponseDTO.from(true);
+    }
+
     /**
      * 팀에 새로운 레포지토리를 추가합니다.
      */

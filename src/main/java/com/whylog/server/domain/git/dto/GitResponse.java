@@ -230,6 +230,23 @@ public class GitResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    @Schema(description = "깃허브 Access Token 삭제 응답")
+    public static class GitHubTokenDeleteResponseDTO {
+
+        @Schema(description = "삭제 성공 여부", example = "true")
+        private Boolean isRemoved;
+
+        public static GitHubTokenDeleteResponseDTO from(Boolean isRemoved) {
+            return GitHubTokenDeleteResponseDTO.builder()
+                    .isRemoved(isRemoved)
+                    .build();
+        }
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     @Schema(description = "깃허브 Access Token 등록 여부 응답")
     public static class GitHubTokenStatusResponseDTO {
 
