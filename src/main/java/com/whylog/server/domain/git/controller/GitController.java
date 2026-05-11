@@ -109,6 +109,23 @@ public class GitController {
         return ApiResponse.onSuccess(GitResponse.RepositorySyncResponseDTO.from(repositoryId));
     }
 
+    @DeleteMapping("/repositories/{repositoryId}")
+    @Operation(
+            summary = "GitHub 레포지토리 삭제",
+            description = """
+                    등록된 레포지토리를 삭제합니다.
+                    
+                    레포지토리를 삭제하면 관련된 커밋, 커밋 분석, 연결/추천 커밋 데이터도 함께 삭제됩니다.
+                    """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "REPOSITORY_NOT_FOUND")
+    })
+    public ApiResponse<GitResponse.RepositoryDeleteResponseDTO> deleteRepository(
+            @PathVariable Long repositoryId) {
+        return ApiResponse.onSuccess(gitCommandService.deleteRepository(repositoryId));
+    }
+
     @GetMapping("/repositories/{repositoryId}/commits")
     @Operation(
             summary = "커밋 목록 조회 (커서 기반 무한스크롤)",
@@ -172,6 +189,4 @@ public class GitController {
         return ApiResponse.onSuccess(commitDetail);
     }
 }
-
-
 

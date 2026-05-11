@@ -199,6 +199,20 @@ public class GitResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    @Schema(description = "레포 삭제 응답")
+    public static class RepositoryDeleteResponseDTO {
+
+        @Schema(description = "레포 ID", example = "1")
+        private Long repositoryId;
+
+        @Schema(description = "삭제 성공 여부", example = "true")
+        private Boolean isRemoved;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     @Schema(description = "깃허브 Access Token 등록 응답")
     public static class GitHubTokenResponseDTO {
 

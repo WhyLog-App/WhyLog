@@ -4,6 +4,7 @@ import com.whylog.server.domain.git.entity.CommitConnection;
 import com.whylog.server.domain.git.entity.CommitConnectionId;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -21,4 +22,11 @@ public interface CommitConnectionRepository extends JpaRepository<CommitConnecti
             ORDER BY c.dateTime DESC, c.id DESC
             """)
     List<CommitConnection> findByApplicationId(@Param("applicationId") Long applicationId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            DELETE FROM CommitConnection cc
+            WHERE cc.commit.repository.id = :repositoryId
+            """)
+    void deleteByRepositoryId(@Param("repositoryId") Long repositoryId);
 }

@@ -4,6 +4,7 @@ import com.whylog.server.domain.decision.entity.ApplicationCommits;
 import com.whylog.server.domain.decision.entity.ApplicationCommitsId;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,4 +20,11 @@ public interface ApplicationCommitsRepository extends JpaRepository<ApplicationC
             ORDER BY c.dateTime DESC, c.id DESC
             """)
     List<ApplicationCommits> findByApplicationId(@Param("applicationId") Long applicationId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            DELETE FROM ApplicationCommits ac
+            WHERE ac.decisionCommits.id IN :decisionCommitIds
+            """)
+    void deleteByDecisionCommitsIdIn(@Param("decisionCommitIds") List<Long> decisionCommitIds);
 }

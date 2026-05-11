@@ -3,6 +3,8 @@ package com.whylog.server.domain.git.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.whylog.server.domain.decision.repository.ApplicationCommitsRepository;
+import com.whylog.server.domain.decision.repository.DecisionCommitsRepository;
 import com.whylog.server.domain.git.dto.GitRequest;
 import com.whylog.server.domain.git.dto.GitResponse;
 import com.whylog.server.domain.git.entity.CommitAnalysis;
@@ -58,6 +60,8 @@ public class GitCommandServiceImpl implements GitCommandService {
     private final RepositoryRepository repositoryRepository;
     private final CommitRepository commitRepository;
     private final CommitAnalysisRepository commitAnalysisRepository;
+    private final DecisionCommitsRepository decisionCommitsRepository;
+    private final ApplicationCommitsRepository applicationCommitsRepository;
     private final FastApiCommitClient fastApiCommitClient;
     private final TeamUseCase teamUseCase;
     private final MemberUseCase memberUseCase;
@@ -157,6 +161,32 @@ public class GitCommandServiceImpl implements GitCommandService {
 
         return GitResponse.RepositorySyncResponseDTO.builder()
                 .repositoryId(repositoryId)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public GitResponse.RepositoryDeleteResponseDTO deleteRepository(Long repositoryId) {
+        if (repositoryId == null) throw new ParameterRequiredException();
+
+        Repository repository = repositoryRepository.findById(repositoryId)
+                .orElseThrow(RepositoryNotFoundException::new);
+
+        List<Long> commitIds = commitRepository.findIdsByRepositoryId(repositoryId);
+
+        if (!commitIds.isEmpty()) {
+            List<Long> decisionCommitIds = decisionCommitsRepository.findIdsByCommitIdIn(commitIds);
+            if (!decisionCommitIds.isEmpty()) {
+                applicationCommitsRepository.deleteByDecisionCommitsIdIn(decisionCommitIds);
+                decisionCommitsRepository.deleteByCommitIdIn(commitIds);
+            }
+        }
+
+        repositoryRepository.delete(repository);
+
+        return GitResponse.RepositoryDeleteResponseDTO.builder()
+                .repositoryId(repositoryId)
+                .isRemoved(true)
                 .build();
     }
 

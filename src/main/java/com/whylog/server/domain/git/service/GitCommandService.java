@@ -22,6 +22,11 @@ public interface GitCommandService {
     GitResponse.RepositorySyncResponseDTO syncRepository(Long memberId, Long repositoryId);
 
     /**
+     * 레포지토리를 삭제합니다.
+     */
+    GitResponse.RepositoryDeleteResponseDTO deleteRepository(Long repositoryId);
+
+    /**
      * GitHub Token 만료 시 처리합니다 (API 401 에러 감지).
      * token을 초기화하여 사용자가 재인증하도록 유도합니다.
      */
