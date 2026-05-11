@@ -42,6 +42,7 @@ public class GitController {
                     """)
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "GITHUB_TOKEN_INVALID"),
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_INTERNAL_SERVER_ERROR")
     })
     public ApiResponse<GitResponse.GitHubTokenResponseDTO> registerGitHubToken(

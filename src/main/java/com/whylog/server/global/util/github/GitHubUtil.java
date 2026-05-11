@@ -68,7 +68,7 @@ public class GitHubUtil {
      * 사용자 정보 조회를 시도하여 token이 유효한지 확인합니다.
      *
      * @param accessToken 검증할 GitHub access token
-     * @throws ErrorHandler token이 유효하지 않으면 GITHUB_TOKEN_EXPIRED 예외 발생
+     * @throws ErrorHandler token이 유효하지 않으면 GITHUB_TOKEN_INVALID 예외 발생
      */
     public static void validateGitHubToken(String accessToken) {
         try {
@@ -77,17 +77,17 @@ public class GitHubUtil {
             gitHub.getMyself();
             log.info("GitHub token 유효성 검증 성공");
         } catch (HttpException e) {
-            // 401 Unauthorized: token 만료 또는 유효하지 않음
+            // 401 Unauthorized: 잘못된 토큰이거나 더 이상 유효하지 않은 토큰
             if (e.getResponseCode() == 401) {
                 log.warn("GitHub token 유효하지 않음 (401 Unauthorized)");
-                throw new ErrorHandler(GitErrorCode.GITHUB_TOKEN_EXPIRED);
+                throw new ErrorHandler(GitErrorCode.GITHUB_TOKEN_INVALID);
             }
             // 다른 HTTP 에러
             log.error("GitHub API 에러 (상태코드: {}): {}", e.getResponseCode(), e.getMessage());
             throw new ErrorHandler(GitErrorCode.GITHUB_API_ERROR);
         } catch (IOException e) {
             log.error("GitHub token 검증 중 네트워크 에러: {}", e.getMessage());
-            throw new ErrorHandler(GitErrorCode.GITHUB_TOKEN_EXPIRED);
+            throw new ErrorHandler(GitErrorCode.GITHUB_API_ERROR);
         }
     }
 

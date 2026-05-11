@@ -119,7 +119,8 @@ public class GitCommandServiceImpl implements GitCommandService {
             // 레포 URL 유효성 검증 및 GitHub에서 존재 여부 확인
             GitHubUtil.validateRepositoryExists(request.getUrl(), member.getGithubAccessToken());
         } catch (ErrorHandler e) {
-            if (e.getCode() == GitErrorCode.GITHUB_TOKEN_EXPIRED) {
+            if (e.getCode() == GitErrorCode.GITHUB_TOKEN_EXPIRED
+                    || e.getCode() == GitErrorCode.GITHUB_TOKEN_INVALID) {
                 invalidateGitHubToken(memberId);
             }
             throw e;
