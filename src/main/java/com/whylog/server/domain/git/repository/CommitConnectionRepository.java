@@ -16,12 +16,24 @@ public interface CommitConnectionRepository extends JpaRepository<CommitConnecti
     @Query("""
             SELECT cc
             FROM CommitConnection cc
+            JOIN FETCH cc.application a
             JOIN FETCH cc.commit c
             JOIN FETCH c.repository r
             WHERE cc.application.id = :applicationId
             ORDER BY c.dateTime DESC, c.id DESC
             """)
     List<CommitConnection> findByApplicationId(@Param("applicationId") Long applicationId);
+
+    @Query("""
+            SELECT cc
+            FROM CommitConnection cc
+            JOIN FETCH cc.application a
+            JOIN FETCH cc.commit c
+            WHERE c.id IN :commitIds
+            """)
+    List<CommitConnection> findByCommitIds(@Param("commitIds") List<Long> commitIds);
+
+    boolean existsByCommitId(Long commitId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

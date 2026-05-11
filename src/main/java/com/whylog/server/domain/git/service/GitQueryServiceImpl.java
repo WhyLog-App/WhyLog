@@ -1,4 +1,5 @@
 package com.whylog.server.domain.git.service;
+import com.whylog.server.domain.git.repository.CommitConnectionRepository;
 import com.whylog.server.domain.git.dto.GitResponse;
 import com.whylog.server.domain.git.entity.Commit;
 import com.whylog.server.domain.git.repository.CommitAnalysisRepository;
@@ -25,7 +26,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +41,7 @@ public class GitQueryServiceImpl implements GitQueryService {
     private final RepositoryRepository repositoryRepository;
     private final CommitRepository commitRepository;
     private final CommitAnalysisRepository commitAnalysisRepository;
+    private final CommitConnectionRepository commitConnectionRepository;
     private final MemberUseCase memberUseCase;
     private final TeamUseCase teamUseCase;
 
@@ -76,6 +80,31 @@ public class GitQueryServiceImpl implements GitQueryService {
 
         Pageable pageable = PageRequest.of(0, PAGE_SIZE);
         return commitRepository.findCommitsWithCursor(repositoryId, cursorId, pageable);
+    }
+
+    @Override
+    public GitResponse.CommitListResponseDTO getCommitListResponse(Long repositoryId, Long cursorId) {
+        // 커밋 페이지를 조회한 뒤, 각 커밋에 연결된 적용사항을 함께 응답 DTO로 조립
+        Slice<Commit> commitSlice = getCommitsByRepository(repositoryId, cursorId);
+
+        List<Commit> commits = commitSlice.getContent();
+        Map<Long, GitResponse.CommitDTO.ConnectedApplicationDTO> connectedApplicationsByCommitId = new LinkedHashMap<>();
+
+        if (!commits.isEmpty()) {
+            List<Long> commitIds = commits.stream()
+                    .map(Commit::getId)
+                    .toList();
+
+            // 현재 페이지의 커밋들에 연결된 적용사항을 한 번에 조회해 commitId 기준으로 매핑
+            commitConnectionRepository.findByCommitIds(commitIds).forEach(commitConnection ->
+                    connectedApplicationsByCommitId.put(
+                            commitConnection.getCommit().getId(),
+                            GitResponse.CommitDTO.ConnectedApplicationDTO.from(commitConnection.getApplication())
+                    )
+            );
+        }
+
+        return GitResponse.CommitListResponseDTO.from(commitSlice, cursorId, connectedApplicationsByCommitId);
     }
 
     /**

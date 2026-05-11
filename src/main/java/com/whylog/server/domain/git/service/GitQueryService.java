@@ -30,4 +30,6 @@ public interface GitQueryService {
      */
     Slice<Commit> getCommitsByRepository(Long repositoryId, Long cursorId);
 
+    GitResponse.CommitListResponseDTO getCommitListResponse(Long repositoryId, Long cursorId);
+
 }

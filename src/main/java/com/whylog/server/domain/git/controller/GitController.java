@@ -2,7 +2,6 @@ package com.whylog.server.domain.git.controller;
 
 import com.whylog.server.domain.git.dto.GitRequest;
 import com.whylog.server.domain.git.dto.GitResponse;
-import com.whylog.server.domain.git.entity.Commit;
 import com.whylog.server.domain.git.exception.GitErrorCode;
 import com.whylog.server.domain.git.service.GitCommandService;
 import com.whylog.server.domain.git.service.GitQueryService;
@@ -17,7 +16,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Slice;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -157,6 +155,9 @@ public class GitController {
             description = """
                     10개씩 커밋을 조회합니다.
                     
+                    각 커밋에는 기본 정보와 함께 연결된 적용사항 정보가 포함됩니다.
+                    커밋이 적용사항에 연결되어 있지 않다면 `connectedApplication`은 null로 반환됩니다.
+                    
                     📌 사용 방법:
                     1. 첫 요청: cursor 파라미터 없음
                     2. 응답의 hasNext가 true면, nextCursorId를 cursor로 다시 요청
@@ -166,6 +167,7 @@ public class GitController {
                     - hasNext: 다음 페이지 존재 여부 (더 불러올 커밋이 있으면 true)
                     - nextCursorId: 다음 요청에 사용할 커서 ID
                     - isFirst: 첫 페이지 여부
+                    - connectedApplication: 커밋에 연결된 적용사항 정보 (없으면 null)
                     """)
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
@@ -175,13 +177,7 @@ public class GitController {
             @PathVariable Long repositoryId,
             @Parameter(description = "이전 조회의 마지막 커밋 ID (첫 요청 시 생략)")
             @RequestParam(required = false) Long cursor) {
-
-        Slice<Commit> commitSlice = gitQueryService.getCommitsByRepository(
-                repositoryId,
-                cursor
-        );
-
-        return ApiResponse.onSuccess(GitResponse.CommitListResponseDTO.from(commitSlice, cursor));
+        return ApiResponse.onSuccess(gitQueryService.getCommitListResponse(repositoryId, cursor));
     }
 
     @GetMapping("/repositories/{repositoryId}/commits/{commitHash}")

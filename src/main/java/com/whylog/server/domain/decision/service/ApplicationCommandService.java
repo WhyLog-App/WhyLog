@@ -50,12 +50,13 @@ public class ApplicationCommandService {
         }
 
         // 요청한 커밋 중 하나라도 이미 연결되어 있으면 전체 요청을 실패 처리
+        if (commitIds.stream().anyMatch(commitConnectionRepository::existsByCommitId)) {
+            throw new ErrorHandler(DecisionErrorCode.APPLICATION_COMMIT_ALREADY_CONNECTED);
+        }
+
         List<CommitConnectionId> commitConnectionIds = commitIds.stream()
                 .map(commitId -> new CommitConnectionId(applicationId, commitId))
                 .toList();
-        if (commitConnectionIds.stream().anyMatch(commitConnectionRepository::existsById)) {
-            throw new ErrorHandler(DecisionErrorCode.APPLICATION_COMMIT_ALREADY_CONNECTED);
-        }
 
         // 신규 커밋 연결 정보를 저장
         List<CommitConnection> commitConnections = commitConnectionIds.stream()
