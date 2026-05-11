@@ -50,6 +50,18 @@ public class GitController {
         return ApiResponse.onSuccess(gitCommandService.registerGitHubToken(memberId, request.getAccessToken()));
     }
 
+    @GetMapping("/github/token/status")
+    @Operation(
+            summary = "GitHub Access Token 등록 여부 조회 API",
+            description = "현재 로그인한 사용자의 GitHub Access Token 등록 여부를 true/false로 조회합니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST")
+    })
+    public ApiResponse<GitResponse.GitHubTokenStatusResponseDTO> getGitHubTokenStatus(
+            @Parameter(hidden = true) @CurrentMember Long memberId) {
+        return ApiResponse.onSuccess(gitQueryService.getGitHubTokenStatus(memberId));
+    }
+
     @GetMapping("/teams/{teamId}/repositories")
     @Operation(
             summary = "팀의 연동된 레포지토리 목록 조회",
@@ -189,4 +201,3 @@ public class GitController {
         return ApiResponse.onSuccess(commitDetail);
     }
 }
-

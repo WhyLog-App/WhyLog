@@ -15,6 +15,11 @@ public interface GitQueryService {
     List<Repository> getRepositories(Long teamId);
 
     /**
+     * 사용자의 GitHub Access Token 등록 여부를 조회합니다.
+     */
+    GitResponse.GitHubTokenStatusResponseDTO getGitHubTokenStatus(Long memberId);
+
+    /**
      * 특정 커밋을 조회합니다. (변경된 파일 정보는 GitHub API에서 살시간으로 조회)
      */
     GitResponse.CommitDetailDTO getCommitByHash(Long memberId, Long repositoryId, String hash);

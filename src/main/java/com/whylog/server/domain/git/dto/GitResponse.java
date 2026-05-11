@@ -230,6 +230,23 @@ public class GitResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    @Schema(description = "깃허브 Access Token 등록 여부 응답")
+    public static class GitHubTokenStatusResponseDTO {
+
+        @Schema(description = "GitHub Access Token 등록 여부", example = "true")
+        private Boolean isRegistered;
+
+        public static GitHubTokenStatusResponseDTO from(Boolean isRegistered) {
+            return GitHubTokenStatusResponseDTO.builder()
+                    .isRegistered(isRegistered)
+                    .build();
+        }
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     @Schema(description = "커서 기반 무한스크롤 커밋 목록 응답")
     public static class CommitListResponseDTO {
 

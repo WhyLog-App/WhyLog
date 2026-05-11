@@ -55,6 +55,14 @@ public class GitQueryServiceImpl implements GitQueryService {
         return repositoryRepository.findByTeamId(teamId);
     }
 
+    @Override
+    public GitResponse.GitHubTokenStatusResponseDTO getGitHubTokenStatus(Long memberId) {
+        if (memberId == null) throw new ParameterRequiredException();
+
+        Member member = memberUseCase.findMemberById(memberId);
+        return GitResponse.GitHubTokenStatusResponseDTO.from(member.hasGithubToken());
+    }
+
     /**
      * 커서 기반 무한스크롤 - 커밋 목록 조회
      * cursorId가 null이면 첫 페이지, 있으면 다음 페이지
