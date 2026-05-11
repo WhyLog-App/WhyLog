@@ -142,7 +142,7 @@ public class GitResponse {
         @Schema(description = "변경된 파일 목록")
         private List<ChangedFileDTO> changedFileList;
 
-        public static CommitDetailDTO of(Commit commit, List<ChangedFileDTO> changedFileList) {
+        public static CommitDetailDTO of(Commit commit, String description, List<ChangedFileDTO> changedFileList) {
             return CommitDetailDTO.builder()
                     .commitId(commit.getId())
                     .hash(commit.getHash())
@@ -151,7 +151,7 @@ public class GitResponse {
                     .authorEmail(commit.getAuthorEmail())
                     .authorProfileImage(commit.getAuthorProfileImage())
                     .dateTime(commit.getDateTime())
-                    .description(commit.getMessage()) //TODO: AI 요약값으로 변경
+                    .description(description)
                     .changedFileCount(changedFileList.size())
                     .changedFileList(changedFileList)
                     .build();

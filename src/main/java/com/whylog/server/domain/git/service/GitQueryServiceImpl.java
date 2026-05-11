@@ -1,6 +1,7 @@
 package com.whylog.server.domain.git.service;
 import com.whylog.server.domain.git.dto.GitResponse;
 import com.whylog.server.domain.git.entity.Commit;
+import com.whylog.server.domain.git.repository.CommitAnalysisRepository;
 import com.whylog.server.domain.git.entity.Repository;
 import com.whylog.server.domain.git.exception.GitErrorCode;
 import com.whylog.server.domain.git.exception.RepositoryNotFoundException;
@@ -36,6 +37,7 @@ public class GitQueryServiceImpl implements GitQueryService {
 
     private final RepositoryRepository repositoryRepository;
     private final CommitRepository commitRepository;
+    private final CommitAnalysisRepository commitAnalysisRepository;
     private final MemberUseCase memberUseCase;
     private final TeamUseCase teamUseCase;
 
@@ -80,6 +82,9 @@ public class GitQueryServiceImpl implements GitQueryService {
         // DB에서 커밋 정보 조회
         Commit commit = commitRepository.findByRepositoryIdAndHash(repositoryId, hash)
                 .orElseThrow(() -> new ErrorHandler(GitErrorCode.COMMIT_NOT_FOUND));
+        String summary = commitAnalysisRepository.findByCommitId(commit.getId())
+                .map(analysis -> analysis.getSummary())
+                .orElse(null);
 
         // 사용자의 GitHub Token 조회
         Member member = memberUseCase.findMemberById(memberId);
@@ -118,6 +123,6 @@ public class GitQueryServiceImpl implements GitQueryService {
         }
 
         // DB에 저장된 정보와 GitHub API에서 조회한 파일 정보를 포함해서 반환
-        return GitResponse.CommitDetailDTO.of(commit, changedFiles);
+        return GitResponse.CommitDetailDTO.of(commit, summary, changedFiles);
     }
 }
