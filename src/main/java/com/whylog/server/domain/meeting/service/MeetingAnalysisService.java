@@ -21,12 +21,14 @@ import com.whylog.server.domain.meeting.entity.MeetingAnalysis;
 import com.whylog.server.domain.meeting.entity.MeetingMember;
 import com.whylog.server.domain.meeting.exception.MeetingInvalidMemberException;
 import com.whylog.server.domain.meeting.exception.MeetingAudioNotReadyException;
-import com.whylog.server.domain.meeting.repository.DialogueRepository;
 import com.whylog.server.domain.meeting.repository.MeetingAnalysisRepository;
 import com.whylog.server.domain.meeting.repository.MeetingMemberRepository;
 import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.global.external.fast.client.FastApiTranscribeClient;
+import com.whylog.server.global.external.fast.client.FastApiMeetingAnalysisClient;
 import com.whylog.server.global.external.fast.dto.FastApiResponse;
+import com.whylog.server.global.external.fast.dto.request.ApplicationEmbeddingsRequest;
+import com.whylog.server.global.external.fast.dto.response.ApplicationEmbeddingsResponse;
 import com.whylog.server.global.external.fast.dto.response.TranscribeApplicationRunCreateResponse;
 import com.whylog.server.global.external.fast.dto.response.TranscribeApplicationRunResponse;
 import com.whylog.server.global.external.fast.exception.FastApiErrorCode;
@@ -34,13 +36,12 @@ import com.whylog.server.global.external.fast.exception.FastApiException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Map;
 import java.util.List;
-import java.util.Locale;
+import java.util.function.Function;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.UrlResource;
@@ -59,12 +60,12 @@ public class MeetingAnalysisService {
     private static final int MAX_AUDIO_READY_ATTEMPTS = 20;
     private static final Duration RUN_POLL_WAIT_INTERVAL = Duration.ofSeconds(3);
     private static final int MAX_RUN_POLL_ATTEMPTS = 120;
-    private static final Pattern SPEAKER_INDEX_PATTERN = Pattern.compile("(\\d+)");
 
     private final MeetingUseCase meetingUseCase;
     private final MeetingAudioReplayService meetingAudioReplayService;
     private final MeetingAudioFileService meetingAudioFileService;
     private final FastApiTranscribeClient fastApiTranscribeClient;
+    private final FastApiMeetingAnalysisClient fastApiMeetingAnalysisClient;
     private final ApplicationRepository applicationRepository;
     private final ApplicationBaseRepository applicationBaseRepository;
     private final ApplicationTimelineRepository applicationTimelineRepository;
@@ -72,8 +73,8 @@ public class MeetingAnalysisService {
     private final DecisionTimelineRepository decisionTimelineRepository;
     private final DecisionRepository decisionRepository;
     private final MeetingAnalysisRepository meetingAnalysisRepository;
-    private final DialogueRepository dialogueRepository;
     private final MeetingMemberRepository meetingMemberRepository;
+    private final MeetingLiveMessageBundleService meetingLiveMessageBundleService;
     private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
 
@@ -129,6 +130,7 @@ public class MeetingAnalysisService {
         String audioUrl = audioResponse.getAudioUrl();
         String audioFilename = meetingAudioFileService.extractFileName(audioKey);
         String contentType = meetingAudioFileService.resolveResponseContentType(audioKey);
+        String liveMessagesJson = meetingLiveMessageBundleService.buildLiveMessagesJson(meeting);
 
         FastApiResponse<TranscribeApplicationRunCreateResponse> createResponse = fastApiTranscribeClient.createTranscribeApplicationRun(
                 buildAudioResource(audioUrl),
@@ -136,7 +138,8 @@ public class MeetingAnalysisService {
                 contentType,
                 null,
                 String.valueOf(meeting.getId()),
-                null
+                null,
+                liveMessagesJson
         );
 
         String runId = requireResult(createResponse).runId();
@@ -221,25 +224,31 @@ public class MeetingAnalysisService {
                 analysisResult != null && analysisResult.applications() != null ? analysisResult.applications() : List.of();
         MeetingAnalysis.MeetingAnalysisPayload payload = buildMeetingAnalysisPayload(overallAnalysis);
 
-        transactionTemplate.executeWithoutResult(status -> {
+        SavedApplications savedApplications = transactionTemplate.execute(status -> {
             Meeting managedMeeting = meetingUseCase.findMeetingWithMembersById(meeting.getId());
-
-            MeetingAnalysis meetingAnalysis = MeetingAnalysis.create(managedMeeting, payload);
+            MeetingAnalysis meetingAnalysis = meetingAnalysisRepository.findByMeetingId(managedMeeting.getId())
+                    .map(existingMeetingAnalysis -> {
+                        existingMeetingAnalysis.updateAnalysis(payload);
+                        return existingMeetingAnalysis;
+                    })
+                    .orElseGet(() -> MeetingAnalysis.create(managedMeeting, payload));
             meetingAnalysisRepository.save(meetingAnalysis);
             managedMeeting.attachMeetingAnalysis(meetingAnalysis);
 
             List<Dialogue> dialogues = buildDialogues(managedMeeting, transcriptSegments);
-            if (!dialogues.isEmpty()) {
-                dialogueRepository.saveAll(dialogues);
-                dialogues.forEach(managedMeeting::addDialogue);
-            }
+            managedMeeting.getDialogues().clear();
+            managedMeeting.getDialogues().addAll(dialogues);
 
             Decision decision = createDecisionIfAbsent(managedMeeting);
-            replaceApplications(managedMeeting.getId(), decision, applications);
+            return replaceApplications(managedMeeting.getId(), decision, applications);
         });
+        if (savedApplications == null) {
+            savedApplications = SavedApplications.empty();
+        }
 
         log.info("회의 오디오 분석 저장 완료: meetingId={}, transcriptSegmentCount={}", meeting.getId(), transcriptSegments.size());
-        // TODO: applications 저장 후 applicationId를 발급해 /api/meeting-analysis/embeddings로 전달한다.
+        sendApplicationEmbeddingsSafely(meeting, response, savedApplications);
+
     }
 
     // Decision이 없을 때 새로 생성한다.
@@ -253,9 +262,15 @@ public class MeetingAnalysisService {
     }
 
     // 분석 결과의 적용사항 제목 목록을 저장한다.
-    private void replaceApplications(Long meetingId,
-                                     Decision decision,
-                                     List<TranscribeApplicationRunResponse.ApplicationResponse> applications) {
+    private SavedApplications replaceApplications(Long meetingId,
+                                                  Decision decision,
+                                                  List<TranscribeApplicationRunResponse.ApplicationResponse> applications) {
+        applicationBaseRepository.deleteByMeetingId(meetingId);
+        applicationTimelineRepository.deleteByMeetingId(meetingId);
+        decisionBaseRepository.deleteByMeetingId(meetingId);
+        decisionTimelineRepository.deleteByMeetingId(meetingId);
+        applicationRepository.deleteByMeetingId(meetingId);
+
         List<TranscribeApplicationRunResponse.ApplicationResponse> validApplications = applications.stream()
                 .filter(application -> application != null
                         && application.applicationTitle() != null
@@ -274,7 +289,10 @@ public class MeetingAnalysisService {
             persistApplicationDetails(savedApplications, validApplications);
             log.info("적용사항 저장 완료: meetingId={}, decisionId={}, applicationCount={}",
                     meetingId, decision.getId(), newApplications.size());
+            return new SavedApplications(savedApplications, validApplications);
         }
+
+        return SavedApplications.empty();
     }
 
     // 저장된 적용사항 엔티티에 reason/timeline 세부 정보를 순서대로 연결 저장한다.
@@ -320,7 +338,7 @@ public class MeetingAnalysisService {
                         timeline.timestamp(),
                         timeline.step(),
                         timeline.content(),
-                        meetingUseCase.resolveMemberIdBySpeakerId(application.getDecision().getMeeting().getId(), timeline.speakerId()),
+                        timeline.memberId(),
                         timeline.utterance()
                 ))
                 .toList();
@@ -334,6 +352,82 @@ public class MeetingAnalysisService {
                 .map(decisionTimeline -> ApplicationTimeline.create(application, decisionTimeline))
                 .toList();
         applicationTimelineRepository.saveAllAndFlush(applicationTimelines);
+    }
+
+    // 저장된 적용사항을 FastAPI 임베딩 요청으로 전달한다.
+    private void sendApplicationEmbeddingsSafely(Meeting meeting,
+                                                 TranscribeApplicationRunResponse runResponse,
+                                                 SavedApplications savedApplications) {
+        if (savedApplications.savedApplications().isEmpty()) {
+            log.info("저장된 적용사항이 없어 임베딩 호출을 생략한다: meetingId={}", meeting.getId());
+            return;
+        }
+
+        try {
+            ApplicationEmbeddingsRequest request = buildEmbeddingsRequest(meeting, runResponse, savedApplications);
+            FastApiResponse<ApplicationEmbeddingsResponse> response = fastApiMeetingAnalysisClient.createApplicationEmbeddings(request);
+            Integer totalDocuments = response != null && response.result() != null ? response.result().totalDocuments() : null;
+            log.info("적용사항 임베딩 저장 완료: meetingId={}, totalDocuments={}", meeting.getId(), totalDocuments);
+        } catch (Exception exception) {
+            log.error("적용사항 임베딩 호출 실패: meetingId={}", meeting.getId(), exception);
+        }
+    }
+
+    // FastAPI 임베딩 요청을 생성한다.
+    private ApplicationEmbeddingsRequest buildEmbeddingsRequest(Meeting meeting,
+                                                                TranscribeApplicationRunResponse runResponse,
+                                                                SavedApplications savedApplications) {
+        TranscribeApplicationRunResponse.TranscribeApplicationRunResult runResult = runResponse.result();
+        TranscribeApplicationRunResponse.AnalysisResultResponse analysisResult =
+                runResult != null ? runResult.analysisResult() : null;
+        TranscribeApplicationRunResponse.OverallAnalysisResponse overallAnalysis =
+                analysisResult != null ? analysisResult.overallAnalysis() : null;
+        List<String> otherMentions =
+                analysisResult != null && analysisResult.otherMentions() != null ? analysisResult.otherMentions() : List.of();
+
+        List<ApplicationEmbeddingsRequest.ApplicationPayload> applicationPayloads = new ArrayList<>();
+        List<Application> applications = savedApplications.savedApplications();
+        List<TranscribeApplicationRunResponse.ApplicationResponse> sourceApplications = savedApplications.sourceApplications();
+        for (int index = 0; index < applications.size(); index++) {
+            Application savedApplication = applications.get(index);
+            TranscribeApplicationRunResponse.ApplicationResponse sourceApplication = sourceApplications.get(index);
+            applicationPayloads.add(new ApplicationEmbeddingsRequest.ApplicationPayload(
+                    savedApplication.getId(),
+                    sourceApplication.applicationTitle(),
+                    sourceApplication.applicationReasons(),
+                    mapTimelinePayloads(sourceApplication.timeline())
+            ));
+        }
+
+        return new ApplicationEmbeddingsRequest(
+                String.valueOf(meeting.getId()),
+                null,
+                new ApplicationEmbeddingsRequest.AnalysisResultPayload(
+                        overallAnalysis,
+                        applicationPayloads,
+                        otherMentions
+                )
+        );
+    }
+
+    // FastAPI 응답 타임라인을 임베딩 요청 payload로 변환한다.
+    private List<ApplicationEmbeddingsRequest.TimelinePayload> mapTimelinePayloads(
+            List<TranscribeApplicationRunResponse.TimelineResponse> timelines
+    ) {
+        if (timelines == null || timelines.isEmpty()) {
+            return List.of();
+        }
+
+        return timelines.stream()
+                .filter(timeline -> timeline != null)
+                .map(timeline -> new ApplicationEmbeddingsRequest.TimelinePayload(
+                        timeline.timestamp(),
+                        timeline.step(),
+                        timeline.memberId(),
+                        timeline.content(),
+                        timeline.utterance()
+                ))
+                .toList();
     }
 
     // null 이거나 비어 있는 문자열을 제외한 값만 반환한다.
@@ -407,12 +501,11 @@ public class MeetingAnalysisService {
             return List.of();
         }
 
-        List<Member> members = meeting.getMeetingMembers().stream()
+        Map<Long, Member> membersById = meeting.getMeetingMembers().stream()
                 .map(MeetingMember::getMember)
-                .sorted(Comparator.comparing(Member::getId))
-                .toList();
+                .collect(Collectors.toMap(Member::getId, Function.identity()));
 
-        if (members.isEmpty()) {
+        if (membersById.isEmpty()) {
             return List.of();
         }
 
@@ -423,44 +516,16 @@ public class MeetingAnalysisService {
                 continue;
             }
 
-            Member member = resolveMemberForSegment(members, segment.speaker(), index);
+            Member member = segment.memberId() != null ? membersById.get(segment.memberId()) : null;
+            if (member == null) {
+                continue;
+            }
+
             LocalDateTime speechDateTime = resolveSpeechDateTime(meeting.getStartDateTime(), segment.startTime(), index);
             dialogues.add(Dialogue.create(meeting, member, segment.text().trim(), speechDateTime));
         }
 
         return dialogues;
-    }
-
-    // 세그먼트의 화자 정보를 기반으로 회의 참여자를 선택한다.
-    private Member resolveMemberForSegment(List<Member> members, String speaker, int index) {
-        if (speaker != null && !speaker.isBlank()) {
-            String normalizedSpeaker = speaker.trim().toLowerCase(Locale.ROOT);
-            for (Member member : members) {
-                if (member.getName() != null && member.getName().trim().toLowerCase(Locale.ROOT).equals(normalizedSpeaker)) {
-                    return member;
-                }
-            }
-
-            Integer speakerIndex = extractSpeakerIndex(speaker);
-            if (speakerIndex != null && speakerIndex >= 0 && speakerIndex < members.size()) {
-                return members.get(speakerIndex);
-            }
-        }
-
-        return members.get(Math.min(index, members.size() - 1));
-    }
-
-    // 화자 문자열에서 숫자 인덱스를 추출한다.
-    private Integer extractSpeakerIndex(String speaker) {
-        Matcher matcher = SPEAKER_INDEX_PATTERN.matcher(speaker);
-        if (matcher.find()) {
-            try {
-                return Integer.parseInt(matcher.group(1));
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
     }
 
     // 전사 시작 시각 offset을 회의 시작 시각 기준 LocalDateTime으로 변환한다.
@@ -497,6 +562,14 @@ public class MeetingAnalysisService {
                     .plusMillis(Math.round(seconds * 1000));
         } catch (NumberFormatException e) {
             return null;
+        }
+    }
+
+    private record SavedApplications(List<Application> savedApplications,
+                                     List<TranscribeApplicationRunResponse.ApplicationResponse> sourceApplications) {
+
+        private static SavedApplications empty() {
+            return new SavedApplications(List.of(), List.of());
         }
     }
 

@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.Resource;
+import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -46,7 +47,7 @@ public class FastApiTranscribeClient extends FastApiClient {
                                                      String projectId) {
         return postMultipart(
                 FastApiInfo.TRANSCRIBE_AUDIO,
-                buildTextParts(numSpeakers, meetingId, projectId),
+                buildTextParts(numSpeakers, meetingId, projectId, null),
                 new FastApiBinaryPart("audio", audio, filename, contentType),
                 new ParameterizedTypeReference<>() {
                 }
@@ -61,7 +62,7 @@ public class FastApiTranscribeClient extends FastApiClient {
                                                             String projectId) {
         return postMultipart(
                 FastApiInfo.TRANSCRIBE_APPLICATIONS,
-                buildTextParts(numSpeakers, meetingId, projectId),
+                buildTextParts(numSpeakers, meetingId, projectId, null),
                 new FastApiBinaryPart("audio", audio, filename, contentType),
                 new ParameterizedTypeReference<>() {
                 }
@@ -85,9 +86,19 @@ public class FastApiTranscribeClient extends FastApiClient {
                                                                                                   Integer numSpeakers,
                                                                                                   String meetingId,
                                                                                                   String projectId) {
+        return createTranscribeApplicationRun(audio, filename, contentType, numSpeakers, meetingId, projectId, null);
+    }
+
+    public FastApiResponse<TranscribeApplicationRunCreateResponse> createTranscribeApplicationRun(Resource audio,
+                                                                                                  String filename,
+                                                                                                  String contentType,
+                                                                                                  Integer numSpeakers,
+                                                                                                  String meetingId,
+                                                                                                  String projectId,
+                                                                                                  String liveMessages) {
         return postMultipart(
                 FastApiInfo.TRANSCRIBE_APPLICATION_RUNS,
-                buildTextParts(numSpeakers, meetingId, projectId),
+                buildTextParts(numSpeakers, meetingId, projectId, liveMessages),
                 new FastApiBinaryPart("audio", audio, filename, contentType),
                 new ParameterizedTypeReference<>() {
                 }
@@ -101,7 +112,8 @@ public class FastApiTranscribeClient extends FastApiClient {
                 request.audio().contentType(),
                 request.numSpeakers(),
                 request.meetingId(),
-                request.projectId()
+                request.projectId(),
+                null
         );
     }
 
@@ -114,7 +126,7 @@ public class FastApiTranscribeClient extends FastApiClient {
         );
     }
 
-    private Map<String, Object> buildTextParts(Integer numSpeakers, String meetingId, String projectId) {
+    private Map<String, Object> buildTextParts(Integer numSpeakers, String meetingId, String projectId, String liveMessages) {
         Map<String, Object> parts = new LinkedHashMap<>();
         if (numSpeakers != null) {
             parts.put("num_speakers", numSpeakers);
@@ -124,6 +136,9 @@ public class FastApiTranscribeClient extends FastApiClient {
         }
         if (projectId != null) {
             parts.put("project_id", projectId);
+        }
+        if (StringUtils.hasText(liveMessages)) {
+            parts.put("live_messages", liveMessages);
         }
         return parts;
     }

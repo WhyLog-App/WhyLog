@@ -2,9 +2,11 @@ package com.whylog.server.domain.meeting.service;
 
 import com.whylog.server.domain.meeting.entity.Meeting;
 import com.whylog.server.domain.meeting.entity.MeetingMember;
+import com.whylog.server.domain.meeting.exception.MeetingErrorCode;
 import com.whylog.server.domain.meeting.exception.MeetingNotFoundException;
 import com.whylog.server.domain.meeting.repository.MeetingRepository;
 import com.whylog.server.domain.user.entity.Member;
+import com.whylog.server.global.apiPayload.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +14,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class MeetingUseCase implements MeetingSpeakerResolver {
+public class MeetingUseCase{
 
     private final MeetingRepository meetingRepository;
 
@@ -46,9 +48,11 @@ public class MeetingUseCase implements MeetingSpeakerResolver {
         return meetingRepository.findByMeetingId(meetingId)
                 .orElseThrow(MeetingNotFoundException::new);
     }
-    @Override
-    public Long resolveMemberIdBySpeakerId(Long meetingId, String speakerId) {
-        // TODO: 대화 내역을 기준으로 speakerId와 실제 memberId를 매칭한다.
-        return 1L;
+
+    public Meeting findWithDialogue(Long meetingId) {
+        return meetingRepository.findByMeetingId(meetingId)
+                .orElseThrow(MeetingNotFoundException::new);
     }
+
+
 }

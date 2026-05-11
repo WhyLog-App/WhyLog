@@ -1,6 +1,7 @@
 package com.whylog.server.domain.meeting.repository;
 
 import com.whylog.server.domain.meeting.entity.MeetingAnalysis;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -15,4 +16,7 @@ public interface MeetingAnalysisRepository extends JpaRepository<MeetingAnalysis
     @Modifying
     @Query("DELETE FROM MeetingAnalysis ma WHERE ma.meeting.id = :meetingId")
     void deleteByMeetingId(@Param("meetingId") Long meetingId);
+
+    @Query("SELECT ma FROM MeetingAnalysis ma WHERE ma.meeting.id = :meetingId")
+    Optional<MeetingAnalysis> findByMeetingId(@Param("meetingId") Long meetingId);
 }

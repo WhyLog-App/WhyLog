@@ -12,6 +12,7 @@ import com.whylog.server.domain.meeting.exception.MeetingNotFoundException;
 import com.whylog.server.domain.meeting.repository.MeetingMemberRepository;
 import com.whylog.server.domain.meeting.repository.MeetingRepository;
 import com.whylog.server.domain.meeting.socket.MeetingSocketRoomService;
+import com.whylog.server.domain.meeting.socket.repository.MeetingLiveMessageRepository;
 import com.whylog.server.domain.meeting.service.MeetingAnalysisService;
 import com.whylog.server.domain.meeting.service.MeetingCleanupService;
 import com.whylog.server.domain.meeting.service.LiveKitTokenService;
@@ -42,6 +43,7 @@ public class MeetingCommandService {
     private final MeetingCleanupService meetingCleanupService;
     private final MeetingAudioFileService meetingAudioFileService;
     private final MeetingAnalysisService meetingAnalysisService;
+    private final MeetingLiveMessageRepository meetingLiveMessageRepository;
     private final LiveKitTokenService liveKitTokenService;
     private final LiveKitEgressClient liveKitEgressClient;
 
@@ -136,6 +138,7 @@ public class MeetingCommandService {
 
         stopRecording(meeting);
         meetingCleanupService.deleteByMeetingId(meetingId);
+        meetingLiveMessageRepository.clear(meetingId);
         scheduleAfterCommit(() -> meetingSocketRoomService.closeRoom(meetingId));
 
         return MeetingResponse.MeetingDeleteResponseDTO.builder()

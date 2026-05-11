@@ -190,11 +190,13 @@ public class MeetingController {
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_UNAUTHORIZED"),
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
-            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_FOUND")
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_FOUND"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_NOT_END"),
+            @ApiErrorCodeExample(value = MeetingErrorCode.class, name = "MEETING_UNNORMAL_END")
     })
     public ApiResponse<MeetingResponse.HistoryListDTO> getHistory(
             @PathVariable Long meetingId) {
-        return ApiResponse.onSuccess(null);
+        return ApiResponse.onSuccess(meetingQueryService.getDialogueHistory(meetingId));
     }
 
     @GetMapping("/meetings/{meetingId}/analysis")
