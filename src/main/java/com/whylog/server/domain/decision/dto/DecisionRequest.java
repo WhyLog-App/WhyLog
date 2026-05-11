@@ -24,6 +24,18 @@ public class DecisionRequest {
     @NoArgsConstructor(access = AccessLevel.PROTECTED)
     @AllArgsConstructor
     @Builder
+    @Schema(description = "커밋 연결 해제 요청")
+    public static class CommitDisconnectionDTO {
+
+        @Schema(description = "해제할 커밋 ID", example = "1")
+        @NotNull
+        private Long commitId;
+    }
+
+    @Getter
+    @NoArgsConstructor(access = AccessLevel.PROTECTED)
+    @AllArgsConstructor
+    @Builder
     @Schema(description = "추천 결과 저장 요청")
     public static class RecommendationDTO {
 

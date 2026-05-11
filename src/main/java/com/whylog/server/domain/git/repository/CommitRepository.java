@@ -4,6 +4,7 @@ import com.whylog.server.domain.git.entity.Commit;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -36,6 +37,20 @@ public interface CommitRepository extends JpaRepository<Commit, Long> {
             """)
     List<Commit> findAllWithRepositoryByIdIn(@Param("commitIds") List<Long> commitIds);
 
+    @Query("""
+            SELECT c.id
+            FROM Commit c
+            WHERE c.repository.id = :repositoryId
+            """)
+    List<Long> findIdsByRepositoryId(@Param("repositoryId") Long repositoryId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            DELETE FROM Commit c
+            WHERE c.repository.id = :repositoryId
+            """)
+    void deleteByRepositoryId(@Param("repositoryId") Long repositoryId);
+
     // 커서 기반 무한스크롤 - 커밋 목록 조회
     @Query("SELECT c FROM Commit c " +
             "WHERE c.repository.id = :repositoryId " +
@@ -51,5 +66,4 @@ public interface CommitRepository extends JpaRepository<Commit, Long> {
             Pageable pageable
     );
 }
-
 

@@ -1,5 +1,6 @@
 package com.whylog.server.domain.git.dto;
 
+import com.whylog.server.domain.decision.entity.Application;
 import com.whylog.server.domain.git.entity.Commit;
 import com.whylog.server.domain.git.entity.Repository;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -92,7 +93,10 @@ public class GitResponse {
         @Schema(description = "삭제된 줄 수", example = "12")
         private Integer deletedLines;
 
-        public static CommitDTO from(Commit commit) {
+        @Schema(description = "연결된 적용사항", nullable = true)
+        private ConnectedApplicationDTO connectedApplication;
+
+        public static CommitDTO from(Commit commit, ConnectedApplicationDTO connectedApplication) {
             return CommitDTO.builder()
                     .commitId(commit.getId())
                     .hash(commit.getHash())
@@ -101,7 +105,29 @@ public class GitResponse {
                     .dateTime(commit.getDateTime())
                     .addedLines(commit.getAddedLines())
                     .deletedLines(commit.getDeletedLines())
+                    .connectedApplication(connectedApplication)
                     .build();
+        }
+
+        @Getter
+        @NoArgsConstructor
+        @AllArgsConstructor
+        @Builder
+        @Schema(description = "연결된 적용사항 정보")
+        public static class ConnectedApplicationDTO {
+
+            @Schema(description = "적용사항 ID", example = "1")
+            private Long applicationId;
+
+            @Schema(description = "적용사항 이름", example = "Redis 기술 변경")
+            private String name;
+
+            public static ConnectedApplicationDTO from(Application application) {
+                return ConnectedApplicationDTO.builder()
+                        .applicationId(application.getId())
+                        .name(application.getName())
+                        .build();
+            }
         }
     }
 
@@ -142,7 +168,7 @@ public class GitResponse {
         @Schema(description = "변경된 파일 목록")
         private List<ChangedFileDTO> changedFileList;
 
-        public static CommitDetailDTO of(Commit commit, List<ChangedFileDTO> changedFileList) {
+        public static CommitDetailDTO of(Commit commit, String description, List<ChangedFileDTO> changedFileList) {
             return CommitDetailDTO.builder()
                     .commitId(commit.getId())
                     .hash(commit.getHash())
@@ -151,7 +177,7 @@ public class GitResponse {
                     .authorEmail(commit.getAuthorEmail())
                     .authorProfileImage(commit.getAuthorProfileImage())
                     .dateTime(commit.getDateTime())
-                    .description(commit.getMessage()) //TODO: AI 요약값으로 변경
+                    .description(description)
                     .changedFileCount(changedFileList.size())
                     .changedFileList(changedFileList)
                     .build();
@@ -199,6 +225,20 @@ public class GitResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    @Schema(description = "레포 삭제 응답")
+    public static class RepositoryDeleteResponseDTO {
+
+        @Schema(description = "레포 ID", example = "1")
+        private Long repositoryId;
+
+        @Schema(description = "삭제 성공 여부", example = "true")
+        private Boolean isRemoved;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     @Schema(description = "깃허브 Access Token 등록 응답")
     public static class GitHubTokenResponseDTO {
 
@@ -208,6 +248,40 @@ public class GitResponse {
         public static GitHubTokenResponseDTO from(String accessToken) {
             return GitHubTokenResponseDTO.builder()
                     .accessToken(accessToken)
+                    .build();
+        }
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "깃허브 Access Token 삭제 응답")
+    public static class GitHubTokenDeleteResponseDTO {
+
+        @Schema(description = "삭제 성공 여부", example = "true")
+        private Boolean isRemoved;
+
+        public static GitHubTokenDeleteResponseDTO from(Boolean isRemoved) {
+            return GitHubTokenDeleteResponseDTO.builder()
+                    .isRemoved(isRemoved)
+                    .build();
+        }
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    @Schema(description = "깃허브 Access Token 등록 여부 응답")
+    public static class GitHubTokenStatusResponseDTO {
+
+        @Schema(description = "GitHub Access Token 등록 여부", example = "true")
+        private Boolean isRegistered;
+
+        public static GitHubTokenStatusResponseDTO from(Boolean isRegistered) {
+            return GitHubTokenStatusResponseDTO.builder()
+                    .isRegistered(isRegistered)
                     .build();
         }
     }
@@ -234,9 +308,13 @@ public class GitResponse {
         @Schema(description = "다음 커서 ID (무한스크롤용)", example = "1")
         private Long nextCursorId;
 
-        public static CommitListResponseDTO from(Slice<Commit> commitSlice, Long cursorId) {
+        public static CommitListResponseDTO from(
+                Slice<Commit> commitSlice,
+                Long cursorId,
+                java.util.Map<Long, CommitDTO.ConnectedApplicationDTO> connectedApplicationsByCommitId
+        ) {
             List<CommitDTO> commitDTOs = commitSlice.getContent().stream()
-                    .map(CommitDTO::from)
+                    .map(commit -> CommitDTO.from(commit, connectedApplicationsByCommitId.get(commit.getId())))
                     .collect(Collectors.toList());
 
             // 다음 커서 ID 설정

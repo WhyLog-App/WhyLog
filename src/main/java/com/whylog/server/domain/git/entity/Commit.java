@@ -8,6 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -48,14 +50,11 @@ public class Commit extends BaseEntity {
     @Column(name = "deleted_lines", nullable = false)
     private Integer deletedLines;
 
-//    @OneToMany(mappedBy = "commit", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<ChangedFile> changedFiles = new ArrayList<>();
-//
-//    @OneToMany(mappedBy = "commit", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<CommitAnalysis> commitAnalyses = new ArrayList<>();
-//
-//    @OneToMany(mappedBy = "commit", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<CommitConnection> commitConnections = new ArrayList<>();
+    @OneToOne(mappedBy = "commit", cascade = CascadeType.ALL, orphanRemoval = true)
+    private CommitAnalysis commitAnalysis;
+
+    @OneToMany(mappedBy = "commit", cascade = CascadeType.ALL, orphanRemoval = true)
+    private final List<CommitConnection> commitConnections = new ArrayList<>();
 
     public static Commit create(GitRequest.CommitCreateDTO dto, Repository repository) {
         Commit commit = new Commit();

@@ -2,7 +2,6 @@ package com.whylog.server.domain.git.controller;
 
 import com.whylog.server.domain.git.dto.GitRequest;
 import com.whylog.server.domain.git.dto.GitResponse;
-import com.whylog.server.domain.git.entity.Commit;
 import com.whylog.server.domain.git.exception.GitErrorCode;
 import com.whylog.server.domain.git.service.GitCommandService;
 import com.whylog.server.domain.git.service.GitQueryService;
@@ -17,7 +16,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Slice;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -42,12 +40,37 @@ public class GitController {
                     """)
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "GITHUB_TOKEN_INVALID"),
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_INTERNAL_SERVER_ERROR")
     })
     public ApiResponse<GitResponse.GitHubTokenResponseDTO> registerGitHubToken(
             @Parameter(hidden = true) @CurrentMember Long memberId,
             @Valid @RequestBody GitRequest.GitHubTokenDTO request) {
         return ApiResponse.onSuccess(gitCommandService.registerGitHubToken(memberId, request.getAccessToken()));
+    }
+
+    @DeleteMapping("/github/token")
+    @Operation(
+            summary = "GitHub Access Token 삭제 API",
+            description = "현재 로그인한 사용자의 GitHub Access Token을 삭제합니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST")
+    })
+    public ApiResponse<GitResponse.GitHubTokenDeleteResponseDTO> deleteGitHubToken(
+            @Parameter(hidden = true) @CurrentMember Long memberId) {
+        return ApiResponse.onSuccess(gitCommandService.deleteGitHubToken(memberId));
+    }
+
+    @GetMapping("/github/token/status")
+    @Operation(
+            summary = "GitHub Access Token 등록 여부 조회 API",
+            description = "현재 로그인한 사용자의 GitHub Access Token 등록 여부를 true/false로 조회합니다.")
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST")
+    })
+    public ApiResponse<GitResponse.GitHubTokenStatusResponseDTO> getGitHubTokenStatus(
+            @Parameter(hidden = true) @CurrentMember Long memberId) {
+        return ApiResponse.onSuccess(gitQueryService.getGitHubTokenStatus(memberId));
     }
 
     @GetMapping("/teams/{teamId}/repositories")
@@ -109,11 +132,31 @@ public class GitController {
         return ApiResponse.onSuccess(GitResponse.RepositorySyncResponseDTO.from(repositoryId));
     }
 
+    @DeleteMapping("/repositories/{repositoryId}")
+    @Operation(
+            summary = "GitHub 레포지토리 삭제",
+            description = """
+                    등록된 레포지토리를 삭제합니다.
+                    
+                    레포지토리를 삭제하면 관련된 커밋, 커밋 분석, 연결/추천 커밋 데이터도 함께 삭제됩니다.
+                    """)
+    @ApiErrorCodeExamples({
+            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
+            @ApiErrorCodeExample(value = GitErrorCode.class, name = "REPOSITORY_NOT_FOUND")
+    })
+    public ApiResponse<GitResponse.RepositoryDeleteResponseDTO> deleteRepository(
+            @PathVariable Long repositoryId) {
+        return ApiResponse.onSuccess(gitCommandService.deleteRepository(repositoryId));
+    }
+
     @GetMapping("/repositories/{repositoryId}/commits")
     @Operation(
             summary = "커밋 목록 조회 (커서 기반 무한스크롤)",
             description = """
                     10개씩 커밋을 조회합니다.
+                    
+                    각 커밋에는 기본 정보와 함께 연결된 적용사항 정보가 포함됩니다.
+                    커밋이 적용사항에 연결되어 있지 않다면 `connectedApplication`은 null로 반환됩니다.
                     
                     📌 사용 방법:
                     1. 첫 요청: cursor 파라미터 없음
@@ -124,6 +167,7 @@ public class GitController {
                     - hasNext: 다음 페이지 존재 여부 (더 불러올 커밋이 있으면 true)
                     - nextCursorId: 다음 요청에 사용할 커서 ID
                     - isFirst: 첫 페이지 여부
+                    - connectedApplication: 커밋에 연결된 적용사항 정보 (없으면 null)
                     """)
     @ApiErrorCodeExamples({
             @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
@@ -133,13 +177,7 @@ public class GitController {
             @PathVariable Long repositoryId,
             @Parameter(description = "이전 조회의 마지막 커밋 ID (첫 요청 시 생략)")
             @RequestParam(required = false) Long cursor) {
-
-        Slice<Commit> commitSlice = gitQueryService.getCommitsByRepository(
-                repositoryId,
-                cursor
-        );
-
-        return ApiResponse.onSuccess(GitResponse.CommitListResponseDTO.from(commitSlice, cursor));
+        return ApiResponse.onSuccess(gitQueryService.getCommitListResponse(repositoryId, cursor));
     }
 
     @GetMapping("/repositories/{repositoryId}/commits/{commitHash}")
@@ -172,6 +210,3 @@ public class GitController {
         return ApiResponse.onSuccess(commitDetail);
     }
 }
-
-
-

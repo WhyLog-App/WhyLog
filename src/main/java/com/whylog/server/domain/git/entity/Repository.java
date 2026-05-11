@@ -44,8 +44,8 @@ public class Repository extends BaseEntity {
     @JoinColumn(name = "team_id", nullable = false)
     private Team team;
 
-//    @OneToMany(mappedBy = "repository", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<Commit> commits = new ArrayList<>();
+    @OneToMany(mappedBy = "repository", cascade = CascadeType.ALL, orphanRemoval = true)
+    private final List<Commit> commits = new ArrayList<>();
 
     public static Repository create(String name, String url, Team team) {
         Repository repository = new Repository();

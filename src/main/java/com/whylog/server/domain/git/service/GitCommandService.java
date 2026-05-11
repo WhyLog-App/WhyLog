@@ -12,6 +12,11 @@ public interface GitCommandService {
     GitResponse.GitHubTokenResponseDTO registerGitHubToken(Long memberId, String accessToken);
 
     /**
+     * 사용자의 GitHub Access Token을 삭제합니다.
+     */
+    GitResponse.GitHubTokenDeleteResponseDTO deleteGitHubToken(Long memberId);
+
+    /**
      * 팀에 새로운 레포지토리를 추가합니다.
      */
     Repository createRepository(Long memberId, Long teamId, GitRequest.RepositoryCreateDTO request);
@@ -20,6 +25,11 @@ public interface GitCommandService {
      * 레포지토리를 동기화합니다.
      */
     GitResponse.RepositorySyncResponseDTO syncRepository(Long memberId, Long repositoryId);
+
+    /**
+     * 레포지토리를 삭제합니다.
+     */
+    GitResponse.RepositoryDeleteResponseDTO deleteRepository(Long repositoryId);
 
     /**
      * GitHub Token 만료 시 처리합니다 (API 401 에러 감지).
