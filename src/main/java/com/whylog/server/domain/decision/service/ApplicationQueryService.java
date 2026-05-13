@@ -196,7 +196,7 @@ public class ApplicationQueryService {
                             .time(applicationTimeline.getDecisionTimeline().getTimestamp())
                             .memberId(memberId)
                             .memberName(member != null ? member.getName() : null)
-                            .profileImage(member != null ? member.getProfileImage() : null)
+                            .profileImage(memberUseCase.getProfileImageUrl(member) )
                             .dialogueContent(applicationTimeline.getDecisionTimeline().getUtterance())
                             .build();
                 })

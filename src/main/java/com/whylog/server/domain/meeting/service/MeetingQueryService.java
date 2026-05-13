@@ -7,11 +7,14 @@ import com.whylog.server.domain.meeting.entity.MeetingAnalysis;
 import com.whylog.server.domain.meeting.entity.MeetingMember;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
 import com.whylog.server.domain.user.entity.Member;
+import com.whylog.server.domain.user.service.MemberUseCase;
 import com.whylog.server.global.apiPayload.exception.ParameterRequiredException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -20,6 +23,7 @@ public class MeetingQueryService {
 
     private final MeetingUseCase meetingUseCase;
     private final MeetingAudioReplayService meetingAudioReplayService;
+    private final MemberUseCase memberUseCase;
 
     // 미팅 목록 조회
     @Transactional(readOnly = true)
@@ -69,7 +73,7 @@ public class MeetingQueryService {
                 .map(member -> MeetingResponse.MeetingParticipantInfo.builder()
                         .memberId(member.getId())
                         .name(member.getName())
-                        .profileImage(member.getProfileImage())
+                        .profileImage(memberUseCase.getProfileImageUrl(member))
                         .build()
                 ).toList();
     }
@@ -109,7 +113,50 @@ public class MeetingQueryService {
                 .toList();
 
         // dto 생성 및 반환
-        return MeetingResponse.HistoryListDTO.create(meeting, dialogues, members);
+        return createHistoryListDto(meeting, dialogues, members);
+    }
+
+    private MeetingResponse.HistoryListDTO createHistoryListDto(Meeting meeting, List<Dialogue> dialogues, List<Member> members) {
+        return MeetingResponse.HistoryListDTO.builder()
+                .participants(createParticipantDtos(members))
+                .dialogues(createDialogueDtos(meeting, dialogues))
+                .build();
+    }
+
+    private List<MeetingResponse.HistoryListDTO.ParticipantDTO> createParticipantDtos(List<Member> members) {
+        return members.stream().map(member -> MeetingResponse.HistoryListDTO.ParticipantDTO.builder()
+                .memberId(member.getId())
+                .name(member.getName())
+                .profileImage(memberUseCase.getProfileImageUrl(member))
+                .build()
+        ).toList();
+    }
+
+    private List<MeetingResponse.HistoryListDTO.DialogueDTO> createDialogueDtos(Meeting meeting, List<Dialogue> dialogues) {
+        LocalDateTime startDateTime = meeting.getStartDateTime();
+
+        return dialogues.stream().map(dialogue -> MeetingResponse.HistoryListDTO.DialogueDTO.builder()
+                .memberId(dialogue.getMember().getId())
+                .content(dialogue.getContent())
+                .timestamp(formatElapsed(startDateTime, dialogue.getSpeechDateTime()))
+                .build()
+        ).toList();
+    }
+
+    private String formatElapsed(LocalDateTime startDateTime, LocalDateTime speechDateTime) {
+        if (startDateTime == null || speechDateTime == null) {
+            return null;
+        }
+
+        Duration elapsed = Duration.between(startDateTime, speechDateTime);
+        if (elapsed.isNegative()) {
+            return "00:00";
+        }
+
+        long totalSeconds = elapsed.getSeconds();
+        long minutes = totalSeconds / 60;
+        long seconds = totalSeconds % 60;
+        return String.format("%02d:%02d", minutes, seconds);
     }
 
 }
