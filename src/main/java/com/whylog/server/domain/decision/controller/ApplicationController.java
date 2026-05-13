@@ -119,17 +119,4 @@ public class ApplicationController {
         return ApiResponse.onSuccess(applicationCommandService.disconnectCommit(applicationId, request));
     }
 
-    @PostMapping("/{decisionId}/recommendations")
-    @Operation(summary = "추천 결과 저장 API", description = "적용사항의 추천 결과를 저장하는 API입니다.")
-    @ApiErrorCodeExamples({
-            @ApiErrorCodeExample(value = ErrorStatus.class, name = "_BAD_REQUEST"),
-            @ApiErrorCodeExample(value = DecisionErrorCode.class, name = "DECISION_NOT_FOUND"),
-            @ApiErrorCodeExample(value = GitErrorCode.class, name = "COMMIT_NOT_FOUND")
-    })
-    public ApiResponse<ApplicationResponse.RecommendedCommitDTO> saveRecommendation(
-            @PathVariable Long decisionId,
-            @Valid @RequestBody DecisionRequest.RecommendationDTO request) {
-        return ApiResponse.onSuccess(null);
-    }
-
 }
