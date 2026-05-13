@@ -1,17 +1,13 @@
 package com.whylog.server.domain.meeting.dto;
 
-import com.whylog.server.domain.meeting.entity.Dialogue;
-import com.whylog.server.domain.meeting.entity.Meeting;
 import com.whylog.server.domain.meeting.entity.MeetingAnalysis;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
 import com.whylog.server.domain.meeting.socket.MeetingParticipant;
-import com.whylog.server.domain.user.entity.Member;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -196,15 +192,6 @@ public class MeetingResponse {
             @Schema(description = "참여자 프로필 사진 URL", example = "https://example.com/profile/user-1.jpg")
             private String profileImage;
 
-            public static List<ParticipantDTO> create(List<Member> members) {
-                return members.stream().map(member -> ParticipantDTO.builder()
-                        .memberId(member.getId())
-                        .name(member.getName())
-                        .profileImage(member.getProfileImage())
-                        .build()
-                ).toList();
-            }
-
         }
 
         @Getter
@@ -222,44 +209,6 @@ public class MeetingResponse {
 
             @Schema(description = "말한 시간", example = "00:22")
             private String timestamp;
-
-            public static List<DialogueDTO> create(Meeting meeting, List<Dialogue> dialogues) {
-                LocalDateTime startDateTime = meeting.getStartDateTime();
-
-                return dialogues.stream().map(dialogue -> DialogueDTO.builder()
-                        .memberId(dialogue.getMember().getId())
-                        .content(dialogue.getContent())
-                        .timestamp(formatElapsed(startDateTime, dialogue.getSpeechDateTime()))
-                        .build()
-                ).toList();
-            }
-
-            private static String formatElapsed(LocalDateTime startDateTime, LocalDateTime speechDateTime) {
-                if (startDateTime == null || speechDateTime == null) {
-                    return null;
-                }
-
-                Duration elapsed = Duration.between(startDateTime, speechDateTime);
-                if (elapsed.isNegative()) {
-                    return "00:00";
-                }
-
-                long totalSeconds = elapsed.getSeconds();
-                long minutes = totalSeconds / 60;
-                long seconds = totalSeconds % 60;
-                return String.format("%02d:%02d", minutes, seconds);
-            }
-
-        }
-
-        public static HistoryListDTO create(Meeting meeting, List<Dialogue> dialogues, List<Member> participants ) {
-
-            List<ParticipantDTO> participantDtoList = ParticipantDTO.create(participants);
-            List<DialogueDTO> dialogueDtoList = DialogueDTO.create(meeting, dialogues);
-            return HistoryListDTO.builder()
-                    .participants(participantDtoList)
-                    .dialogues(dialogueDtoList)
-                    .build();
 
         }
 
