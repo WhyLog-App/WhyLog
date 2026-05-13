@@ -159,7 +159,8 @@ public class ApplicationQueryService {
                 .commitId(String.valueOf(commit.getId()))
                 .commitHash(commit.getHash())
                 .message(commit.getMessage())
-                .reason(applicationCommit.getDecisionCommits().getReason())
+                .reason(applicationCommit.getReason())
+                .confidence(applicationCommit.getConfidence())
                 .build();
     }
 

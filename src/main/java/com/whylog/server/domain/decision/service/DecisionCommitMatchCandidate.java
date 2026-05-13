@@ -8,6 +8,7 @@ final class DecisionCommitMatchCandidate {
     private final Long repositoryId;
     private final String commitHash;
     private final String reason;
+    private final Integer confidence;
     private Long resolvedApplicationId;
     private Long resolvedCommitId;
 
@@ -16,13 +17,15 @@ final class DecisionCommitMatchCandidate {
                                  Long commitId,
                                  Long repositoryId,
                                  String commitHash,
-                                 String reason) {
+                                 String reason,
+                                 Integer confidence) {
         this.applicationId = applicationId;
         this.applicationTitle = applicationTitle;
         this.commitId = commitId;
         this.repositoryId = repositoryId;
         this.commitHash = commitHash;
         this.reason = reason;
+        this.confidence = confidence;
     }
 
     Long applicationId() {
@@ -47,6 +50,10 @@ final class DecisionCommitMatchCandidate {
 
     String reason() {
         return reason;
+    }
+
+    Integer confidence() {
+        return confidence;
     }
 
     void resolveApplicationId(Long resolvedApplicationId) {

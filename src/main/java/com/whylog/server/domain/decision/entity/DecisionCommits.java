@@ -39,19 +39,10 @@ public class DecisionCommits extends BaseEntity {
     @Column(name = "commit_id", nullable = false)
     private Long commitId; // 매핑 X,
 
-    @Column(name = "reason", columnDefinition = "TEXT")
-    private String reason;
-
-    public static DecisionCommits create(Decision decision, Long commitId, String reason) {
+    public static DecisionCommits create(Decision decision, Long commitId) {
         DecisionCommits decisionCommits = new DecisionCommits();
         decisionCommits.decision = decision;
         decisionCommits.commitId = commitId;
-        decisionCommits.reason = reason;
         return decisionCommits;
-    }
-
-    // 저장시
-    public void updateReason(String reason) {
-        this.reason = reason;
     }
 }

@@ -51,6 +51,7 @@ public class DecisionCommitMatchService {
     private static final List<String> APPLICATION_TITLE_FIELDS = List.of("application_title", "applicationTitle");
     private static final List<String> REPOSITORY_ID_FIELDS = List.of("repository_id", "repositoryId");
     private static final List<String> COMMIT_HASH_FIELDS = List.of("commit_hash", "commitHash");
+    private static final List<String> CONFIDENCE_FIELDS = List.of("confidence");
     private static final List<String> REASON_FIELDS = List.of(
             "reason",
             "recommendation_reason",
@@ -220,6 +221,7 @@ public class DecisionCommitMatchService {
             }
             applicationCommitsRepository.deleteByDecisionId(decision.getId());
             decisionCommitsRepository.deleteByDecisionId(decision.getId());
+            decisionRepository.updateReliabilityScore(decision.getId(), null);
             return;
         }
 
@@ -237,10 +239,23 @@ public class DecisionCommitMatchService {
 
             DecisionCommits decisionCommits = decisionCommitsByCommitId.computeIfAbsent(
                     candidate.resolvedCommitId(),
-                    commitId -> decisionCommitsRepository.save(DecisionCommits.create(decision, commitId, candidate.reason()))
+                    commitId -> decisionCommitsRepository.save(DecisionCommits.create(decision, commitId))
             );
-            applicationCommitsRepository.save(ApplicationCommits.create(application, decisionCommits));
+            applicationCommitsRepository.save(ApplicationCommits.create(
+                    application,
+                    decisionCommits,
+                    candidate.reason(),
+                    candidate.confidence()
+            ));
         }
+        updateReliabilityScore(decision);
+    }
+
+    // 저장된 추천 매칭 신뢰도 평균을 결정사항 신뢰도 점수로 갱신
+    private void updateReliabilityScore(Decision decision) {
+        Double averageConfidence = applicationCommitsRepository.findAverageConfidenceByDecisionId(decision.getId());
+        Integer reliabilityScore = averageConfidence != null ? (int) Math.round(averageConfidence) : null;
+        decisionRepository.updateReliabilityScore(decision.getId(), reliabilityScore);
     }
 
     // 추천 후보의 적용사항 ID를 검증하고, 없으면 제목으로 보정
@@ -333,6 +348,9 @@ public class DecisionCommitMatchService {
         Long commitId = readLong(node, COMMIT_ID_FIELDS).orElse(null);
         Long repositoryId = readLong(node, REPOSITORY_ID_FIELDS).orElse(null);
         String commitHash = readText(node, COMMIT_HASH_FIELDS).orElse(null);
+        Integer confidence = readLong(node, CONFIDENCE_FIELDS)
+                .map(Long::intValue)
+                .orElse(null);
         if (currentApplicationId != null && commitId != null) {
             candidates.add(new DecisionCommitMatchCandidate(
                     currentApplicationId,
@@ -340,7 +358,8 @@ public class DecisionCommitMatchService {
                     commitId,
                     repositoryId,
                     commitHash,
-                    readText(node, REASON_FIELDS).orElse(null)
+                    readText(node, REASON_FIELDS).orElse(null),
+                    confidence
             ));
         } else if (currentApplicationId != null && commitHash != null) {
             candidates.add(new DecisionCommitMatchCandidate(
@@ -349,7 +368,8 @@ public class DecisionCommitMatchService {
                     null,
                     repositoryId,
                     commitHash,
-                    readText(node, REASON_FIELDS).orElse(null)
+                    readText(node, REASON_FIELDS).orElse(null),
+                    confidence
             ));
         } else if (currentApplicationTitle != null && commitHash != null) {
             candidates.add(new DecisionCommitMatchCandidate(
@@ -358,7 +378,8 @@ public class DecisionCommitMatchService {
                     null,
                     repositoryId,
                     commitHash,
-                    readText(node, REASON_FIELDS).orElse(null)
+                    readText(node, REASON_FIELDS).orElse(null),
+                    confidence
             ));
         }
 

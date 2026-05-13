@@ -158,6 +158,9 @@ public class ApplicationResponse {
 
         @Schema(description = "추천 사유", example = "이 커밋은 관련된 이슈를 해결하는 커밋입니다.")
         private String reason;
+
+        @Schema(description = "추천 신뢰도", example = "94")
+        private Integer confidence;
     }
 
     @Getter
