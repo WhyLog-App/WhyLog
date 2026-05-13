@@ -84,6 +84,9 @@ public class GitResponse {
         @Schema(description = "작성자 이름", example = "김준용")
         private String authorName;
 
+        @Schema(description = "작성자 프로필 사진", example = "https://img.com/profile.jpg")
+        private String authorProfileImage;
+
         @Schema(description = "커밋 날짜", example = "2026-03-24T10:30:00")
         private LocalDateTime dateTime;
 
@@ -102,6 +105,7 @@ public class GitResponse {
                     .hash(commit.getHash())
                     .message(commit.getMessage())
                     .authorName(commit.getAuthorName())
+                    .authorProfileImage(commit.getAuthorProfileImage())
                     .dateTime(commit.getDateTime())
                     .addedLines(commit.getAddedLines())
                     .deletedLines(commit.getDeletedLines())
@@ -299,6 +303,15 @@ public class GitResponse {
         @Schema(description = "현재 페이지의 커밋 개수", example = "10")
         private Integer commitListSize;
 
+        @Schema(description = "현재 레포지토리에 있는 전체 커밋 개수", example = "123")
+        private Long totalCommitCount;
+
+        @Schema(description = "현재 레포지토리에서 적용사항에 연결된 커밋 개수", example = "80")
+        private Long connectedCommitCount;
+
+        @Schema(description = "현재 레포지토리에서 아직 적용사항에 연결되지 않은 커밋 개수", example = "43")
+        private Long unconnectedCommitCount;
+
         @Schema(description = "페이지 처음 여부", example = "true")
         private Boolean isFirst;
 
@@ -311,7 +324,9 @@ public class GitResponse {
         public static CommitListResponseDTO from(
                 Slice<Commit> commitSlice,
                 Long cursorId,
-                java.util.Map<Long, CommitDTO.ConnectedApplicationDTO> connectedApplicationsByCommitId
+                java.util.Map<Long, CommitDTO.ConnectedApplicationDTO> connectedApplicationsByCommitId,
+                Long totalCommitCount,
+                Long connectedCommitCount
         ) {
             List<CommitDTO> commitDTOs = commitSlice.getContent().stream()
                     .map(commit -> CommitDTO.from(commit, connectedApplicationsByCommitId.get(commit.getId())))
@@ -325,6 +340,9 @@ public class GitResponse {
             return CommitListResponseDTO.builder()
                     .commitDTOList(commitDTOs)
                     .commitListSize(commitDTOs.size())
+                    .totalCommitCount(totalCommitCount)
+                    .connectedCommitCount(connectedCommitCount)
+                    .unconnectedCommitCount(totalCommitCount - connectedCommitCount)
                     .isFirst(cursorId == null)
                     .hasNext(commitSlice.hasNext())
                     .nextCursorId(nextCursorId)
