@@ -11,6 +11,15 @@ public interface DecisionRepository extends JpaRepository<Decision, Long> {
 
     Optional<Decision> findByMeetingId(Long meetingId);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Decision d
+            SET d.reliabilityScore = :reliabilityScore
+            WHERE d.id = :decisionId
+            """)
+    void updateReliabilityScore(@Param("decisionId") Long decisionId,
+                                @Param("reliabilityScore") Integer reliabilityScore);
+
     @Modifying
     @Query("DELETE FROM Application a WHERE a.decision.meeting.team.id = :teamId")
     void deleteApplicationsByTeamId(@Param("teamId") Long teamId);

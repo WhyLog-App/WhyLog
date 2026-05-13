@@ -6,6 +6,7 @@ import java.util.Map;
 import com.whylog.server.global.external.fast.FastApiInfo;
 import com.whylog.server.global.external.fast.dto.FastApiResponse;
 import com.whylog.server.global.external.fast.dto.request.CommitAnalyzeRequest;
+import com.whylog.server.global.external.fast.dto.request.CommitMatchRequest;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -35,7 +36,7 @@ public class FastApiCommitClient extends FastApiClient {
         );
     }
 
-    public FastApiResponse<JsonNode> matchApplicationCommits(Map<String, Object> request) {
+    public FastApiResponse<JsonNode> matchApplicationCommits(CommitMatchRequest request) {
         return postJson(
                 FastApiInfo.COMMIT_MATCH,
                 request,

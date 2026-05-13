@@ -21,6 +21,21 @@ public interface ApplicationCommitsRepository extends JpaRepository<ApplicationC
             """)
     List<ApplicationCommits> findByApplicationId(@Param("applicationId") Long applicationId);
 
+    @Query("""
+            SELECT AVG(ac.confidence)
+            FROM ApplicationCommits ac
+            WHERE ac.application.decision.id = :decisionId
+            AND ac.confidence IS NOT NULL
+            """)
+    Double findAverageConfidenceByDecisionId(@Param("decisionId") Long decisionId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            DELETE FROM ApplicationCommits ac
+            WHERE ac.application.decision.id = :decisionId
+            """)
+    void deleteByDecisionId(@Param("decisionId") Long decisionId);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             DELETE FROM ApplicationCommits ac
