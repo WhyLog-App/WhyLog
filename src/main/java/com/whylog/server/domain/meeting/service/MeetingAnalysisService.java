@@ -14,6 +14,7 @@ import com.whylog.server.domain.decision.repository.ApplicationRepository;
 import com.whylog.server.domain.decision.repository.DecisionBaseRepository;
 import com.whylog.server.domain.decision.repository.DecisionTimelineRepository;
 import com.whylog.server.domain.decision.repository.DecisionRepository;
+import com.whylog.server.domain.decision.service.DecisionCommitMatchService;
 import com.whylog.server.domain.meeting.dto.MeetingResponse;
 import com.whylog.server.domain.meeting.entity.Dialogue;
 import com.whylog.server.domain.meeting.entity.Meeting;
@@ -75,6 +76,7 @@ public class MeetingAnalysisService {
     private final MeetingAnalysisRepository meetingAnalysisRepository;
     private final MeetingMemberRepository meetingMemberRepository;
     private final MeetingLiveMessageBundleService meetingLiveMessageBundleService;
+    private final DecisionCommitMatchService decisionCommitMatchService;
     private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
 
@@ -243,11 +245,12 @@ public class MeetingAnalysisService {
             return replaceApplications(managedMeeting.getId(), decision, applications);
         });
         if (savedApplications == null) {
-            savedApplications = SavedApplications.empty();
+            savedApplications = SavedApplications.empty(null);
         }
 
         log.info("회의 오디오 분석 저장 완료: meetingId={}, transcriptSegmentCount={}", meeting.getId(), transcriptSegments.size());
         sendApplicationEmbeddingsSafely(meeting, response, savedApplications);
+        matchApplicationCommitsSafely(meeting, savedApplications);
 
     }
 
@@ -289,10 +292,10 @@ public class MeetingAnalysisService {
             persistApplicationDetails(savedApplications, validApplications);
             log.info("적용사항 저장 완료: meetingId={}, decisionId={}, applicationCount={}",
                     meetingId, decision.getId(), newApplications.size());
-            return new SavedApplications(savedApplications, validApplications);
+            return new SavedApplications(decision.getId(), savedApplications, validApplications);
         }
 
-        return SavedApplications.empty();
+        return SavedApplications.empty(decision.getId());
     }
 
     // 저장된 적용사항 엔티티에 reason/timeline 세부 정보를 순서대로 연결 저장한다.
@@ -370,6 +373,23 @@ public class MeetingAnalysisService {
             log.info("적용사항 임베딩 저장 완료: meetingId={}, totalDocuments={}", meeting.getId(), totalDocuments);
         } catch (Exception exception) {
             log.error("적용사항 임베딩 호출 실패: meetingId={}", meeting.getId(), exception);
+        }
+    }
+
+    // 회의 분석 저장 후 적용사항-커밋 추천 매칭을 자동 실행한다.
+    private void matchApplicationCommitsSafely(Meeting meeting, SavedApplications savedApplications) {
+        if (savedApplications.decisionId() == null || savedApplications.savedApplications().isEmpty()) {
+            log.info("저장된 적용사항이 없어 커밋 추천 매칭을 생략한다: meetingId={}", meeting.getId());
+            return;
+        }
+
+        try {
+            decisionCommitMatchService.matchApplicationCommits(savedApplications.decisionId());
+            log.info("적용사항-커밋 추천 매칭 완료: meetingId={}, decisionId={}",
+                    meeting.getId(), savedApplications.decisionId());
+        } catch (Exception exception) {
+            log.error("적용사항-커밋 추천 매칭 실패: meetingId={}, decisionId={}",
+                    meeting.getId(), savedApplications.decisionId(), exception);
         }
     }
 
@@ -565,11 +585,12 @@ public class MeetingAnalysisService {
         }
     }
 
-    private record SavedApplications(List<Application> savedApplications,
+    private record SavedApplications(Long decisionId,
+                                     List<Application> savedApplications,
                                      List<TranscribeApplicationRunResponse.ApplicationResponse> sourceApplications) {
 
-        private static SavedApplications empty() {
-            return new SavedApplications(List.of(), List.of());
+        private static SavedApplications empty(Long decisionId) {
+            return new SavedApplications(decisionId, List.of(), List.of());
         }
     }
 
