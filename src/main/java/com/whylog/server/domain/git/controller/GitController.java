@@ -164,6 +164,9 @@ public class GitController {
                     3. hasNext가 false가 나올 때까지 반복
                     
                     💡 응답 필드:
+                    - totalCommitCount: 현재 레포지토리에 저장된 전체 커밋 개수
+                    - connectedCommitCount: 적용사항에 연결된 커밋 개수
+                    - unconnectedCommitCount: 아직 적용사항에 연결되지 않은 커밋 개수
                     - hasNext: 다음 페이지 존재 여부 (더 불러올 커밋이 있으면 true)
                     - nextCursorId: 다음 요청에 사용할 커서 ID
                     - isFirst: 첫 페이지 여부

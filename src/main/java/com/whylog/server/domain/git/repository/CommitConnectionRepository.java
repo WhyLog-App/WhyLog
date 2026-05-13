@@ -42,6 +42,13 @@ public interface CommitConnectionRepository extends JpaRepository<CommitConnecti
             """)
     List<Long> findConnectedCommitIds(@Param("commitIds") List<Long> commitIds);
 
+    @Query("""
+            SELECT COUNT(DISTINCT cc.commit.id)
+            FROM CommitConnection cc
+            WHERE cc.commit.repository.id = :repositoryId
+            """)
+    long countByRepositoryId(@Param("repositoryId") Long repositoryId);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             DELETE FROM CommitConnection cc

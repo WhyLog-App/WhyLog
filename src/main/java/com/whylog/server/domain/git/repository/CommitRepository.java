@@ -51,6 +51,8 @@ public interface CommitRepository extends JpaRepository<Commit, Long> {
             """)
     void deleteByRepositoryId(@Param("repositoryId") Long repositoryId);
 
+    long countByRepositoryId(Long repositoryId);
+
     // 커서 기반 무한스크롤 - 커밋 목록 조회
     @Query("SELECT c FROM Commit c " +
             "WHERE c.repository.id = :repositoryId " +

@@ -86,6 +86,8 @@ public class GitQueryServiceImpl implements GitQueryService {
     public GitResponse.CommitListResponseDTO getCommitListResponse(Long repositoryId, Long cursorId) {
         // 커밋 페이지를 조회한 뒤, 각 커밋에 연결된 적용사항을 함께 응답 DTO로 조립
         Slice<Commit> commitSlice = getCommitsByRepository(repositoryId, cursorId);
+        long totalCommitCount = commitRepository.countByRepositoryId(repositoryId);
+        long connectedCommitCount = commitConnectionRepository.countByRepositoryId(repositoryId);
 
         List<Commit> commits = commitSlice.getContent();
         Map<Long, GitResponse.CommitDTO.ConnectedApplicationDTO> connectedApplicationsByCommitId = new LinkedHashMap<>();
@@ -104,7 +106,13 @@ public class GitQueryServiceImpl implements GitQueryService {
             );
         }
 
-        return GitResponse.CommitListResponseDTO.from(commitSlice, cursorId, connectedApplicationsByCommitId);
+        return GitResponse.CommitListResponseDTO.from(
+                commitSlice,
+                cursorId,
+                connectedApplicationsByCommitId,
+                totalCommitCount,
+                connectedCommitCount
+        );
     }
 
     /**
