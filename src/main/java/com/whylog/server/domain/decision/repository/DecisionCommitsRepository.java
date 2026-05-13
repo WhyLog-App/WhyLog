@@ -13,6 +13,13 @@ public interface DecisionCommitsRepository extends JpaRepository<DecisionCommits
     // 추천 결과 저장시 중복 방지용
     Optional<DecisionCommits> findByDecisionIdAndCommitId(Long decisionId, Long commitId);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            DELETE FROM DecisionCommits dc
+            WHERE dc.decision.id = :decisionId
+            """)
+    void deleteByDecisionId(@Param("decisionId") Long decisionId);
+
     @Query("""
             SELECT dc.id
             FROM DecisionCommits dc

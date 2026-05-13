@@ -24,4 +24,12 @@ public class ApplicationCommits extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "decision_commits_pk", nullable = false)
     private DecisionCommits decisionCommits;
+
+    public static ApplicationCommits create(Application application, DecisionCommits decisionCommits) {
+        ApplicationCommits applicationCommits = new ApplicationCommits();
+        applicationCommits.id = new ApplicationCommitsId(application.getId(), decisionCommits.getId());
+        applicationCommits.application = application;
+        applicationCommits.decisionCommits = decisionCommits;
+        return applicationCommits;
+    }
 }

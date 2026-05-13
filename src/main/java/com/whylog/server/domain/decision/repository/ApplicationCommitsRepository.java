@@ -24,6 +24,13 @@ public interface ApplicationCommitsRepository extends JpaRepository<ApplicationC
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             DELETE FROM ApplicationCommits ac
+            WHERE ac.application.decision.id = :decisionId
+            """)
+    void deleteByDecisionId(@Param("decisionId") Long decisionId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            DELETE FROM ApplicationCommits ac
             WHERE ac.decisionCommits.id IN :decisionCommitIds
             """)
     void deleteByDecisionCommitsIdIn(@Param("decisionCommitIds") List<Long> decisionCommitIds);
