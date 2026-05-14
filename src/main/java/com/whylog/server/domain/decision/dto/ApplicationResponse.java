@@ -184,6 +184,9 @@ public class ApplicationResponse {
         @Schema(description = "저장소 이름", example = "whyLog-Backend")
         private String repositoryName;
 
+        @Schema(description = "커밋 id", example = "1")
+        private Long commitId;
+
         @Schema(description = "커밋 해시", example = "b8fd9ad")
         private String commitHash;
 

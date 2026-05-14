@@ -71,6 +71,7 @@ public class ApplicationQueryService {
         // 연결된 커밋 엔티티를 응답 DTO로 변환
         List<ApplicationResponse.ConnectedCommitDTO> commits = commitConnections.stream()
                 .map(commitConnection -> ApplicationResponse.ConnectedCommitDTO.builder()
+                        .commitId(commitConnection.getCommit().getId())
                         .repositoryName(commitConnection.getCommit().getRepository().getName())
                         .commitHash(commitConnection.getCommit().getHash())
                         .message(commitConnection.getCommit().getMessage())
