@@ -9,6 +9,14 @@ import lombok.NoArgsConstructor;
 
 public class DecisionResponse {
 
+    public record DecisionFlatRow(
+            Long decisionId,
+            String meetingName,
+            Long applicationId,
+            String applicationName
+    ) {
+    }
+
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
