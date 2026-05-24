@@ -8,7 +8,6 @@ import com.whylog.server.global.util.json.JsonConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
-import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.socket.BinaryMessage;
@@ -206,9 +205,8 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
                         incoming.payload()
                 ))
         );
-        if (type == MeetingMessageType.AUDIO_TEXT
-                && StringUtils.hasText(incoming.text())
-                && !isInterim(incoming.payload())) {
+        if (type == MeetingMessageType.SPEECH
+                && StringUtils.hasText(incoming.text())) {
             meetingLiveMessageRepository.append(
                     participant.meetingId(),
                     new LiveMessageEntry(
@@ -222,15 +220,6 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
                 )
             );
         }
-    }
-
-    private static boolean isInterim(JsonNode payload) {
-        if (payload == null) {
-            return false;
-        }
-
-        JsonNode isFinal = payload.get("is_final");
-        return isFinal != null && isFinal.isBoolean() && !isFinal.booleanValue();
     }
 
     private void forwardSignal(
