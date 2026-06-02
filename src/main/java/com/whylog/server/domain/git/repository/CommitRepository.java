@@ -38,6 +38,15 @@ public interface CommitRepository extends JpaRepository<Commit, Long> {
     List<Commit> findAllWithRepositoryByIdIn(@Param("commitIds") List<Long> commitIds);
 
     @Query("""
+            SELECT c
+            FROM Commit c
+            LEFT JOIN c.commitAnalysis ca
+            WHERE c.repository.id = :repositoryId
+            AND ca.id IS NULL
+            """)
+    List<Commit> findUnanalyzedCommitsByRepositoryId(@Param("repositoryId") Long repositoryId);
+
+    @Query("""
             SELECT c.id
             FROM Commit c
             WHERE c.repository.id = :repositoryId
@@ -68,4 +77,3 @@ public interface CommitRepository extends JpaRepository<Commit, Long> {
             Pageable pageable
     );
 }
-

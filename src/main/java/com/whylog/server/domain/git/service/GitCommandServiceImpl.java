@@ -264,13 +264,28 @@ public class GitCommandServiceImpl implements GitCommandService {
                 .filter(Objects::nonNull)
                 .toList();
 
+        List<Commit> savedCommits = new ArrayList<>();
         if (!newCommits.isEmpty()) {
-            List<Commit> savedCommits = commitRepository.saveAllAndFlush(newCommits);
-            triggerCommitAnalyzeRunsAfterCommit(ghRepository, repository, savedCommits);
-            log.info("새로운 커밋 {}개 동기화 완료: {}", newCommits.size(), ghRepository.getFullName());
+            savedCommits = commitRepository.saveAllAndFlush(newCommits);
+            log.info("새로운 커밋 {}개 동기화 완료: {}", savedCommits.size(), ghRepository.getFullName());
         } else {
             log.info("새로 동기화할 커밋이 없습니다: {}", ghRepository.getFullName());
         }
+
+        List<Commit> unanalyzedCommits = commitRepository.findUnanalyzedCommitsByRepositoryId(repository.getId());
+        List<Commit> analyzeTargets = mergeAnalyzeTargets(savedCommits, unanalyzedCommits);
+
+        if (!analyzeTargets.isEmpty()) {
+            triggerCommitAnalyzeRunsAfterCommit(ghRepository, repository, analyzeTargets);
+            log.info("커밋 분석 요청 대상 {}개 확인: {}", analyzeTargets.size(), ghRepository.getFullName());
+        }
+    }
+
+    private List<Commit> mergeAnalyzeTargets(List<Commit> savedCommits, List<Commit> unanalyzedCommits) {
+        Map<Long, Commit> analyzeTargets = new LinkedHashMap<>();
+        savedCommits.forEach(commit -> analyzeTargets.put(commit.getId(), commit));
+        unanalyzedCommits.forEach(commit -> analyzeTargets.putIfAbsent(commit.getId(), commit));
+        return new ArrayList<>(analyzeTargets.values());
     }
 
     /**
