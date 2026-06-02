@@ -220,14 +220,17 @@ public class GitCommandServiceImpl implements GitCommandService {
 
         List<String> allHashes = allGitHubCommits.stream()
                 .map(GHCommit::getSHA1)
+                .distinct()
                 .toList();
 
         Set<String> existingHashes = allHashes.isEmpty()
                 ? Collections.emptySet()
                 : commitRepository.findExistingHashes(repository.getId(), allHashes);
 
+        Set<String> syncTargetHashes = new HashSet<>();
         List<Commit> newCommits = allGitHubCommits.stream()
                 .filter(ghCommit -> !existingHashes.contains(ghCommit.getSHA1()))
+                .filter(ghCommit -> syncTargetHashes.add(ghCommit.getSHA1()))
                 .map(ghCommit -> {
                     try {
                         var shortInfo = ghCommit.getCommitShortInfo();
