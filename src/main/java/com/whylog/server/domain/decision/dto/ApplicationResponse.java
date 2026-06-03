@@ -36,6 +36,9 @@ public class ApplicationResponse {
         @Schema(description = "적용사항 ID", example = "1")
         private Long applicationId;
 
+        @Schema(description = "회의 ID", example = "1")
+        private Long meetingId;
+
         @Schema(description = "적용사항 명", example = "Redis키 정책 변경")
         private String name;
 

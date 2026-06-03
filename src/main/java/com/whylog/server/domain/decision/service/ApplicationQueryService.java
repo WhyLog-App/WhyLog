@@ -51,6 +51,7 @@ public class ApplicationQueryService {
 
         return ApplicationResponse.ApplicationDetailDTO.builder()
                 .applicationId(application.getId())
+                .meetingId(application.getDecision().getMeeting().getId())
                 .name(application.getName())
                 .decisionReasons(toDecisionReasonItems(applicationBases))
                 .decisionTimelines(toDecisionTimelineItems(applicationTimelines))

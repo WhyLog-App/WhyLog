@@ -13,7 +13,15 @@ import java.util.List;
 
 @Entity
 @Getter
-@Table(name = "Commits")
+@Table(
+        name = "Commits",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_commits_repository_hash",
+                        columnNames = {"repository_id", "hash"}
+                )
+        }
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Commit extends BaseEntity {
 
