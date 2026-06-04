@@ -136,7 +136,7 @@ public class MeetingCommandService {
         meetingMemberRepository.findOwnerMeetingMember(memberId, meetingId, MeetingRole.OWNER)
                 .orElseThrow(() -> new ErrorHandler(MeetingErrorCode.MEETING_NOT_OWNER));
 
-        stopRecording(meeting);
+        stopRecordingForDelete(meeting);
         meetingCleanupService.deleteByMeetingId(meetingId);
         meetingLiveMessageRepository.clear(meetingId);
         scheduleAfterCommit(() -> meetingSocketRoomService.closeRoom(meetingId));
@@ -169,6 +169,15 @@ public class MeetingCommandService {
         String roomName = "meeting-" + meeting.getId();
         String egressToken = liveKitTokenService.createRoomRecordToken("recording-" + meeting.getId(), roomName);
         liveKitEgressClient.stopEgress(egressToken, meeting.getAudioEgressId());
+    }
+
+    private void stopRecordingForDelete(Meeting meeting) {
+        try {
+            stopRecording(meeting);
+        } catch (Exception exception) {
+            log.warn("Failed to stop meeting recording before delete: meetingId={}, egressId={}",
+                    meeting.getId(), meeting.getAudioEgressId(), exception);
+        }
     }
 
     private MeetingResponse.MeetingEndResponseDTO finishMeeting(Meeting meeting, boolean broadcastEnded) {
