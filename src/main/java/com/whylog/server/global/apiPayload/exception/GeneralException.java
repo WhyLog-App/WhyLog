@@ -2,14 +2,17 @@ package com.whylog.server.global.apiPayload.exception;
 
 import com.whylog.server.global.apiPayload.code.BaseErrorCode;
 import com.whylog.server.global.apiPayload.code.ErrorReasonDTO;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @Getter
-@AllArgsConstructor
 public class GeneralException extends RuntimeException {
 
     private BaseErrorCode code;
+
+    public GeneralException(BaseErrorCode code) {
+        super(code.getReason().getMessage());
+        this.code = code;
+    }
 
     public ErrorReasonDTO getErrorReason() {
         return this.code.getReason();
