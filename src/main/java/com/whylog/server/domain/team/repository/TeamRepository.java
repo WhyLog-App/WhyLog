@@ -23,7 +23,7 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
       JOIN d.meeting m
       LEFT JOIN d.applications a
       WHERE m.team.id = :teamId
-      ORDER BY d.id
+      ORDER BY d.createdAt desc
   """)
     List<DecisionResponse.DecisionFlatRow> findDecisionRows(@Param("teamId") Long teamId);
 
