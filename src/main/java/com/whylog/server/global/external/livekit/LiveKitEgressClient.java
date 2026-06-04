@@ -4,6 +4,7 @@ import com.whylog.server.global.util.json.JsonConverter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -70,7 +71,23 @@ public class LiveKitEgressClient {
 
     public void stopEgress(String egressToken, String egressId) {
         Map<String, Object> request = Map.of("egress_id", egressId);
-        post("/twirp/livekit.Egress/StopEgress", egressToken, request);
+        try {
+            post("/twirp/livekit.Egress/StopEgress", egressToken, request);
+        } catch (HttpClientErrorException e) {
+            if (isAlreadyCompletedEgress(e)) {
+                log.info("LiveKit egress already completed: egressId={}", egressId);
+                return;
+            }
+
+            throw e;
+        }
+    }
+
+    private boolean isAlreadyCompletedEgress(HttpClientErrorException e) {
+        String responseBody = e.getResponseBodyAsString();
+        return e.getStatusCode().value() == HttpStatus.PRECONDITION_FAILED.value()
+                && responseBody.contains("EGRESS_COMPLETE")
+                && responseBody.contains("cannot be stopped");
     }
 
     public void removeParticipant(String roomAdminToken, String roomName, String identity) {

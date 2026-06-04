@@ -20,6 +20,20 @@ public interface DecisionCommitsRepository extends JpaRepository<DecisionCommits
             """)
     void deleteByDecisionId(@Param("decisionId") Long decisionId);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            DELETE FROM DecisionCommits dc
+            WHERE dc.decision.meeting.team.id = :teamId
+            """)
+    void deleteByTeamId(@Param("teamId") Long teamId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            DELETE FROM DecisionCommits dc
+            WHERE dc.decision.meeting.id = :meetingId
+            """)
+    void deleteByMeetingId(@Param("meetingId") Long meetingId);
+
     @Query("""
             SELECT dc.id
             FROM DecisionCommits dc
