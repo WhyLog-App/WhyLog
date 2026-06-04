@@ -38,9 +38,11 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DecisionCommitMatchService {
@@ -227,13 +229,21 @@ public class DecisionCommitMatchService {
 
         Map<Long, Application> applicationsById = findAndValidateApplications(decision, candidatesByKey.values());
         Map<Long, Commit> commitsById = findAndValidateCommits(repositoryIds, candidatesByKey.values());
+        List<DecisionCommitMatchCandidate> validCandidates = candidatesByKey.values().stream()
+                .filter(candidate -> candidate.resolvedCommitId() != null)
+                .toList();
 
         // 새 추천 스냅샷을 저장하기 전에 기존 추천 결과를 통째로 교체
         applicationCommitsRepository.deleteByDecisionId(decision.getId());
         decisionCommitsRepository.deleteByDecisionId(decision.getId());
 
+        if (validCandidates.isEmpty()) {
+            decisionRepository.updateReliabilityScore(decision.getId(), null);
+            return;
+        }
+
         Map<Long, DecisionCommits> decisionCommitsByCommitId = new LinkedHashMap<>();
-        for (DecisionCommitMatchCandidate candidate : candidatesByKey.values()) {
+        for (DecisionCommitMatchCandidate candidate : validCandidates) {
             Application application = applicationsById.get(candidate.resolvedApplicationId());
             Commit commit = commitsById.get(candidate.resolvedCommitId());
 
@@ -298,9 +308,18 @@ public class DecisionCommitMatchService {
         Map<Long, Commit> commitsById = new LinkedHashMap<>();
 
         for (DecisionCommitMatchCandidate candidate : candidates) {
-            Commit commit = resolveCommit(candidate, repositoryIdSet);
-            candidate.resolveCommitId(commit.getId());
-            commitsById.put(commit.getId(), commit);
+            try {
+                Commit commit = resolveCommit(candidate, repositoryIdSet);
+                candidate.resolveCommitId(commit.getId());
+                commitsById.put(commit.getId(), commit);
+            } catch (ErrorHandler exception) {
+                log.warn("추천 커밋 후보를 찾을 수 없어 제외한다: repositoryId={}, commitHash={}, commitId={}, errorCode={}, message={}",
+                        candidate.repositoryId(),
+                        candidate.commitHash(),
+                        candidate.commitId(),
+                        exception.getErrorReason().getCode(),
+                        exception.getErrorReason().getMessage());
+            }
         }
 
         return commitsById;

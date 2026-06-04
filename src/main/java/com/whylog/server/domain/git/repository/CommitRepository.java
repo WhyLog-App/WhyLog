@@ -42,9 +42,9 @@ public interface CommitRepository extends JpaRepository<Commit, Long> {
             FROM Commit c
             LEFT JOIN c.commitAnalysis ca
             WHERE c.repository.id = :repositoryId
-            AND ca.id IS NULL
+            AND (ca.id IS NULL OR ca.embeddingReady = false)
             """)
-    List<Commit> findUnanalyzedCommitsByRepositoryId(@Param("repositoryId") Long repositoryId);
+    List<Commit> findEmbeddingNotReadyCommitsByRepositoryId(@Param("repositoryId") Long repositoryId);
 
     @Query("""
             SELECT c.id

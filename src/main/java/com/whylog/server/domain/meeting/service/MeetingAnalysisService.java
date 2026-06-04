@@ -34,6 +34,8 @@ import com.whylog.server.global.external.fast.dto.response.TranscribeApplication
 import com.whylog.server.global.external.fast.dto.response.TranscribeApplicationRunResponse;
 import com.whylog.server.global.external.fast.exception.FastApiErrorCode;
 import com.whylog.server.global.external.fast.exception.FastApiException;
+import com.whylog.server.global.apiPayload.code.ErrorReasonDTO;
+import com.whylog.server.global.apiPayload.exception.GeneralException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -387,6 +389,10 @@ public class MeetingAnalysisService {
             decisionCommitMatchService.matchApplicationCommits(savedApplications.decisionId());
             log.info("적용사항-커밋 추천 매칭 완료: meetingId={}, decisionId={}",
                     meeting.getId(), savedApplications.decisionId());
+        } catch (GeneralException exception) {
+            ErrorReasonDTO reason = exception.getErrorReason();
+            log.error("적용사항-커밋 추천 매칭 실패: meetingId={}, decisionId={}, errorCode={}, message={}",
+                    meeting.getId(), savedApplications.decisionId(), reason.getCode(), reason.getMessage(), exception);
         } catch (Exception exception) {
             log.error("적용사항-커밋 추천 매칭 실패: meetingId={}, decisionId={}",
                     meeting.getId(), savedApplications.decisionId(), exception);
