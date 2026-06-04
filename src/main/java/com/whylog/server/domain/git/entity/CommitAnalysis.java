@@ -32,13 +32,18 @@ public class CommitAnalysis extends BaseEntity {
     @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
 
+    @Column(name = "embedding_ready", nullable = false)
+    private boolean embeddingReady;
+
     public static CommitAnalysis create(Commit commit) {
         CommitAnalysis commitAnalysis = new CommitAnalysis();
         commitAnalysis.commit = commit;
+        commitAnalysis.embeddingReady = false;
         return commitAnalysis;
     }
 
-    public void updateSummary(String summary) {
+    public void updateSummary(String summary, boolean embeddingReady) {
         this.summary = summary;
+        this.embeddingReady = embeddingReady;
     }
 }

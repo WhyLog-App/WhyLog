@@ -272,8 +272,8 @@ public class GitCommandServiceImpl implements GitCommandService {
             log.info("새로 동기화할 커밋이 없습니다: {}", ghRepository.getFullName());
         }
 
-        List<Commit> unanalyzedCommits = commitRepository.findUnanalyzedCommitsByRepositoryId(repository.getId());
-        List<Commit> analyzeTargets = mergeAnalyzeTargets(savedCommits, unanalyzedCommits);
+        List<Commit> embeddingNotReadyCommits = commitRepository.findEmbeddingNotReadyCommitsByRepositoryId(repository.getId());
+        List<Commit> analyzeTargets = mergeAnalyzeTargets(savedCommits, embeddingNotReadyCommits);
 
         if (!analyzeTargets.isEmpty()) {
             triggerCommitAnalyzeRunsAfterCommit(ghRepository, repository, analyzeTargets);
@@ -281,10 +281,10 @@ public class GitCommandServiceImpl implements GitCommandService {
         }
     }
 
-    private List<Commit> mergeAnalyzeTargets(List<Commit> savedCommits, List<Commit> unanalyzedCommits) {
+    private List<Commit> mergeAnalyzeTargets(List<Commit> savedCommits, List<Commit> embeddingNotReadyCommits) {
         Map<Long, Commit> analyzeTargets = new LinkedHashMap<>();
         savedCommits.forEach(commit -> analyzeTargets.put(commit.getId(), commit));
-        unanalyzedCommits.forEach(commit -> analyzeTargets.putIfAbsent(commit.getId(), commit));
+        embeddingNotReadyCommits.forEach(commit -> analyzeTargets.putIfAbsent(commit.getId(), commit));
         return new ArrayList<>(analyzeTargets.values());
     }
 
@@ -371,7 +371,7 @@ public class GitCommandServiceImpl implements GitCommandService {
     }
 
     /**
-     * FastAPI 분석 run 상태를 폴링해 summary가 준비된 최종 결과를 가져옵니다.
+     * FastAPI 분석 run 상태를 폴링해 summary와 embedding이 준비된 최종 결과를 가져옵니다.
      */
     private JsonNode pollCommitAnalyzeRun(String runId) {
         for (int attempt = 1; attempt <= 120; attempt++) {
@@ -387,6 +387,7 @@ public class GitCommandServiceImpl implements GitCommandService {
             String phase = readText(runResult, "phase");
             String error = readText(runResult, "error");
             String summary = readNestedText(runResult, "result", "summary");
+            boolean embeddingReady = isCommitEmbeddingReady(runResult);
 
             if (isFailed(status, phase)) {
                 throw new FastApiException(
@@ -395,7 +396,7 @@ public class GitCommandServiceImpl implements GitCommandService {
                 );
             }
 
-            if (summary != null && !summary.isBlank()) {
+            if (summary != null && !summary.isBlank() && embeddingReady) {
                 return runResult;
             }
 
@@ -409,21 +410,22 @@ public class GitCommandServiceImpl implements GitCommandService {
     }
 
     /**
-     * 완료된 분석 결과에서 summary를 upsert 저장합니다.
+     * 완료된 분석 결과에서 summary와 embedding 준비 상태를 upsert 저장합니다.
      */
     private void saveCommitAnalysis(Commit commit, JsonNode runResult) {
         String summary = readNestedText(runResult, "result", "summary");
+        boolean embeddingReady = isCommitEmbeddingReady(runResult);
 
-        if (summary == null || summary.isBlank()) {
+        if (summary == null || summary.isBlank() || !embeddingReady) {
             throw new FastApiException(FastApiErrorCode.FAST_API_RESPONSE_EMPTY);
         }
 
         CommitAnalysis commitAnalysis = commitAnalysisRepository.findByCommitId(commit.getId())
                 .orElseGet(() -> CommitAnalysis.create(commit));
-        commitAnalysis.updateSummary(summary);
+        commitAnalysis.updateSummary(summary, embeddingReady);
         commitAnalysisRepository.save(commitAnalysis);
 
-        log.info("커밋 분석 저장 완료: commitHash={}", commit.getHash());
+        log.info("커밋 분석 저장 완료: commitHash={}, embeddingReady={}", commit.getHash(), embeddingReady);
     }
 
     /**
@@ -431,6 +433,34 @@ public class GitCommandServiceImpl implements GitCommandService {
      */
     private boolean isFailed(String status, String phase) {
         return "failed".equalsIgnoreCase(status) || "failed".equalsIgnoreCase(phase);
+    }
+
+    /**
+     * FastAPI 커밋 분석 결과의 embedding 준비 여부를 확인합니다.
+     */
+    private boolean isCommitEmbeddingReady(JsonNode runResult) {
+        String phase = readText(runResult, "phase");
+        if ("embedding_ready".equalsIgnoreCase(phase)) {
+            return true;
+        }
+
+        Boolean embeddingReady = readBoolean(runResult, "embedding_ready");
+        if (embeddingReady != null) {
+            return embeddingReady;
+        }
+
+        Boolean camelEmbeddingReady = readBoolean(runResult, "embeddingReady");
+        if (camelEmbeddingReady != null) {
+            return camelEmbeddingReady;
+        }
+
+        Boolean nestedEmbeddingReady = readNestedBoolean(runResult, "result", "embedding_ready");
+        if (nestedEmbeddingReady != null) {
+            return nestedEmbeddingReady;
+        }
+
+        Boolean nestedCamelEmbeddingReady = readNestedBoolean(runResult, "result", "embeddingReady");
+        return Boolean.TRUE.equals(nestedCamelEmbeddingReady);
     }
 
     /**
@@ -503,6 +533,37 @@ public class GitCommandServiceImpl implements GitCommandService {
         JsonNode parent = node != null ? node.get(parentFieldName) : null;
         JsonNode child = parent != null ? parent.get(childFieldName) : null;
         return child != null ? child.asText(null) : null;
+    }
+
+    /**
+     * JSON 필드의 Boolean 값을 안전하게 읽습니다.
+     */
+    private Boolean readBoolean(JsonNode node, String fieldName) {
+        JsonNode value = node != null ? node.get(fieldName) : null;
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        if (value.isBoolean()) {
+            return value.asBoolean();
+        }
+        if (value.isTextual()) {
+            String text = value.asText();
+            if ("true".equalsIgnoreCase(text)) {
+                return true;
+            }
+            if ("false".equalsIgnoreCase(text)) {
+                return false;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 중첩 JSON 필드의 Boolean 값을 안전하게 읽습니다.
+     */
+    private Boolean readNestedBoolean(JsonNode node, String parentFieldName, String childFieldName) {
+        JsonNode parent = node != null ? node.get(parentFieldName) : null;
+        return readBoolean(parent, childFieldName);
     }
 
     /**
