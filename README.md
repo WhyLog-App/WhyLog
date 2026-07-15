@@ -111,7 +111,7 @@ src/
       </a>
     </td>
     <td align="center">
-      <a href="https://github.com/팀원2">
+      <a href="https://github.com/Yujin1219">
         <img width="170" src="https://avatars.githubusercontent.com/u/127809173?v=4" alt="팀원2" />
       </a>
     </td>
