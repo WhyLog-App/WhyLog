@@ -1,0 +1,755 @@
+/* ============================================================
+   WhyLog Landing page — scoped styles
+   Ported from the design bundle (WhyLog Landing.html).
+   ============================================================ */
+
+.whylog-landing {
+  font-family: Pretendard, "Pretendard Variable", Inter, sans-serif;
+  color: #1c1c28;
+  background: #fafafc;
+  font-feature-settings: "ss01", "tnum", "cv02", "cv03", "cv04";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizelegibility;
+  scroll-behavior: smooth;
+}
+
+.whylog-landing .num {
+  font-family: Inter, sans-serif;
+  font-feature-settings: "tnum", "ss01";
+  font-variant-numeric: tabular-nums;
+}
+
+.whylog-landing .tracking-tightish {
+  letter-spacing: -0.02em;
+}
+.whylog-landing .tracking-tighter2 {
+  letter-spacing: -0.035em;
+}
+
+/* === Mesh backgrounds === */
+.whylog-landing .mesh-bg {
+  background:
+    radial-gradient(
+      60% 50% at 15% 20%,
+      rgba(167, 139, 250, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      45% 40% at 85% 10%,
+      rgba(240, 171, 252, 0.16),
+      transparent 65%
+    ),
+    radial-gradient(
+      50% 55% at 75% 85%,
+      rgba(122, 183, 255, 0.22),
+      transparent 70%
+    ),
+    radial-gradient(
+      80% 80% at 50% 50%,
+      rgba(230, 240, 255, 0.55),
+      transparent 70%
+    ),
+    #fafafc;
+}
+.whylog-landing .mesh-bg-soft {
+  background:
+    radial-gradient(
+      45% 40% at 80% 20%,
+      rgba(167, 139, 250, 0.1),
+      transparent 65%
+    ),
+    radial-gradient(
+      40% 40% at 10% 90%,
+      rgba(122, 183, 255, 0.14),
+      transparent 70%
+    ),
+    #fafafc;
+}
+.whylog-landing .mesh-bg-strong {
+  background:
+    radial-gradient(
+      50% 50% at 20% 30%,
+      rgba(167, 139, 250, 0.3),
+      transparent 65%
+    ),
+    radial-gradient(
+      50% 50% at 80% 80%,
+      rgba(240, 171, 252, 0.28),
+      transparent 65%
+    ),
+    radial-gradient(
+      60% 60% at 50% 10%,
+      rgba(122, 183, 255, 0.3),
+      transparent 65%
+    ),
+    radial-gradient(
+      80% 80% at 50% 50%,
+      rgba(230, 240, 255, 0.6),
+      transparent 70%
+    ),
+    #f5f4ff;
+}
+
+/* === Grain overlay === */
+.whylog-landing .grain {
+  position: relative;
+}
+.whylog-landing .grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.4 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.5'/></svg>");
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+}
+
+/* === Glass cards === */
+.whylog-landing .glass {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 8px 32px rgba(30, 91, 232, 0.08),
+    0 1px 2px rgba(28, 28, 40, 0.04);
+}
+.whylog-landing .glass-strong {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 12px 40px rgba(30, 91, 232, 0.1);
+}
+.whylog-landing .glass-flat {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid #ececf2;
+  box-shadow: 0 4px 18px rgba(28, 28, 40, 0.04);
+}
+
+/* === Iridescent CSS sphere ===
+   Position must be supplied per-usage (Tailwind `absolute`/`relative`) so
+   it doesn't override the cascade. The ::after highlight needs a positioned
+   ancestor — every usage in the page sets one. */
+.whylog-landing .iri-sphere {
+  border-radius: 9999px;
+  background:
+    radial-gradient(
+      circle at 32% 28%,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.55) 14%,
+      rgba(255, 255, 255, 0) 36%
+    ),
+    radial-gradient(
+      circle at 78% 78%,
+      rgba(240, 171, 252, 0.55) 0%,
+      rgba(240, 171, 252, 0) 55%
+    ),
+    radial-gradient(
+      circle at 20% 80%,
+      rgba(122, 183, 255, 0.55) 0%,
+      rgba(122, 183, 255, 0) 55%
+    ),
+    radial-gradient(
+      circle at 65% 30%,
+      rgba(167, 139, 250, 0.45) 0%,
+      rgba(167, 139, 250, 0) 55%
+    ),
+    radial-gradient(circle at 50% 55%, #e6ecff 0%, #d5dcff 55%, #bfcaff 100%);
+  box-shadow:
+    inset -8px -10px 28px rgba(120, 100, 200, 0.22),
+    inset 6px 8px 22px rgba(255, 255, 255, 0.55),
+    0 24px 48px -10px rgba(120, 90, 220, 0.22),
+    0 6px 18px rgba(30, 91, 232, 0.1);
+  filter: saturate(106%);
+}
+.whylog-landing .iri-sphere::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: radial-gradient(
+    ellipse at 32% 22%,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0) 28%
+  );
+  pointer-events: none;
+}
+
+/* === Iridescent gradient text === */
+.whylog-landing .iri-text {
+  background: linear-gradient(
+    96deg,
+    #1e5be8 0%,
+    #6d55ff 38%,
+    #b07bff 68%,
+    #f0abfc 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* === Buttons === */
+.whylog-landing .btn-primary {
+  background: linear-gradient(135deg, #1e5be8 0%, #3b7cf1 100%);
+  color: #fff;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 8px 24px rgba(30, 91, 232, 0.32),
+    0 2px 6px rgba(30, 91, 232, 0.18);
+  transition:
+    transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.25s ease;
+}
+.whylog-landing .btn-primary:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 14px 40px rgba(30, 91, 232, 0.45),
+    0 2px 8px rgba(30, 91, 232, 0.22);
+}
+.whylog-landing .btn-ghost {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid #e4e4eb;
+  color: #1c1c28;
+  transition: all 0.25s ease;
+}
+.whylog-landing .btn-ghost:hover {
+  background: #fff;
+  border-color: #c7c9d9;
+}
+
+/* === Reveal animations === */
+.whylog-landing .reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.9s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.whylog-landing .reveal.in {
+  opacity: 1;
+  transform: none;
+}
+.whylog-landing .reveal-stagger > * {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.8s ease,
+    transform 0.8s ease;
+}
+.whylog-landing .reveal-stagger.in > * {
+  opacity: 1;
+  transform: none;
+}
+.whylog-landing .reveal-stagger.in > *:nth-child(1) {
+  transition-delay: 0.05s;
+}
+.whylog-landing .reveal-stagger.in > *:nth-child(2) {
+  transition-delay: 0.15s;
+}
+.whylog-landing .reveal-stagger.in > *:nth-child(3) {
+  transition-delay: 0.25s;
+}
+.whylog-landing .reveal-stagger.in > *:nth-child(4) {
+  transition-delay: 0.35s;
+}
+
+/* === Float keyframes === */
+@keyframes whylog-floaty {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(2deg);
+  }
+}
+@keyframes whylog-floaty2 {
+  0%,
+  100% {
+    transform: translateY(0) translateX(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-22px) translateX(8px) rotate(-3deg);
+  }
+}
+@keyframes whylog-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(10px, -18px) rotate(8deg);
+  }
+}
+@keyframes whylog-flowPulse {
+  0% {
+    stroke-dashoffset: 800;
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+@keyframes whylog-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+/* Organic loader: continuously morphs an irregular border-radius so the blob
+   feels alive — borrowed from the "Organic loaders" concept. */
+@keyframes whylog-morph {
+  0%,
+  100% {
+    border-radius: 58% 42% 55% 45% / 55% 50% 50% 45%;
+  }
+  20% {
+    border-radius: 42% 58% 35% 65% / 65% 40% 60% 35%;
+  }
+  40% {
+    border-radius: 64% 36% 48% 52% / 42% 60% 40% 58%;
+  }
+  60% {
+    border-radius: 38% 62% 60% 40% / 56% 38% 62% 44%;
+  }
+  80% {
+    border-radius: 55% 45% 65% 35% / 35% 65% 35% 65%;
+  }
+}
+@keyframes whylog-morph-fast {
+  0%,
+  100% {
+    border-radius: 60% 40% 50% 50% / 55% 45% 55% 45%;
+  }
+  33% {
+    border-radius: 40% 60% 65% 35% / 35% 65% 50% 50%;
+  }
+  66% {
+    border-radius: 50% 50% 35% 65% / 65% 40% 60% 40%;
+  }
+}
+.whylog-landing .float-a {
+  animation: whylog-floaty 7s ease-in-out infinite;
+}
+.whylog-landing .float-b {
+  animation: whylog-floaty2 9s ease-in-out infinite;
+}
+.whylog-landing .float-c {
+  animation: whylog-drift 11s ease-in-out infinite;
+}
+
+/* === Card lift === */
+.whylog-landing .card-lift {
+  transition:
+    transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.35s ease,
+    border-color 0.25s ease;
+}
+.whylog-landing .card-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 50px rgba(30, 91, 232, 0.16);
+  border-color: rgba(30, 91, 232, 0.18);
+}
+
+/* === Nav glass === */
+.whylog-landing .nav-glass {
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-bottom: 1px solid rgba(235, 235, 240, 0.7);
+}
+
+/* === Why headline gradient === */
+.whylog-landing .why-grad {
+  background: linear-gradient(
+    96deg,
+    #1e5be8 0%,
+    #6d55ff 35%,
+    #b07bff 65%,
+    #f0abfc 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  background-size: 200% 100%;
+  animation: whylog-shimmer 9s linear infinite;
+}
+
+/* === Chip === */
+.whylog-landing .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(30, 91, 232, 0.12);
+  box-shadow: 0 4px 14px rgba(30, 91, 232, 0.08);
+  font-size: 13px;
+  color: #1344b0;
+}
+.whylog-landing .chip .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #1e5be8, #a78bfa);
+}
+
+/* === FAQ marker === */
+.whylog-landing details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.whylog-landing details > summary::-webkit-details-marker {
+  display: none;
+}
+.whylog-landing .faq-icon {
+  transition: transform 0.3s ease;
+}
+.whylog-landing details[open] .faq-icon {
+  transform: rotate(45deg);
+}
+
+/* === Mono === */
+.whylog-landing .mono {
+  font-family:
+    ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* === Hairline divider === */
+.whylog-landing .hairline {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e4e4eb, transparent);
+}
+
+/* === Iridescent organic blob === */
+.whylog-landing .iri-blob {
+  border-radius: 58% 42% 55% 45% / 55% 50% 50% 45%;
+  background:
+    radial-gradient(
+      circle at 28% 30%,
+      rgba(255, 255, 255, 0.85),
+      transparent 38%
+    ),
+    radial-gradient(
+      circle at 72% 70%,
+      rgba(240, 171, 252, 0.55),
+      transparent 50%
+    ),
+    conic-gradient(
+      from 200deg at 55% 45%,
+      #c7d8ff 0deg,
+      #b9c7ff 50deg,
+      #a5b8ff 110deg,
+      #c0a8ff 175deg,
+      #e0b8ff 230deg,
+      #ffd1f5 280deg,
+      #cfdfff 340deg,
+      #c7d8ff 360deg
+    );
+  box-shadow:
+    inset -16px -22px 40px rgba(30, 91, 232, 0.22),
+    inset 14px 18px 36px rgba(255, 255, 255, 0.6),
+    0 30px 60px -10px rgba(120, 90, 220, 0.3);
+  filter: saturate(112%);
+}
+.whylog-landing .iri-blob.b2 {
+  border-radius: 64% 36% 48% 52% / 42% 60% 40% 58%;
+}
+.whylog-landing .iri-blob.b3 {
+  border-radius: 38% 62% 60% 40% / 56% 38% 62% 44%;
+}
+
+/* Bring the static blobs to life — float + morph combined so they drift
+   AND continuously reshape. The `animation` shorthand is set on the most
+   specific selector so it overrides the single-animation .float-* rules. */
+.whylog-landing .iri-blob.float-a {
+  animation:
+    whylog-floaty 7s ease-in-out infinite,
+    whylog-morph 18s ease-in-out infinite;
+}
+.whylog-landing .iri-blob.float-b {
+  animation:
+    whylog-floaty2 9s ease-in-out infinite,
+    whylog-morph 16s ease-in-out infinite;
+}
+.whylog-landing .iri-blob.float-c {
+  animation:
+    whylog-drift 11s ease-in-out infinite,
+    whylog-morph-fast 13s ease-in-out infinite;
+}
+
+/* Small "organic loader" sprite — an iridescent blob that morphs in place. */
+.whylog-landing .iri-morph {
+  position: relative;
+  display: inline-block;
+  background:
+    radial-gradient(
+      circle at 28% 30%,
+      rgba(255, 255, 255, 0.9),
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 72% 70%,
+      rgba(240, 171, 252, 0.55),
+      transparent 55%
+    ),
+    conic-gradient(
+      from 200deg at 55% 45%,
+      #c7d8ff 0deg,
+      #b9c7ff 60deg,
+      #a5b8ff 120deg,
+      #c0a8ff 180deg,
+      #e0b8ff 240deg,
+      #ffd1f5 290deg,
+      #cfdfff 340deg,
+      #c7d8ff 360deg
+    );
+  box-shadow:
+    inset -6px -8px 16px rgba(30, 91, 232, 0.18),
+    inset 4px 6px 14px rgba(255, 255, 255, 0.6),
+    0 8px 18px -4px rgba(120, 90, 220, 0.28);
+  filter: saturate(112%);
+  animation: whylog-morph-fast 6s ease-in-out infinite;
+}
+
+/* === Iridescent shard (circle, no border) === */
+.whylog-landing .shard {
+  position: absolute;
+  border-radius: 9999px;
+  background:
+    radial-gradient(
+      circle at 30% 30%,
+      rgba(255, 255, 255, 0.9),
+      transparent 50%
+    ),
+    conic-gradient(from 0deg, #c7d8ff, #e0c8ff, #f0c7ff, #c7e0ff, #c7d8ff);
+  box-shadow:
+    0 12px 30px rgba(108, 90, 220, 0.18),
+    inset 0 0 18px rgba(255, 255, 255, 0.4);
+  opacity: 0.7;
+  filter: blur(0.4px);
+}
+
+/* === Workflow tube animation === */
+.whylog-landing .tube-pulse {
+  animation: whylog-flowPulse 4s ease-in-out infinite;
+}
+
+/* === Selection === */
+.whylog-landing ::selection {
+  background: rgba(30, 91, 232, 0.18);
+}
+
+/* ============================================================
+   FLASHY tier — additions for the "더 화려하게" pass
+   ============================================================ */
+
+/* --- 1. Aurora border (회전하는 conic-gradient 테두리) --- */
+@property --aurora-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes whylog-aurora-spin {
+  to {
+    --aurora-angle: 360deg;
+  }
+}
+.whylog-landing .aurora-border {
+  position: relative;
+  isolation: isolate;
+}
+.whylog-landing .aurora-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--aurora-angle, 0deg),
+    #1e5be8 0deg,
+    #6d55ff 90deg,
+    #f0abfc 180deg,
+    #7ab7ff 270deg,
+    #1e5be8 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: whylog-aurora-spin 9s linear infinite;
+}
+
+/* --- 6. Hero starfield / twinkle --- */
+@keyframes whylog-twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  50% {
+    opacity: var(--star-op, 0.8);
+    transform: scale(1);
+  }
+}
+.whylog-landing .star {
+  position: absolute;
+  border-radius: 9999px;
+  background: rgba(30, 91, 232, 0.65);
+  filter: drop-shadow(0 0 4px rgba(167, 139, 250, 0.7));
+  animation: whylog-twinkle 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* --- 8. CTA halo pulse --- */
+@keyframes whylog-halo {
+  0%,
+  100% {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
+      0 0 0 0 rgba(30, 91, 232, 0.45),
+      0 8px 24px rgba(30, 91, 232, 0.32),
+      0 2px 6px rgba(30, 91, 232, 0.18);
+  }
+  50% {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
+      0 0 0 18px rgba(30, 91, 232, 0),
+      0 14px 36px rgba(30, 91, 232, 0.42),
+      0 4px 10px rgba(30, 91, 232, 0.22);
+  }
+}
+.whylog-landing .btn-primary.halo {
+  animation: whylog-halo 2.6s ease-in-out infinite;
+}
+
+/* --- 4. Custom cursor (이리데센트 미니 블롭이 커서를 따라옴, 랜딩 전역) --- */
+.whylog-landing .hero-spotlight {
+  position: relative;
+  isolation: isolate;
+}
+.whylog-landing .hero-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 0;
+  transition:
+    opacity 0.25s ease,
+    width 0.2s ease,
+    height 0.2s ease;
+  filter: drop-shadow(0 6px 18px rgba(108, 90, 220, 0.5));
+  will-change: transform;
+}
+.whylog-landing .hero-cursor.is-hover {
+  width: 28px;
+  height: 28px;
+}
+/* 터치/coarse 포인터 기기에서는 커서 블롭 자체를 렌더링하지 않는다. */
+@media (pointer: coarse) {
+  .whylog-landing .hero-cursor {
+    display: none;
+  }
+}
+
+/* --- 10. Live mesh (기존 mesh-bg 가 살아 움직이도록) --- */
+@keyframes whylog-mesh-drift {
+  0%,
+  100% {
+    background-position:
+      0% 0%,
+      100% 0%,
+      50% 100%,
+      50% 50%,
+      0 0;
+  }
+  50% {
+    background-position:
+      6% 4%,
+      92% 8%,
+      62% 90%,
+      55% 45%,
+      0 0;
+  }
+}
+.whylog-landing .mesh-bg.alive,
+.whylog-landing .mesh-bg-strong.alive {
+  background-size:
+    130% 120%,
+    120% 130%,
+    130% 120%,
+    180% 180%,
+    auto;
+  animation: whylog-mesh-drift 22s ease-in-out infinite;
+}
+
+/* --- 13′. Typewriter caret --- */
+@keyframes whylog-caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+.whylog-landing .type-caret {
+  display: inline-block;
+  width: 0.06em;
+  height: 0.82em;
+  background: #1e5be8;
+  border-radius: 1px;
+  vertical-align: -0.08em;
+  margin-left: 0.04em;
+  animation: whylog-caret-blink 0.95s steps(2, end) infinite;
+}
+.whylog-landing .type-caret.done {
+  background: #8f90a6;
+  animation-duration: 1.4s;
+}
+
+/* --- 13. Per-character cascade reveal (kept for any future use) --- */
+@keyframes whylog-char-rise {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.whylog-landing .char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(28px);
+  animation: whylog-char-rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation-delay: calc(var(--ci, 0) * 0.04s);
+}
+.whylog-landing .char.space {
+  width: 0.28em;
+}
+
+/* --- 5. 3D tilt 준비 --- */
+.whylog-landing .tilt {
+  transform-style: preserve-3d;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+
+/* --- 11. Flow tube scroll progress (JS 가 strokeDashoffset 갱신) --- */
+.whylog-landing .tube-progress {
+  transition: stroke-dashoffset 0.15s linear;
+}

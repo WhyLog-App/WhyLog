@@ -1,0 +1,434 @@
+@import "tailwindcss";
+
+@import "./base/normalize.css" layer(base);
+@import "./base/base.css" layer(base);
+
+@theme {
+  /* Breakpoints */
+  --breakpoint-3xl: 1920px;
+
+  /* Font Family */
+  --font-pretendard: "Pretendard", sans-serif;
+  --font-inter: "Inter", sans-serif;
+
+  /* Primitive Colors - Base */
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* Primitive Colors - Primary */
+  --color-primary-50: #e6f0ff;
+  --color-primary-70: #d6e8fe;
+  --color-primary-90: #c1dbfd;
+  --color-primary-100: #abcffd;
+  --color-primary-200: #82b6fb;
+  --color-primary-300: #589efa;
+  --color-primary-400: #3b7cf1;
+  --color-primary-500: #1e5be8;
+  --color-primary-600: #184fd0;
+  --color-primary-700: #1344b0;
+  --color-primary-800: #0e348b;
+  --color-primary-900: #0a2566;
+  --color-primary-950: #06163d;
+
+  /* Primitive Colors - Gray */
+  --color-gray-50: #fbfbfb;
+  --color-gray-100: #f5f5f5;
+  --color-gray-200: #eeeeee;
+  --color-gray-300: #e0e0e0;
+  --color-gray-400: #bdbdbd;
+  --color-gray-500: #9e9e9e;
+  --color-gray-600: #757575;
+  --color-gray-700: #616161;
+  --color-gray-800: #424242;
+  --color-gray-900: #212121;
+  --color-gray-950: #1a1a1a;
+
+  /* Primitive Colors - Dark */
+  --color-dark-50: #c7c9d9;
+  --color-dark-100: #8f90a6;
+  --color-dark-300: #555770;
+  --color-dark-500: #28293d;
+  --color-dark-700: #1c1c28;
+
+  /* Primitive Colors - Light */
+  --color-light-50: #ffffff;
+  --color-light-100: #fafafc;
+  --color-light-300: #f2f2f5;
+  --color-light-500: #ebebf0;
+  --color-light-700: #e4e4eb;
+
+  /* Primitive Colors - Status */
+  --color-red-50: #ffe5e5;
+  --color-red-100: #ff8080;
+  --color-red-300: #ff5c5c;
+  --color-red-500: #ff3b3b;
+  --color-red-700: #e53535;
+
+  --color-green-50: #e3fff1;
+  --color-green-100: #57eba1;
+  --color-green-300: #39d98a;
+  --color-green-500: #06c270;
+  --color-green-700: #05a660;
+
+  --color-blue-50: #e5f0ff;
+  --color-blue-100: #9dbff9;
+  --color-blue-300: #5b8def;
+  --color-blue-500: #0063f7;
+  --color-blue-700: #004fc4;
+
+  --color-yellow-50: #fffee5;
+  --color-yellow-100: #fded72;
+  --color-yellow-300: #fddd48;
+  --color-yellow-500: #ffcc00;
+  --color-yellow-700: #e5b800;
+
+  --color-orange-50: #fff8e5;
+  --color-orange-100: #fccc75;
+  --color-orange-300: #fdac42;
+  --color-orange-500: #ff8800;
+  --color-orange-700: #e57a00;
+
+  --color-teal-50: #e5ffff;
+  --color-teal-100: #a9eff2;
+  --color-teal-300: #73dfe7;
+  --color-teal-500: #00cfde;
+  --color-teal-700: #00b7c4;
+
+  --color-purple-50: #ffe5ff;
+  --color-purple-100: #dda5e9;
+  --color-purple-300: #ac5dd9;
+  --color-purple-500: #6600cc;
+  --color-purple-700: #4d0099;
+
+  --color-indigo-50: #e8eaf6;
+
+  /* Primitive Colors - Opacity */
+  --color-white-5: rgb(255 255 255 / 0.05);
+  --color-white-10: rgb(255 255 255 / 0.1);
+  --color-white-20: rgb(255 255 255 / 0.2);
+  --color-white-30: rgb(255 255 255 / 0.3);
+  --color-white-40: rgb(255 255 255 / 0.4);
+  --color-white-50: rgb(255 255 255 / 0.5);
+  --color-white-60: rgb(255 255 255 / 0.6);
+  --color-white-70: rgb(255 255 255 / 0.7);
+  --color-white-80: rgb(255 255 255 / 0.8);
+  --color-white-90: rgb(255 255 255 / 0.9);
+
+  --color-black-10: rgb(0 0 0 / 0.1);
+  --color-black-20: rgb(0 0 0 / 0.2);
+  --color-black-30: rgb(0 0 0 / 0.3);
+  --color-black-40: rgb(0 0 0 / 0.4);
+  --color-black-50: rgb(0 0 0 / 0.5);
+  --color-black-60: rgb(0 0 0 / 0.6);
+  --color-black-70: rgb(0 0 0 / 0.7);
+  --color-black-80: rgb(0 0 0 / 0.8);
+  --color-black-90: rgb(0 0 0 / 0.9);
+
+  /* Primitive Colors - Status Extended */
+  --color-success-100: #a7dab6;
+  --color-success-500: #25a249;
+  --color-success-700: #14632b;
+
+  --color-error-100: #f9dedc;
+  --color-error-500: #b3261e;
+  --color-error-700: #8c1d18;
+
+  /* Semantic Colors - Background */
+  --color-bg-default: var(--color-light-100);
+  --color-bg-subtle: var(--color-light-300);
+  --color-bg-surface: var(--color-white);
+  --color-bg-brand-subtle: var(--color-primary-50);
+  --color-bg-inverse: var(--color-dark-700);
+
+  /* Semantic Colors - Text */
+  --color-text-primary: var(--color-dark-700);
+  --color-text-secondary: var(--color-dark-300);
+  --color-text-tertiary: var(--color-dark-100);
+  --color-text-inverse: var(--color-white);
+  --color-text-brand: var(--color-primary-500);
+  --color-text-brand-darker: var(--color-primary-700);
+  --color-text-disabled: var(--color-dark-50);
+
+  /* Semantic Colors - Border */
+  --color-border-default: var(--color-light-700);
+  --color-border-divider: var(--color-light-300);
+  --color-border-brand: var(--color-primary-500);
+
+  /* Semantic Colors - Action */
+  --color-action-primary: var(--color-primary-500);
+  --color-action-hover: var(--color-primary-50);
+  --color-action-ghost-hover: var(--color-primary-50);
+  --color-action-active: var(--color-primary-70);
+  --color-action-subtle: var(--color-primary-200);
+  --color-action-disabled: var(--color-light-700);
+
+  /* Semantic Colors - Status */
+  --color-status-error: var(--color-error-700);
+  --color-status-success: var(--color-success-700);
+
+  /* Semantic Colors - Overlay */
+  --color-overlay-dim: var(--color-black-40);
+
+  /* Typography - Headings (Pretendard Bold) */
+  --text-h1: 4rem;
+  --text-h1--line-height: 5rem;
+  --text-h2: 3rem;
+  --text-h2--line-height: 4rem;
+  --text-h3: 2rem;
+  --text-h3--line-height: 3rem;
+  --text-h4: 1.5rem;
+  --text-h4--line-height: 2.25rem;
+  --text-h5: 1.25rem;
+  --text-h5--line-height: 1.875rem;
+  --text-h6: 1.125rem;
+  --text-h6--line-height: 1.75rem;
+
+  /* Typography - Subtitles (Pretendard SemiBold) */
+  --text-subtitle1: 1.5rem;
+  --text-subtitle1--line-height: 2rem;
+  --text-subtitle2: 1.25rem;
+  --text-subtitle2--line-height: 1.75rem;
+  --text-subtitle3: 1.125rem;
+  --text-subtitle3--line-height: 1.625rem;
+  --text-subtitle4: 1rem;
+  --text-subtitle4--line-height: 1.5rem;
+  --text-subtitle5: 0.875rem;
+  --text-subtitle5--line-height: 1.375rem;
+
+  /* Typography - Body (Pretendard Regular) */
+  --text-body1: 1.5rem;
+  --text-body1--line-height: 2.25rem;
+  --text-body2: 1.25rem;
+  --text-body2--line-height: 1.875rem;
+  --text-body3: 1.125rem;
+  --text-body3--line-height: 1.6875rem;
+  --text-body4: 1rem;
+  --text-body4--line-height: 1.5rem;
+  --text-body5: 0.875rem;
+  --text-body5--line-height: 1.375rem;
+  --text-body6: 0.75rem;
+  --text-body6--line-height: 1.125rem;
+
+  /* Typography - Buttons (Pretendard Bold) */
+  --text-button-lg: 1rem;
+  --text-button-lg--line-height: 1.625rem;
+  --text-button-md: 0.875rem;
+  --text-button-md--line-height: 1.5rem;
+  --text-button-sm: 0.625rem;
+  --text-button-sm--line-height: 1rem;
+
+  /* Typography - Captions (Pretendard Light) */
+  --text-caption1: 0.75rem;
+  --text-caption1--line-height: 1.125rem;
+  --text-caption2: 0.625rem;
+  --text-caption2--line-height: 0.875rem;
+
+  /* Typography - Others */
+  --text-overline: 0.75rem;
+  --text-overline--line-height: 1.125rem;
+  --text-label: 0.75rem;
+  --text-label--line-height: 1.25rem;
+  --text-legend: 0.8125rem;
+  --text-legend--line-height: 1.125rem;
+
+  /* === Landing page tokens === */
+  --color-ink-900: #1c1c28;
+  --color-ink-700: #28293d;
+  --color-ink-500: #555770;
+  --color-ink-300: #8f90a6;
+  --color-ink-100: #c7c9d9;
+
+  --color-line-soft: #ebebf0;
+  --color-line-medium: #e4e4eb;
+  --color-line-faint: #f2f2f5;
+
+  --color-sand-50: #fafafc;
+  --color-sand-100: #f5f5f8;
+  --color-sand-200: #efeff4;
+
+  --color-accent-lavender: #a78bfa;
+  --color-accent-pink: #f0abfc;
+  --color-accent-sky: #7ab7ff;
+
+  --tracking-tightish: -0.02em;
+  --tracking-tighter2: -0.035em;
+}
+
+/* Compound typography utilities */
+@utility typo-h1 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-h1);
+  line-height: var(--text-h1--line-height);
+  font-weight: 700;
+}
+
+@utility typo-h2 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-h2);
+  line-height: var(--text-h2--line-height);
+  font-weight: 700;
+}
+
+@utility typo-h3 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-h3);
+  line-height: var(--text-h3--line-height);
+  font-weight: 700;
+}
+
+@utility typo-h4 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-h4);
+  line-height: var(--text-h4--line-height);
+  font-weight: 700;
+}
+
+@utility typo-h5 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-h5);
+  line-height: var(--text-h5--line-height);
+  font-weight: 700;
+}
+
+@utility typo-h6 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-h6);
+  line-height: var(--text-h6--line-height);
+  font-weight: 700;
+}
+
+@utility typo-subtitle1 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-subtitle1);
+  line-height: var(--text-subtitle1--line-height);
+  font-weight: 600;
+}
+
+@utility typo-subtitle2 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-subtitle2);
+  line-height: var(--text-subtitle2--line-height);
+  font-weight: 600;
+}
+
+@utility typo-subtitle3 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-subtitle3);
+  line-height: var(--text-subtitle3--line-height);
+  font-weight: 600;
+}
+
+@utility typo-subtitle4 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-subtitle4);
+  line-height: var(--text-subtitle4--line-height);
+  font-weight: 600;
+}
+
+@utility typo-subtitle5 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-subtitle5);
+  line-height: var(--text-subtitle5--line-height);
+  font-weight: 600;
+}
+
+@utility typo-body1 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-body1);
+  line-height: var(--text-body1--line-height);
+  font-weight: 400;
+}
+
+@utility typo-body2 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-body2);
+  line-height: var(--text-body2--line-height);
+  font-weight: 400;
+}
+
+@utility typo-body3 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-body3);
+  line-height: var(--text-body3--line-height);
+  font-weight: 400;
+}
+
+@utility typo-body4 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-body4);
+  line-height: var(--text-body4--line-height);
+  font-weight: 400;
+}
+
+@utility typo-body5 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-body5);
+  line-height: var(--text-body5--line-height);
+  font-weight: 400;
+}
+
+@utility typo-body6 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-body6);
+  line-height: var(--text-body6--line-height);
+  font-weight: 400;
+}
+
+@utility typo-button-lg {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-button-lg);
+  line-height: var(--text-button-lg--line-height);
+  font-weight: 700;
+}
+
+@utility typo-button-md {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-button-md);
+  line-height: var(--text-button-md--line-height);
+  font-weight: 700;
+}
+
+@utility typo-button-sm {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-button-sm);
+  line-height: var(--text-button-sm--line-height);
+  font-weight: 700;
+}
+
+@utility typo-caption1 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-caption1);
+  line-height: var(--text-caption1--line-height);
+  font-weight: 300;
+}
+
+@utility typo-caption2 {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-caption2);
+  line-height: var(--text-caption2--line-height);
+  font-weight: 300;
+}
+
+@utility typo-overline {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-overline);
+  line-height: var(--text-overline--line-height);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+@utility typo-label {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+@utility typo-legend {
+  font-family: var(--font-pretendard);
+  font-size: var(--text-legend);
+  line-height: var(--text-legend--line-height);
+  font-weight: 500;
+  text-transform: uppercase;
+}
