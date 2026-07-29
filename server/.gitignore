@@ -37,6 +37,3 @@ out/
 .vscode/
 /.env
 
-## Agents
-AGENTS.md
-CLAUDE.md
