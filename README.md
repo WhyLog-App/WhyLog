@@ -1,0 +1,2 @@
+# WhyLog
+WhyLog monorepo
