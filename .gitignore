@@ -12,6 +12,11 @@ Thumbs.db
 .env.*
 !.env.example
 
+# Secrets
+application-secret.properties
+application-secret.yaml
+application-secret.yml
+
 # Logs
 *.log
 logs/
