@@ -557,14 +557,10 @@ class ContentsSyncTest(unittest.TestCase):
         commit_call = github.calls[-2]
         self.assertEqual(commit_call[0], "/repos/repo/git/commits")
         self.assertEqual(commit_call[2]["parents"], ["headsha"])
-        self.assertIn("Generated-By: whylog-ai-review", commit_call[2]["message"])
-        self.assertTrue(
-            commit_call[2]["message"].startswith(
-                "docs(docs): PR-7 리뷰 판단 근거를 저장소에 남김"
-            )
-        )
-        self.assertIn(
-            "Rejected: Direct push to protected base", commit_call[2]["message"]
+        self.assertEqual(
+            commit_call[2]["message"],
+            "docs(docs): PR-7 리뷰 판단 근거 기록 "
+            "[Generated-By: whylog-ai-review]",
         )
 
     def test_sync_stale_head_is_artifact_only(self):
@@ -602,7 +598,8 @@ class DocOnlyDetectionTest(unittest.TestCase):
             responses=[
                 {
                     "commit": {
-                        "message": "docs(docs): PR-7 리뷰 판단 근거를 저장소에 남김\n\nGenerated-By: whylog-ai-review\n"
+                        "message": "docs(docs): PR-7 리뷰 판단 근거 기록 "
+                        "[Generated-By: whylog-ai-review]"
                     },
                     "files": [{"filename": "docs/pr-reviews/PR-7.md"}],
                     "parents": [{"sha": "parent-sha"}],

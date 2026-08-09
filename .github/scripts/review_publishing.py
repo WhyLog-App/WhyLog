@@ -986,14 +986,8 @@ def sync_pr_review_document(
 
 def _doc_commit_message(pr_number: int) -> str:
     return (
-        f"docs(docs): PR-{pr_number} 리뷰 판단 근거를 저장소에 남김\n\n"
-        "Constraint: CI AI review result must remain readable from repository docs\n"
-        "Rejected: Direct push to protected base with the default GITHUB_TOKEN | branch protection and auditability require branch-scoped document updates only\n"
-        "Confidence: medium\n"
-        "Scope-risk: narrow\n"
-        "Directive: Do not edit generated state markers by hand\n"
-        "Tested: AI review publishing workflow generated this document\n"
-        "Generated-By: whylog-ai-review\n"
+        f"docs(docs): PR-{pr_number} 리뷰 판단 근거 기록 "
+        "[Generated-By: whylog-ai-review]"
     )
 
 
