@@ -71,7 +71,7 @@ src/
 #### Branch Strategy
 - main: 배포 가능한 최종 코드만 관리합니다.
 - develop: 완성된 기능을 지속적으로 병합하는 브랜치입니다.
-- {type}/{기능 요약}: 기능 개발용 브랜치입니다. (예: `feat/meeting`)
+- 작업 브랜치 이름은 루트 `AGENTS.md`의 `<type>/<short-description>` 규칙을 따릅니다. (예: `feat/meeting-summary`)
 
 #### Commit Convention
 루트 `AGENTS.md`의 커밋 메시지 규칙을 따릅니다. 서버만 변경한 예시는 `feat(server): 회의 생성 기능 구현`이며, 여러 파트를 함께 변경하면 scope를 생략합니다.

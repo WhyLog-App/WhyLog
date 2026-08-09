@@ -62,6 +62,12 @@ WhyLog 모노레포에서 개발자와 AI 에이전트가 따라야 하는 공�
 - `scope`는 `ai`, `server`, `web`, `docs`, `root` 중 하나만 사용합니다.
 - 여러 파트를 동시에 변경하면 `scope`를 생략해 `<type>: <설명>`으로 작성합니다.
 
+## 브랜치 이름
+
+- 형식은 `<type>/<short-description>`입니다.
+- `type`은 커밋 메시지와 같은 목록을 사용하고, `short-description`은 영문 소문자 kebab-case로 작성합니다.
+- Issue·PR 번호와 `#` 문자는 넣지 않습니다. 예: `feat/meeting-summary`, `ci/ai-review`.
+
 ## 검사 및 리뷰 원칙
 
 - 기계 검사는 포매터, 린터, 타입 검사, 테스트를 포함합니다.
