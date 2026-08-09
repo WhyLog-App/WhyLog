@@ -60,7 +60,7 @@ class InlineReviewPlan:
 
 @dataclass(frozen=True)
 class InlinePublishResult:
-    created_review: bool
+    created_comments: bool
     posted: int
     updated: int
     resolved: int
@@ -429,53 +429,47 @@ def publish_inline_review_comments(
     if not new_comments:
         return InlinePublishResult(False, 0, updated, resolved, plan.fallback_findings)
 
-    payload = {
-        "commit_id": commit_id,
-        "body": "WhyLog AI 자동 줄 단위 리뷰입니다.",
-        "event": "COMMENT",
-        "comments": [
-            {
-                "path": comment.path,
-                "line": comment.line,
-                "side": "RIGHT",
-                "body": comment.body,
-            }
-            for comment in new_comments
-        ],
-    }
-    try:
-        github_request(
-            api_url,
-            token,
-            f"/repos/{repository}/pulls/{pr_number}/reviews",
-            method="POST",
-            payload=payload,
-        )
-    except Exception as error:
-        if _is_status_error(error, 422):
-            fallback = list(plan.fallback_findings)
-            fallback.extend(
-                {
-                    "kind": comment.kind,
-                    "file": comment.path,
+    posted = 0
+    fallback = list(plan.fallback_findings)
+    first_error: str | None = None
+    for comment in new_comments:
+        try:
+            github_request(
+                api_url,
+                token,
+                f"/repos/{repository}/pulls/{pr_number}/comments",
+                method="POST",
+                payload={
+                    "commit_id": commit_id,
+                    "path": comment.path,
                     "line": comment.line,
-                    "fingerprint": comment.fingerprint,
-                    "fallback_reason": "github_inline_review_422",
-                }
-                for comment in new_comments
+                    "side": "RIGHT",
+                    "body": comment.body,
+                },
             )
-            return InlinePublishResult(
-                created_review=False,
-                posted=0,
-                updated=updated,
-                resolved=resolved,
-                fallback_findings=tuple(fallback),
-                post_failed_fallback=str(error)[:500],
-            )
-        raise
+        except Exception as error:
+            if _is_status_error(error, 422):
+                fallback.append(
+                    {
+                        "kind": comment.kind,
+                        "file": comment.path,
+                        "line": comment.line,
+                        "fingerprint": comment.fingerprint,
+                        "fallback_reason": "github_inline_comment_422",
+                    }
+                )
+                first_error = first_error or str(error)[:500]
+                continue
+            raise
+        posted += 1
 
     return InlinePublishResult(
-        True, len(new_comments), updated, resolved, plan.fallback_findings
+        posted > 0,
+        posted,
+        updated,
+        resolved,
+        tuple(fallback),
+        first_error,
     )
 
 
