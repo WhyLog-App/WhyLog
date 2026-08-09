@@ -1,0 +1,176 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    name: detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      ai: ${{ steps.filter.outputs.ai }}
+      server: ${{ steps.filter.outputs.server }}
+      web: ${{ steps.filter.outputs.web }}
+
+    steps:
+      - name: Detect changed parts
+        id: filter
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100,
+            });
+
+            const paths = files.flatMap((file) =>
+              [file.filename, file.previous_filename].filter(Boolean),
+            );
+            const shared = paths.some((path) =>
+              [".editorconfig", ".gitattributes", ".github/workflows/ci.yml"].includes(path),
+            );
+
+            core.setOutput("ai", shared || paths.some((path) => path.startsWith("ai/")));
+            core.setOutput("server", shared || paths.some((path) => path.startsWith("server/")));
+            core.setOutput("web", shared || paths.some((path) => path.startsWith("web/")));
+
+  ai:
+    name: ai quality
+    needs: changes
+    if: needs.changes.outputs.ai == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ai/pyproject.toml
+
+      - name: Install dependencies
+        run: uv sync --frozen --dev
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Build Docker image
+        run: docker build -t whylog-ai .
+
+  server:
+    name: server quality
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x ./gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew clean build
+
+  web:
+    name: web quality
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint and format check
+        run: pnpm exec biome ci .
+
+      - name: Type check and build
+        run: pnpm build
+
+  quality:
+    name: quality gate
+    if: always()
+    needs:
+      - changes
+      - ai
+      - server
+      - web
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify machine checks
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          AI_RESULT: ${{ needs.ai.result }}
+          SERVER_RESULT: ${{ needs.server.result }}
+          WEB_RESULT: ${{ needs.web.result }}
+        run: |
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "Change detection failed: $CHANGES_RESULT"
+            exit 1
+          fi
+
+          for result in "$AI_RESULT" "$SERVER_RESULT" "$WEB_RESULT"; do
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              echo "Machine check failed: $result"
+              exit 1
+            fi
+          done
+
+          echo "All required machine checks passed."
