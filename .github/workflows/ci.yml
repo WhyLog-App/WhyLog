@@ -146,7 +146,7 @@ jobs:
         run: pnpm build
 
   review_harness:
-    name: review harness quality
+    name: AI review tooling tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
