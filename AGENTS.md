@@ -14,7 +14,7 @@ WhyLog 모노레포에서 개발자와 AI 에이전트가 따라야 하는 공�
 
 - [Architecture](docs/architecture.md): AI·Server·Web 연결 구조와 서비스 흐름
 - [Domain](docs/domain.md): 공통 용어와 비즈니스 규칙
-- [Decisions](docs/decisions/): 회의에서 확정된 결정 사항, `YYYY-MM.md`로 월별 관리
+- [Decisions](docs/decisions/README.md): 회의에서 확정된 결정 사항, `YYYY-MM.md`로 월별 관리
 - [PR Reviews](docs/pr-reviews/README.md): PR별 CI 리뷰 기록 형식과 조회 규칙
 
 ## 저장소 구조
