@@ -14,7 +14,7 @@ WhyLog 모노레포에서 개발자와 AI 에이전트가 따라야 하는 공�
 
 - [Architecture](docs/architecture.md): AI·Server·Web 연결 구조와 서비스 흐름
 - [Domain](docs/domain.md): 공통 용어와 비즈니스 규칙
-- [Decisions](docs/decisions/README.md): 월별 회의 결정 기록 인덱스
+- [Decisions](docs/decisions/README.md): 회의에서 확정된 결정 사항, `YYYY-MM.md`로 월별 관리
 - [PR Reviews](docs/pr-reviews/README.md): PR별 CI 리뷰 기록 형식과 조회 규칙
 
 ## 저장소 구조
@@ -32,7 +32,7 @@ WhyLog 모노레포에서 개발자와 AI 에이전트가 따라야 하는 공�
 - 각 파트에 문서를 추가하거나 경로를 변경하면 해당 파트의 문서 목차도 함께 갱신합니다.
 - 파트 문서 구성이 변경되면 루트의 파트별 문서 인덱스도 함께 갱신합니다.
 - 파트 목차와 루트 인덱스 중 하나만 누락된 경우 기록성 수정으로 보고 바로 PR로 반영합니다.
-- 회의에서 확정된 결정은 `docs/decisions/YYYY/MM/decisions.md`에 월 단위로 기록합니다. 해당 월 파일이 없을 때만 새로 만들고 `docs/decisions/README.md` 인덱스를 갱신합니다.
+- 회의에서 확정된 결정은 `docs/decisions/YYYY-MM.md`에 월 단위로 기록합니다. 해당 월 파일이 없을 때만 새로 만들고 `docs/decisions/README.md` 인덱스를 갱신합니다.
 - `docs/pr-reviews/`는 규칙이 아닌 실행 기록입니다. 에이전트는 현재 작업과 관련된 PR 문서만 선택해서 읽습니다.
 - AI가 회의 녹음에서 뽑은 초안은 그대로 머지하지 않습니다. 기록 담당이 결정만 남기고 서술·요약·배경 설명을 걷어낸 뒤 PR을 올립니다. 월별 `decisions.md`에는 결정 한 줄과 날짜만 들어갑니다.
 
