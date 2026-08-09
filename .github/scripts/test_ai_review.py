@@ -163,6 +163,10 @@ class ContextAndPromptTest(unittest.TestCase):
             (workspace / "server" / "docs" / "ignored.txt").write_text(
                 "do-not-read", encoding="utf-8"
             )
+            (workspace / "docs" / "pr-reviews").mkdir(parents=True)
+            (workspace / "docs" / "pr-reviews" / "PR-7.md").write_text(
+                "old-review-must-not-be-trusted", encoding="utf-8"
+            )
 
             context = ai_review.collect_context(workspace)
 
@@ -172,6 +176,7 @@ class ContextAndPromptTest(unittest.TestCase):
         self.assertIn("web-rule", context)
         self.assertIn("review-rule", context)
         self.assertNotIn("do-not-read", context)
+        self.assertNotIn("old-review-must-not-be-trusted", context)
 
     def test_diff_marks_binary_and_truncation(self) -> None:
         payload = ai_review.build_diff_payload(
@@ -187,6 +192,19 @@ class ContextAndPromptTest(unittest.TestCase):
         self.assertIn("바이너리", payload)
         self.assertIn("파일 패치 잘림", payload)
         self.assertIn("조회 상한", payload)
+
+    def test_generated_pr_review_docs_are_not_reviewed_again(self) -> None:
+        files = [
+            {"filename": "server/Test.java", "patch": "+change"},
+            {
+                "filename": "docs/pr-reviews/PR-7.md",
+                "patch": "+generated review",
+            },
+        ]
+
+        filtered = ai_review.filter_reviewable_files(files)
+
+        self.assertEqual([item["filename"] for item in filtered], ["server/Test.java"])
 
     def test_prompt_separates_trusted_and_untrusted_input(self) -> None:
         user = ai_review.build_user_prompt(
@@ -236,6 +254,26 @@ class CommentRenderingTest(unittest.TestCase):
         self.assertIn("### 차단", comment)
         self.assertIn("### 제안", comment)
         self.assertIn("server/Test.java:7", comment)
+
+    def test_renders_inline_and_document_publish_status(self) -> None:
+        result = ai_review.ProviderResult(
+            "Google",
+            ai_review.GEMINI_MODEL,
+            ai_review.Review("요약", (), ()),
+        )
+        inline = ai_review.review_publishing.InlinePublishResult(
+            created_review=True,
+            posted=2,
+            updated=1,
+            resolved=1,
+            fallback_findings=({"file": "README.md"},),
+        )
+
+        comment = ai_review.render_comment(result, inline, "artifact 생성")
+
+        self.assertIn("신규 2", comment)
+        self.assertIn("요약 대체 1", comment)
+        self.assertIn("artifact 생성", comment)
 
     @mock.patch.object(ai_review, "github_request")
     def test_creates_comment_when_marker_is_absent(
@@ -321,6 +359,7 @@ class EndToEndWiringTest(unittest.TestCase):
                             "title": "test",
                             "head": {
                                 "ref": "feature",
+                                "sha": "abc123",
                                 "repo": {"full_name": "WhyLog-App/WhyLog"},
                             },
                             "base": {
@@ -351,12 +390,286 @@ class EndToEndWiringTest(unittest.TestCase):
                 "REPOSITORY_IS_PRIVATE": "false",
             }
 
-            with mock.patch.dict(ai_review.os.environ, environment, clear=True):
+            inline_result = ai_review.review_publishing.InlinePublishResult(
+                created_review=False,
+                posted=0,
+                updated=0,
+                resolved=0,
+                fallback_findings=(),
+            )
+            with (
+                mock.patch.dict(ai_review.os.environ, environment, clear=True),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "generated_doc_only_parent_sha",
+                    return_value=None,
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "fetch_existing_review_doc",
+                    return_value=(None, None),
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "publish_inline_review_comments",
+                    return_value=inline_result,
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "pull_request_head_matches",
+                    return_value=True,
+                ),
+            ):
                 result = ai_review.run()
 
         self.assertEqual(result, 0)
         review_with_fallback.assert_called_once()
+        self.assertEqual(upsert_pr_comment.call_count, 2)
+
+    @mock.patch.object(ai_review, "upsert_pr_comment")
+    @mock.patch.object(ai_review, "review_with_fallback")
+    @mock.patch.object(ai_review, "fetch_pr_files")
+    def test_generated_doc_commit_reuses_verified_blocking_result(
+        self,
+        fetch_pr_files: mock.Mock,
+        review_with_fallback: mock.Mock,
+        upsert_pr_comment: mock.Mock,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            (workspace / "AGENTS.md").write_text("trusted rule", encoding="utf-8")
+            pull_request = {
+                "title": "test",
+                "html_url": "https://github.com/WhyLog-App/WhyLog/pull/7",
+                "head": {
+                    "ref": "feature",
+                    "sha": "doc-commit-sha",
+                    "repo": {"full_name": "WhyLog-App/WhyLog"},
+                },
+                "base": {
+                    "ref": "main",
+                    "repo": {"full_name": "WhyLog-App/WhyLog"},
+                },
+            }
+            event_path = workspace / "event.json"
+            event_path.write_text(
+                json.dumps({"number": 7, "pull_request": pull_request}),
+                encoding="utf-8",
+            )
+            files = [{"filename": "server/Test.java", "patch": "+change"}]
+            fetch_pr_files.return_value = (files, False)
+            trusted_context = ai_review.collect_context(workspace)
+            diff_payload = ai_review.build_diff_payload(files, False)
+            digest = ai_review.build_review_input_digest(trusted_context, diff_payload)
+            blocker = ai_review.Finding(
+                title="차단 유지",
+                file="server/Test.java",
+                line=1,
+                reason="계약 위반",
+                rule_reference="server/AGENTS.md",
+                recommendation="수정",
+            )
+            previous_document = ai_review.review_publishing.render_pr_review_document(
+                7,
+                pull_request,
+                ai_review.ProviderResult(
+                    "Google",
+                    ai_review.GEMINI_MODEL,
+                    ai_review.Review("이전 검토", (blocker,), ()),
+                ),
+                None,
+                head_sha="reviewed-parent-sha",
+                review_input_digest=digest,
+                state_signing_secret="push-token",
+            )
+            environment = {
+                "GITHUB_EVENT_PATH": str(event_path),
+                "GITHUB_WORKSPACE": str(workspace),
+                "GITHUB_REPOSITORY": "WhyLog-App/WhyLog",
+                "GITHUB_TOKEN": "github-token",
+                "GEMINI_API_KEY": "gemini-key",
+                "OPENROUTER_API_KEY": "openrouter-key",
+                "AI_REVIEW_PUSH_TOKEN": "push-token",
+                "REPOSITORY_IS_PRIVATE": "false",
+            }
+
+            with (
+                mock.patch.dict(ai_review.os.environ, environment, clear=True),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "generated_doc_only_parent_sha",
+                    return_value="reviewed-parent-sha",
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "fetch_existing_review_doc",
+                    return_value=(previous_document, "doc-sha"),
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "publish_inline_review_comments",
+                ) as publish_inline,
+            ):
+                result = ai_review.run()
+
+        self.assertEqual(result, 1)
+        review_with_fallback.assert_not_called()
+        publish_inline.assert_not_called()
         upsert_pr_comment.assert_called_once()
+        self.assertIn("이전 판단 유지", upsert_pr_comment.call_args.args[-1])
+        self.assertIn("차단 유지", upsert_pr_comment.call_args.args[-1])
+
+    def test_run_does_not_publish_when_head_changed_during_review(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            environment = {
+                "GITHUB_EVENT_PATH": str(workspace / "event.json"),
+                "GITHUB_WORKSPACE": str(workspace),
+                "GITHUB_REPOSITORY": "WhyLog-App/WhyLog",
+                "GITHUB_TOKEN": "github-token",
+                "GEMINI_API_KEY": "gemini-key",
+                "REPOSITORY_IS_PRIVATE": "false",
+            }
+            pull_request = {
+                "head": {
+                    "ref": "feature",
+                    "sha": "reviewed-sha",
+                    "repo": {"full_name": "WhyLog-App/WhyLog"},
+                },
+                "base": {
+                    "ref": "main",
+                    "repo": {"full_name": "WhyLog-App/WhyLog"},
+                },
+            }
+            provider_result = ai_review.ProviderResult(
+                "Google",
+                ai_review.GEMINI_MODEL,
+                ai_review.Review("검토 완료", (), ()),
+            )
+            with (
+                mock.patch.dict(ai_review.os.environ, environment, clear=True),
+                mock.patch.object(
+                    ai_review, "_load_event", return_value=(7, pull_request)
+                ),
+                mock.patch.object(ai_review, "collect_context", return_value="context"),
+                mock.patch.object(
+                    ai_review, "load_system_prompt", return_value="prompt"
+                ),
+                mock.patch.object(
+                    ai_review, "fetch_pr_files", return_value=([], False)
+                ),
+                mock.patch.object(
+                    ai_review, "review_with_fallback", return_value=provider_result
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "generated_doc_only_parent_sha",
+                    return_value=None,
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "fetch_existing_review_doc",
+                    return_value=(None, None),
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "pull_request_head_matches",
+                    return_value=False,
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "publish_inline_review_comments",
+                ) as publish_inline,
+                mock.patch.object(
+                    ai_review.review_publishing, "sync_pr_review_document"
+                ) as sync_document,
+                mock.patch.object(ai_review, "upsert_pr_comment") as upsert_comment,
+            ):
+                result = ai_review.run()
+
+        self.assertEqual(result, 0)
+        publish_inline.assert_not_called()
+        sync_document.assert_not_called()
+        upsert_comment.assert_not_called()
+
+    def test_unexpected_document_sync_failure_fails_review_job(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            environment = {
+                "GITHUB_EVENT_PATH": str(workspace / "event.json"),
+                "GITHUB_WORKSPACE": str(workspace),
+                "GITHUB_REPOSITORY": "WhyLog-App/WhyLog",
+                "GITHUB_TOKEN": "github-token",
+                "GEMINI_API_KEY": "gemini-key",
+                "AI_REVIEW_PUSH_TOKEN": "push-token",
+                "REPOSITORY_IS_PRIVATE": "false",
+            }
+            pull_request = {
+                "head": {
+                    "ref": "feature",
+                    "sha": "reviewed-sha",
+                    "repo": {"full_name": "WhyLog-App/WhyLog"},
+                },
+                "base": {
+                    "ref": "main",
+                    "repo": {"full_name": "WhyLog-App/WhyLog"},
+                },
+            }
+            provider_result = ai_review.ProviderResult(
+                "Google",
+                ai_review.GEMINI_MODEL,
+                ai_review.Review("검토 완료", (), ()),
+            )
+            inline_result = ai_review.review_publishing.InlinePublishResult(
+                False, 0, 0, 0, ()
+            )
+            with (
+                mock.patch.dict(ai_review.os.environ, environment, clear=True),
+                mock.patch.object(
+                    ai_review, "_load_event", return_value=(7, pull_request)
+                ),
+                mock.patch.object(ai_review, "collect_context", return_value="context"),
+                mock.patch.object(
+                    ai_review, "load_system_prompt", return_value="prompt"
+                ),
+                mock.patch.object(
+                    ai_review, "fetch_pr_files", return_value=([], False)
+                ),
+                mock.patch.object(
+                    ai_review, "review_with_fallback", return_value=provider_result
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "generated_doc_only_parent_sha",
+                    return_value=None,
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "fetch_existing_review_doc",
+                    return_value=(None, None),
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "pull_request_head_matches",
+                    return_value=True,
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "publish_inline_review_comments",
+                    return_value=inline_result,
+                ),
+                mock.patch.object(
+                    ai_review.review_publishing,
+                    "sync_pr_review_document",
+                    side_effect=RuntimeError("sync failed"),
+                ),
+                mock.patch.object(ai_review, "upsert_pr_comment") as upsert_comment,
+            ):
+                result = ai_review.run()
+
+        self.assertEqual(result, 1)
+        self.assertEqual(upsert_comment.call_count, 2)
+        self.assertIn("저장소 동기화 실패", upsert_comment.call_args.args[-1])
 
 
 if __name__ == "__main__":

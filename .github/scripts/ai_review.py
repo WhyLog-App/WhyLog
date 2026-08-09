@@ -8,6 +8,7 @@ as untrusted text; pull request code is never executed in the secret-bearing job
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -19,6 +20,8 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, TypeVar
+
+import review_publishing
 
 COMMENT_MARKER = "<!-- whylog-ai-review -->"
 GEMINI_MODEL = "gemini-3.6-flash"
@@ -353,7 +356,10 @@ def collect_context(workspace: Path) -> str:
     for path in sorted(set(candidates)):
         if not path.is_file():
             continue
-        relative = path.relative_to(workspace).as_posix()
+        relative_path = path.relative_to(workspace)
+        if relative_path.parts[:2] == ("docs", "pr-reviews"):
+            continue
+        relative = relative_path.as_posix()
         content = _safe_read(path, workspace)
         if len(content) > MAX_CONTEXT_FILE_CHARS:
             content = content[:MAX_CONTEXT_FILE_CHARS] + "\n[파일 내용 잘림]"
@@ -461,6 +467,20 @@ def build_diff_payload(
     return json.dumps(records, ensure_ascii=False, indent=2)
 
 
+def filter_reviewable_files(files: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        item
+        for item in files
+        if not review_publishing.is_pr_review_doc_path(str(item.get("filename", "")))
+    ]
+
+
+def build_review_input_digest(trusted_context: str, diff_payload: str) -> str:
+    return hashlib.sha256(
+        f"{trusted_context}\n{diff_payload}".encode("utf-8")
+    ).hexdigest()
+
+
 def load_system_prompt(workspace: Path) -> str:
     prompt_path = workspace / SYSTEM_PROMPT_PATH
     if not prompt_path.is_file():
@@ -515,7 +535,49 @@ def _render_findings(findings: tuple[Finding, ...]) -> str:
     return "\n\n".join(sections)
 
 
-def render_comment(result: ProviderResult) -> str:
+def provider_result_from_review_state(state: dict[str, Any]) -> ProviderResult:
+    provider = state.get("provider")
+    model = state.get("model")
+    summary = state.get("summary")
+    values = state.get("findings")
+    if (
+        not isinstance(provider, str)
+        or not provider.strip()
+        or not isinstance(model, str)
+        or not model.strip()
+        or not isinstance(summary, str)
+        or not summary.strip()
+        or not isinstance(values, list)
+    ):
+        raise ReviewError("signed PR review state is incomplete")
+
+    grouped: dict[str, list[Finding]] = {"blocking": [], "suggestions": []}
+    for index, value in enumerate(values[: 2 * MAX_FINDINGS_PER_KIND]):
+        if not isinstance(value, dict):
+            raise ReviewError("signed PR review finding must be an object")
+        kind = value.get("kind")
+        if kind not in grouped:
+            raise ReviewError("signed PR review finding kind is invalid")
+        grouped[kind].append(_validate_finding(value, kind, index))
+    if any(len(items) > MAX_FINDINGS_PER_KIND for items in grouped.values()):
+        raise ReviewError("signed PR review state exceeded the finding limit")
+
+    return ProviderResult(
+        provider.strip(),
+        model.strip(),
+        Review(
+            summary.strip(),
+            tuple(grouped["blocking"]),
+            tuple(grouped["suggestions"]),
+        ),
+    )
+
+
+def render_comment(
+    result: ProviderResult,
+    inline_result: review_publishing.InlinePublishResult | None = None,
+    document_status: str | None = None,
+) -> str:
     fallback = ""
     if result.fallback_reason:
         fallback = (
@@ -523,12 +585,25 @@ def render_comment(result: ProviderResult) -> str:
             f"`{result.fallback_reason}`\n"
         )
     verdict = "❌ 차단 항목 있음" if result.review.blocking else "✅ 차단 항목 없음"
+    publishing = ""
+    if inline_result is not None:
+        publishing = (
+            "\n**인라인:** "
+            f"신규 {inline_result.posted} · 갱신 {inline_result.updated} · "
+            f"재검출 안 됨 {inline_result.resolved} · "
+            f"요약 대체 {len(inline_result.fallback_findings)}"
+        )
+        if inline_result.post_failed_fallback:
+            publishing += " (GitHub가 줄 코멘트를 거부해 요약으로 대체)"
+    if document_status:
+        publishing += f"\n**PR 리뷰 문서:** {document_status}"
     return f"""{COMMENT_MARKER}
 ## WhyLog AI 리뷰
 
 **결과:** {verdict} · **모델:** {result.provider} `{result.model}`
 {fallback}
 {result.review.summary}
+{publishing}
 
 ### 차단
 
@@ -645,18 +720,75 @@ def run() -> int:
     github_token = os.environ["GITHUB_TOKEN"]
     gemini_api_key = os.environ.get("GEMINI_API_KEY", "")
     openrouter_api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    push_token = os.environ.get("AI_REVIEW_PUSH_TOKEN", "")
 
     pr_number, pull_request = _load_event(event_path)
     _assert_internal_pull_request(pull_request)
     _assert_public_repository(os.environ.get("REPOSITORY_IS_PRIVATE", ""))
+    head = pull_request.get("head", {})
+    if not isinstance(head, dict):
+        raise ReviewError("pull request head payload is invalid")
+    head_ref = str(head.get("ref", ""))
+    head_sha = str(head.get("sha", ""))
+    if not head_ref or not head_sha:
+        raise ReviewError("pull request head ref and sha are required")
+
+    generated_doc_parent = review_publishing.generated_doc_only_parent_sha(
+        api_url,
+        github_token,
+        repository,
+        pull_request,
+        github_request,
+    )
+    generated_doc_only = generated_doc_parent is not None
     files, omitted = fetch_pr_files(
         api_url,
         github_token,
         repository,
         pr_number,
     )
+    reviewable_files = filter_reviewable_files(files)
+    previous_document, _ = review_publishing.fetch_existing_review_doc(
+        api_url,
+        github_token,
+        repository,
+        pr_number,
+        head_ref,
+        github_request,
+    )
     trusted_context = collect_context(workspace)
-    diff_payload = build_diff_payload(files, omitted)
+    diff_payload = build_diff_payload(reviewable_files, omitted)
+    review_input_digest = build_review_input_digest(trusted_context, diff_payload)
+
+    if generated_doc_parent and previous_document:
+        previous_state = review_publishing.verified_pr_review_state(
+            previous_document, push_token
+        )
+        if (
+            previous_state
+            and previous_state.get("head_sha") == generated_doc_parent
+            and previous_state.get("review_input_digest") == review_input_digest
+        ):
+            preserved_result = provider_result_from_review_state(previous_state)
+            review_publishing.write_local_review_doc(
+                workspace, pr_number, previous_document
+            )
+            document_path = review_publishing.pr_review_doc_path(pr_number)
+            upsert_pr_comment(
+                api_url,
+                github_token,
+                repository,
+                pr_number,
+                render_comment(
+                    preserved_result,
+                    document_status=(
+                        f"`{document_path}` 서명·부모 SHA·입력 digest 확인 · "
+                        "이전 판단 유지"
+                    ),
+                ),
+            )
+            return 1 if preserved_result.review.blocking else 0
+
     system_prompt = load_system_prompt(workspace)
     user_prompt = build_user_prompt(
         pull_request,
@@ -670,13 +802,110 @@ def run() -> int:
         gemini_api_key,
         openrouter_api_key,
     )
+    document = review_publishing.render_pr_review_document(
+        pr_number,
+        pull_request,
+        result,
+        previous_document,
+        head_sha=head_sha,
+        review_input_digest=review_input_digest,
+        state_signing_secret=push_token,
+    )
+    review_publishing.write_local_review_doc(workspace, pr_number, document)
+    if not review_publishing.pull_request_head_matches(
+        api_url,
+        github_token,
+        repository,
+        pr_number,
+        head_ref,
+        head_sha,
+        github_request,
+    ):
+        print(
+            "PR head changed during AI review; skipped stale inline comments and document sync."
+        )
+        return 1 if result.review.blocking else 0
+
+    inline_result = review_publishing.publish_inline_review_comments(
+        api_url,
+        github_token,
+        repository,
+        pr_number,
+        head_sha,
+        reviewable_files,
+        result,
+        github_request,
+    )
+
+    document_path = review_publishing.pr_review_doc_path(pr_number)
+    if generated_doc_only:
+        document_status = f"`{document_path}` 자동 생성 커밋의 재실행이라 저장소 재동기화를 생략했습니다."
+    elif not push_token:
+        document_status = (
+            f"`{document_path}` artifact 생성 · `AI_REVIEW_PUSH_TOKEN` 미설정"
+        )
+    elif head_ref in review_publishing.PROTECTED_DOC_SYNC_HEADS:
+        document_status = (
+            f"`{document_path}` artifact 생성 · 보호 브랜치 자동 커밋 생략"
+        )
+    else:
+        document_status = f"`{document_path}` artifact 생성 · PR 브랜치 동기화 중"
+
     upsert_pr_comment(
         api_url,
         github_token,
         repository,
         pr_number,
-        render_comment(result),
+        render_comment(result, inline_result, document_status),
     )
+
+    if not generated_doc_only:
+        try:
+            sync_result = review_publishing.sync_pr_review_document(
+                api_url,
+                push_token,
+                repository,
+                pr_number,
+                head_ref,
+                document,
+                workspace,
+                github_request,
+                expected_head_sha=head_sha,
+            )
+            status_labels = {
+                "artifact-only": "artifact만 생성했습니다.",
+                "protected-head-skipped": "보호 브랜치라 artifact만 생성했습니다.",
+                "stale-head-skipped": "리뷰 도중 HEAD가 바뀌어 artifact만 생성했습니다.",
+                "unchanged": "기존 저장소 문서와 동일합니다.",
+                "synced": "PR 브랜치에 동기화했습니다.",
+            }
+            document_status = (
+                f"`{sync_result.path}` "
+                f"{status_labels.get(sync_result.mode, sync_result.mode)}"
+            )
+            upsert_pr_comment(
+                api_url,
+                github_token,
+                repository,
+                pr_number,
+                render_comment(result, inline_result, document_status),
+            )
+        except Exception as error:
+            message = _redact(
+                f"{type(error).__name__}: {error}",
+                (github_token, gemini_api_key, openrouter_api_key, push_token),
+            )
+            document_status = (
+                f"`{document_path}` artifact만 생성 · 저장소 동기화 실패: `{message}`"
+            )
+            upsert_pr_comment(
+                api_url,
+                github_token,
+                repository,
+                pr_number,
+                render_comment(result, inline_result, document_status),
+            )
+            return 1
     return 1 if result.review.blocking else 0
 
 
@@ -685,6 +914,7 @@ def main() -> int:
         os.environ.get("GITHUB_TOKEN", ""),
         os.environ.get("GEMINI_API_KEY", ""),
         os.environ.get("OPENROUTER_API_KEY", ""),
+        os.environ.get("AI_REVIEW_PUSH_TOKEN", ""),
     )
     try:
         return run()

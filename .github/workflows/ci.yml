@@ -146,7 +146,7 @@ jobs:
         run: pnpm build
 
   review_harness:
-    name: review harness quality
+    name: AI review tooling tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -206,10 +206,20 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          AI_REVIEW_PUSH_TOKEN: ${{ secrets.AI_REVIEW_PUSH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY_IS_PRIVATE: ${{ github.event.repository.private }}
           PYTHONUNBUFFERED: "1"
         run: python .github/scripts/ai_review.py
+
+      - name: Upload PR review document
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: pr-review-${{ github.event.pull_request.number }}
+          path: docs/pr-reviews/PR-${{ github.event.pull_request.number }}.md
+          if-no-files-found: ignore
+          retention-days: 30
 
   quality:
     name: quality gate
