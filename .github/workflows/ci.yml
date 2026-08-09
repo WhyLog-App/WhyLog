@@ -197,12 +197,24 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
 
+      - name: Detect trusted reviewer
+        id: trusted-reviewer
+        run: |
+          if [ -f .github/scripts/ai_review.py ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Trusted base does not contain the AI reviewer; skipping bootstrap review."
+          fi
+
       - name: Set up Python
+        if: steps.trusted-reviewer.outputs.available == 'true'
         uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 
       - name: Review pull request
+        if: steps.trusted-reviewer.outputs.available == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -213,7 +225,7 @@ jobs:
         run: python .github/scripts/ai_review.py
 
       - name: Upload PR review document
-        if: always()
+        if: always() && steps.trusted-reviewer.outputs.available == 'true'
         uses: actions/upload-artifact@v6
         with:
           name: pr-review-${{ github.event.pull_request.number }}
