@@ -17,7 +17,10 @@ const UseCasesSection = () => (
 
       <div className="reveal-stagger grid grid-cols-1 md:grid-cols-3 gap-6">
         {USE_CASES.map((c) => (
-          <article key={c.id} className="glass card-lift rounded-3xl p-6 sm:p-8">
+          <article
+            key={c.id}
+            className="glass card-lift rounded-3xl p-6 sm:p-8"
+          >
             <div
               className="w-14 h-14 rounded-full mb-6 flex items-center justify-center text-white font-bold text-[16px]"
               style={{ background: c.gradient, boxShadow: c.shadow }}
