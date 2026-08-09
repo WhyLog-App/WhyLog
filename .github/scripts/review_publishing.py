@@ -30,6 +30,51 @@ MAX_STATE_CHARS = 80_000
 MAX_HISTORY = 20
 PROTECTED_DOC_SYNC_HEADS = {"main", "develop"}
 
+REVIEW_THREADS_QUERY = """
+query WhyLogReviewThreads(
+  $owner: String!
+  $name: String!
+  $number: Int!
+  $after: String
+) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      reviewThreads(first: 100, after: $after) {
+        nodes {
+          id
+          isResolved
+          viewerCanResolve
+          viewerCanUnresolve
+          comments(first: 1) {
+            nodes { id }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}
+"""
+
+RESOLVE_REVIEW_THREAD_MUTATION = """
+mutation WhyLogResolveReviewThread($threadId: ID!) {
+  resolveReviewThread(input: {threadId: $threadId}) {
+    thread { id isResolved }
+  }
+}
+"""
+
+UNRESOLVE_REVIEW_THREAD_MUTATION = """
+mutation WhyLogUnresolveReviewThread($threadId: ID!) {
+  unresolveReviewThread(input: {threadId: $threadId}) {
+    thread { id isResolved }
+  }
+}
+"""
+
 
 class GithubRequest(Protocol):
     def __call__(
@@ -66,6 +111,14 @@ class InlinePublishResult:
     resolved: int
     fallback_findings: tuple[dict[str, Any], ...]
     post_failed_fallback: str | None = None
+
+
+@dataclass(frozen=True)
+class ReviewThreadState:
+    id: str
+    is_resolved: bool
+    viewer_can_resolve: bool
+    viewer_can_unresolve: bool
 
 
 @dataclass(frozen=True)
@@ -326,6 +379,169 @@ def _is_status_error(error: Exception, status: int) -> bool:
     return getattr(error, "status", None) == status or f"HTTP {status}" in str(error)
 
 
+def _github_graphql(
+    api_url: str,
+    token: str,
+    query: str,
+    variables: Mapping[str, Any],
+    github_request: GithubRequest,
+) -> Mapping[str, Any]:
+    response = github_request(
+        api_url,
+        token,
+        "/graphql",
+        method="POST",
+        payload={"query": query, "variables": dict(variables)},
+    )
+    if not isinstance(response, Mapping):
+        raise ValueError("GitHub GraphQL returned an invalid response")
+    errors = response.get("errors")
+    if errors:
+        raise ValueError(f"GitHub GraphQL returned errors: {_one_line(errors, 500)}")
+    data = response.get("data")
+    if not isinstance(data, Mapping):
+        raise ValueError("GitHub GraphQL response did not contain data")
+    return data
+
+
+def _list_review_thread_states(
+    api_url: str,
+    token: str,
+    repository: str,
+    pr_number: int,
+    github_request: GithubRequest,
+) -> dict[str, ReviewThreadState]:
+    owner, separator, name = repository.partition("/")
+    if not separator or not owner or not name or "/" in name:
+        raise ValueError("repository must use the owner/name format")
+
+    states: dict[str, ReviewThreadState] = {}
+    cursor: str | None = None
+    for _ in range(10):
+        data = _github_graphql(
+            api_url,
+            token,
+            REVIEW_THREADS_QUERY,
+            {
+                "owner": owner,
+                "name": name,
+                "number": pr_number,
+                "after": cursor,
+            },
+            github_request,
+        )
+        repository_data = data.get("repository")
+        pull_request = (
+            repository_data.get("pullRequest")
+            if isinstance(repository_data, Mapping)
+            else None
+        )
+        threads = (
+            pull_request.get("reviewThreads")
+            if isinstance(pull_request, Mapping)
+            else None
+        )
+        if not isinstance(threads, Mapping):
+            raise ValueError("GitHub GraphQL did not return pull request review threads")
+
+        nodes = threads.get("nodes")
+        if not isinstance(nodes, list):
+            raise ValueError("GitHub GraphQL returned invalid review thread nodes")
+        for node in nodes:
+            if not isinstance(node, Mapping):
+                continue
+            thread_id = _string(node.get("id"))
+            comments = node.get("comments")
+            comment_nodes = (
+                comments.get("nodes") if isinstance(comments, Mapping) else None
+            )
+            if not thread_id or not isinstance(comment_nodes, list):
+                continue
+            state = ReviewThreadState(
+                id=thread_id,
+                is_resolved=node.get("isResolved") is True,
+                viewer_can_resolve=node.get("viewerCanResolve") is True,
+                viewer_can_unresolve=node.get("viewerCanUnresolve") is True,
+            )
+            for comment in comment_nodes:
+                if not isinstance(comment, Mapping):
+                    continue
+                comment_node_id = _string(comment.get("id"))
+                if comment_node_id:
+                    states[comment_node_id] = state
+
+        page_info = threads.get("pageInfo")
+        if not isinstance(page_info, Mapping):
+            raise ValueError("GitHub GraphQL returned invalid review thread pagination")
+        if page_info.get("hasNextPage") is not True:
+            return states
+        cursor = _string(page_info.get("endCursor")) or None
+        if cursor is None:
+            raise ValueError("GitHub GraphQL omitted the next review thread cursor")
+
+    raise ValueError("GitHub GraphQL review thread pagination exceeded 10 pages")
+
+
+def _set_review_thread_resolved(
+    api_url: str,
+    token: str,
+    state: ReviewThreadState,
+    resolved: bool,
+    github_request: GithubRequest,
+) -> None:
+    if state.is_resolved == resolved:
+        return
+    if resolved:
+        if not state.viewer_can_resolve:
+            raise PermissionError("GitHub token cannot resolve this review thread")
+        mutation = RESOLVE_REVIEW_THREAD_MUTATION
+        operation = "resolveReviewThread"
+    else:
+        if not state.viewer_can_unresolve:
+            raise PermissionError("GitHub token cannot unresolve this review thread")
+        mutation = UNRESOLVE_REVIEW_THREAD_MUTATION
+        operation = "unresolveReviewThread"
+
+    data = _github_graphql(
+        api_url,
+        token,
+        mutation,
+        {"threadId": state.id},
+        github_request,
+    )
+    result = data.get(operation)
+    thread = result.get("thread") if isinstance(result, Mapping) else None
+    if (
+        not isinstance(thread, Mapping)
+        or _string(thread.get("id")) != state.id
+        or (thread.get("isResolved") is True) != resolved
+    ):
+        raise ValueError(f"GitHub GraphQL did not {operation} as requested")
+
+
+def _set_inline_comment_thread_resolved(
+    api_url: str,
+    token: str,
+    comment: Mapping[str, Any],
+    thread_states: Mapping[str, ReviewThreadState],
+    resolved: bool,
+    github_request: GithubRequest,
+) -> None:
+    comment_node_id = _string(comment.get("node_id"))
+    if not comment_node_id:
+        raise ValueError("GitHub review comment did not contain a node_id")
+    state = thread_states.get(comment_node_id)
+    if state is None:
+        raise ValueError("GitHub GraphQL did not return the review comment thread")
+    _set_review_thread_resolved(
+        api_url,
+        token,
+        state,
+        resolved,
+        github_request,
+    )
+
+
 def _inline_comment_matches_current_location(
     existing: Mapping[str, Any], planned: InlineComment, commit_id: str
 ) -> bool:
@@ -351,6 +567,13 @@ def publish_inline_review_comments(
     existing = _list_existing_inline_comments(
         api_url, token, repository, pr_number, github_request
     )
+    thread_states = (
+        _list_review_thread_states(
+            api_url, token, repository, pr_number, github_request
+        )
+        if existing
+        else {}
+    )
     current = {comment.fingerprint: comment for comment in plan.comments}
     updated = 0
     resolved = 0
@@ -369,6 +592,14 @@ def publish_inline_review_comments(
             if item.get("id") is not None and item not in matching_comments
         ]
         for replaced in replaced_comments:
+            _set_inline_comment_thread_resolved(
+                api_url,
+                token,
+                replaced,
+                thread_states,
+                True,
+                github_request,
+            )
             github_request(
                 api_url,
                 token,
@@ -386,6 +617,14 @@ def publish_inline_review_comments(
         matching_comments.sort(key=lambda item: int(item["id"]))
         if matching_comments:
             old = matching_comments[-1]
+            _set_inline_comment_thread_resolved(
+                api_url,
+                token,
+                old,
+                thread_states,
+                False,
+                github_request,
+            )
             github_request(
                 api_url,
                 token,
@@ -395,6 +634,14 @@ def publish_inline_review_comments(
             )
             updated += 1
             for duplicate in matching_comments[:-1]:
+                _set_inline_comment_thread_resolved(
+                    api_url,
+                    token,
+                    duplicate,
+                    thread_states,
+                    True,
+                    github_request,
+                )
                 github_request(
                     api_url,
                     token,
@@ -421,6 +668,14 @@ def publish_inline_review_comments(
                 "<!-- whylog-ai-inline-resolved -->\n"
                 "현재 실행에서 재검출되지 않음(자동 추정). "
                 "사람이 실제 반영 여부를 확인하세요."
+            )
+            _set_inline_comment_thread_resolved(
+                api_url,
+                token,
+                old,
+                thread_states,
+                True,
+                github_request,
             )
             github_request(
                 api_url,

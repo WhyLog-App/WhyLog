@@ -66,6 +66,49 @@ class HttpError(Exception):
         super().__init__(f"HTTP {status}")
 
 
+def review_threads_response(*threads: tuple[int, bool]) -> dict:
+    return {
+        "data": {
+            "repository": {
+                "pullRequest": {
+                    "reviewThreads": {
+                        "nodes": [
+                            {
+                                "id": f"THREAD_{comment_id}",
+                                "isResolved": resolved,
+                                "viewerCanResolve": not resolved,
+                                "viewerCanUnresolve": resolved,
+                                "comments": {
+                                    "nodes": [{"id": f"COMMENT_{comment_id}"}]
+                                },
+                            }
+                            for comment_id, resolved in threads
+                        ],
+                        "pageInfo": {
+                            "hasNextPage": False,
+                            "endCursor": None,
+                        },
+                    }
+                }
+            }
+        }
+    }
+
+
+def review_thread_mutation_response(comment_id: int, resolved: bool) -> dict:
+    operation = "resolveReviewThread" if resolved else "unresolveReviewThread"
+    return {
+        "data": {
+            operation: {
+                "thread": {
+                    "id": f"THREAD_{comment_id}",
+                    "isResolved": resolved,
+                }
+            }
+        }
+    }
+
+
 class PatchParsingTest(unittest.TestCase):
     def test_parses_right_side_patch_lines(self):
         parsed = rp.parse_right_side_lines(files())
@@ -133,6 +176,7 @@ class InlinePublishTest(unittest.TestCase):
                 [
                     {
                         "id": 10,
+                        "node_id": "COMMENT_10",
                         "body": f"<!-- whylog-ai-inline-review: {fingerprint} --> old",
                         "user": {"type": "Bot"},
                         "commit_id": "abc",
@@ -142,11 +186,14 @@ class InlinePublishTest(unittest.TestCase):
                     },
                     {
                         "id": 11,
+                        "node_id": "COMMENT_11",
                         "body": "<!-- whylog-ai-inline-review: 0123456789abcdef01234567 --> old",
                         "user": {"type": "Bot"},
                     },
                 ],
+                review_threads_response((10, False), (11, False)),
                 {"id": 10},
+                review_thread_mutation_response(11, True),
                 {"id": 11},
             ]
         )
@@ -165,8 +212,10 @@ class InlinePublishTest(unittest.TestCase):
         self.assertEqual(published.posted, 0)
         self.assertEqual(published.updated, 1)
         self.assertEqual(published.resolved, 1)
-        self.assertIn("/pulls/comments/10", github.calls[1][0])
-        self.assertIn("재검출되지 않음", github.calls[2][2]["body"])
+        self.assertEqual(github.calls[1][0], "/graphql")
+        self.assertIn("/pulls/comments/10", github.calls[2][0])
+        self.assertIn("resolveReviewThread", github.calls[3][2]["query"])
+        self.assertIn("재검출되지 않음", github.calls[4][2]["body"])
 
     def test_posts_new_comments_individually_without_review_wrapper(self):
         github = FakeGitHub(responses=[[], {"id": 1}])
@@ -207,6 +256,7 @@ class InlinePublishTest(unittest.TestCase):
                 [
                     {
                         "id": 10,
+                        "node_id": "COMMENT_10",
                         "body": f"<!-- whylog-ai-inline-review: {fingerprint} --> old",
                         "user": {"type": "Bot"},
                         "commit_id": "abc",
@@ -216,6 +266,7 @@ class InlinePublishTest(unittest.TestCase):
                     },
                     {
                         "id": 11,
+                        "node_id": "COMMENT_11",
                         "body": f"<!-- whylog-ai-inline-review: {fingerprint} --> duplicate",
                         "user": {"type": "Bot"},
                         "commit_id": "abc",
@@ -224,7 +275,9 @@ class InlinePublishTest(unittest.TestCase):
                         "side": "RIGHT",
                     },
                 ],
+                review_threads_response((10, False), (11, False)),
                 {"id": 11},
+                review_thread_mutation_response(10, True),
                 {"id": 10},
             ]
         )
@@ -242,9 +295,92 @@ class InlinePublishTest(unittest.TestCase):
 
         self.assertEqual(published.updated, 1)
         self.assertEqual(published.resolved, 1)
-        self.assertIn("/pulls/comments/11", github.calls[1][0])
-        self.assertIn("/pulls/comments/10", github.calls[2][0])
-        self.assertIn("중복", github.calls[2][2]["body"])
+        self.assertIn("/pulls/comments/11", github.calls[2][0])
+        self.assertIn("resolveReviewThread", github.calls[3][2]["query"])
+        self.assertIn("/pulls/comments/10", github.calls[4][0])
+        self.assertIn("중복", github.calls[4][2]["body"])
+
+    def test_reappearing_finding_unresolves_existing_thread(self):
+        current = finding("block", "server/src/App.java", 2)
+        fingerprint = (
+            rp.build_inline_review_plan(files(), result(blocking=(current,)))
+            .comments[0]
+            .fingerprint
+        )
+        github = FakeGitHub(
+            responses=[
+                [
+                    {
+                        "id": 10,
+                        "node_id": "COMMENT_10",
+                        "body": f"<!-- whylog-ai-inline-review: {fingerprint} --> old",
+                        "user": {"type": "Bot"},
+                        "commit_id": "abc",
+                        "path": "server/src/App.java",
+                        "line": 2,
+                        "side": "RIGHT",
+                    }
+                ],
+                review_threads_response((10, True)),
+                review_thread_mutation_response(10, False),
+                {"id": 10},
+            ]
+        )
+
+        published = rp.publish_inline_review_comments(
+            "api",
+            "token",
+            "WhyLog-App/WhyLog",
+            7,
+            "abc",
+            files(),
+            result(blocking=(current,)),
+            github,
+        )
+
+        self.assertEqual(published.updated, 1)
+        self.assertIn("unresolveReviewThread", github.calls[2][2]["query"])
+        self.assertIn("/pulls/comments/10", github.calls[3][0])
+
+    def test_resolution_permission_failure_does_not_rewrite_comment(self):
+        threads = review_threads_response((10, False))
+        thread = threads["data"]["repository"]["pullRequest"]["reviewThreads"][
+            "nodes"
+        ][0]
+        thread["viewerCanResolve"] = False
+        github = FakeGitHub(
+            responses=[
+                [
+                    {
+                        "id": 10,
+                        "node_id": "COMMENT_10",
+                        "body": "<!-- whylog-ai-inline-review: 0123456789abcdef01234567 --> old",
+                        "user": {"type": "Bot"},
+                    }
+                ],
+                threads,
+            ]
+        )
+
+        with self.assertRaises(PermissionError):
+            rp.publish_inline_review_comments(
+                "api",
+                "token",
+                "WhyLog-App/WhyLog",
+                7,
+                "abc",
+                files(),
+                result(),
+                github,
+            )
+
+        self.assertEqual(
+            [call[0] for call in github.calls],
+            [
+                "/repos/WhyLog-App/WhyLog/pulls/7/comments?per_page=100&page=1",
+                "/graphql",
+            ],
+        )
 
     def test_old_commit_comment_is_replaced_on_current_commit(self):
         current = finding("block", "server/src/App.java", 2)
@@ -258,6 +394,7 @@ class InlinePublishTest(unittest.TestCase):
                 [
                     {
                         "id": 10,
+                        "node_id": "COMMENT_10",
                         "body": f"<!-- whylog-ai-inline-review: {fingerprint} --> old",
                         "user": {"type": "Bot"},
                         "commit_id": "old-commit",
@@ -266,6 +403,8 @@ class InlinePublishTest(unittest.TestCase):
                         "side": "RIGHT",
                     }
                 ],
+                review_threads_response((10, False)),
+                review_thread_mutation_response(10, True),
                 {"id": 10},
                 {"id": 20},
             ]
@@ -285,9 +424,10 @@ class InlinePublishTest(unittest.TestCase):
         self.assertEqual(published.posted, 1)
         self.assertEqual(published.updated, 0)
         self.assertEqual(published.resolved, 1)
-        self.assertIn("최신 자동 리뷰", github.calls[1][2]["body"])
-        self.assertEqual(github.calls[2][1], "POST")
-        self.assertEqual(github.calls[2][2]["commit_id"], "new-commit")
+        self.assertIn("resolveReviewThread", github.calls[2][2]["query"])
+        self.assertIn("최신 자동 리뷰", github.calls[3][2]["body"])
+        self.assertEqual(github.calls[4][1], "POST")
+        self.assertEqual(github.calls[4][2]["commit_id"], "new-commit")
 
     def test_one_rejected_comment_does_not_drop_other_inline_comments(self):
         github = FakeGitHub(
@@ -595,6 +735,8 @@ class ContentsSyncTest(unittest.TestCase):
             commit_call[2]["message"],
             "docs(docs): PR-7 리뷰 판단 근거 기록",
         )
+        self.assertNotIn("author", commit_call[2])
+        self.assertNotIn("committer", commit_call[2])
 
     def test_sync_stale_head_is_artifact_only(self):
         github = FakeGitHub(
