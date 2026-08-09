@@ -44,7 +44,6 @@ query WhyLogReviewThreads(
           id
           isResolved
           viewerCanResolve
-          viewerCanUnresolve
           comments(first: 1) {
             nodes { id }
           }
@@ -66,15 +65,6 @@ mutation WhyLogResolveReviewThread($threadId: ID!) {
   }
 }
 """
-
-UNRESOLVE_REVIEW_THREAD_MUTATION = """
-mutation WhyLogUnresolveReviewThread($threadId: ID!) {
-  unresolveReviewThread(input: {threadId: $threadId}) {
-    thread { id isResolved }
-  }
-}
-"""
-
 
 class GithubRequest(Protocol):
     def __call__(
@@ -118,7 +108,6 @@ class ReviewThreadState:
     id: str
     is_resolved: bool
     viewer_can_resolve: bool
-    viewer_can_unresolve: bool
 
 
 @dataclass(frozen=True)
@@ -461,7 +450,6 @@ def _list_review_thread_states(
                 id=thread_id,
                 is_resolved=node.get("isResolved") is True,
                 viewer_can_resolve=node.get("viewerCanResolve") is True,
-                viewer_can_unresolve=node.get("viewerCanUnresolve") is True,
             )
             for comment in comment_nodes:
                 if not isinstance(comment, Mapping):
@@ -482,74 +470,53 @@ def _list_review_thread_states(
     raise ValueError("GitHub GraphQL review thread pagination exceeded 10 pages")
 
 
-def _set_review_thread_resolved(
+def _resolve_review_thread(
     api_url: str,
     token: str,
     state: ReviewThreadState,
-    resolved: bool,
     github_request: GithubRequest,
-) -> None:
-    if state.is_resolved == resolved:
-        return
-    if resolved:
-        if not state.viewer_can_resolve:
-            raise PermissionError("GitHub token cannot resolve this review thread")
-        mutation = RESOLVE_REVIEW_THREAD_MUTATION
-        operation = "resolveReviewThread"
-    else:
-        if not state.viewer_can_unresolve:
-            raise PermissionError("GitHub token cannot unresolve this review thread")
-        mutation = UNRESOLVE_REVIEW_THREAD_MUTATION
-        operation = "unresolveReviewThread"
+) -> bool:
+    if state.is_resolved:
+        return False
+    if not state.viewer_can_resolve:
+        raise PermissionError("GitHub token cannot resolve this review thread")
 
     data = _github_graphql(
         api_url,
         token,
-        mutation,
+        RESOLVE_REVIEW_THREAD_MUTATION,
         {"threadId": state.id},
         github_request,
     )
-    result = data.get(operation)
+    result = data.get("resolveReviewThread")
     thread = result.get("thread") if isinstance(result, Mapping) else None
     if (
         not isinstance(thread, Mapping)
         or _string(thread.get("id")) != state.id
-        or (thread.get("isResolved") is True) != resolved
+        or thread.get("isResolved") is not True
     ):
-        raise ValueError(f"GitHub GraphQL did not {operation} as requested")
+        raise ValueError("GitHub GraphQL did not resolveReviewThread as requested")
+    return True
 
 
-def _set_inline_comment_thread_resolved(
+def _resolve_inline_comment_thread(
     api_url: str,
     token: str,
     comment: Mapping[str, Any],
     thread_states: Mapping[str, ReviewThreadState],
-    resolved: bool,
     github_request: GithubRequest,
-) -> None:
+) -> bool:
     comment_node_id = _string(comment.get("node_id"))
     if not comment_node_id:
         raise ValueError("GitHub review comment did not contain a node_id")
     state = thread_states.get(comment_node_id)
     if state is None:
         raise ValueError("GitHub GraphQL did not return the review comment thread")
-    _set_review_thread_resolved(
+    return _resolve_review_thread(
         api_url,
         token,
         state,
-        resolved,
         github_request,
-    )
-
-
-def _inline_comment_matches_current_location(
-    existing: Mapping[str, Any], planned: InlineComment, commit_id: str
-) -> bool:
-    return (
-        _string(existing.get("commit_id")) == commit_id
-        and _string(existing.get("path")) == planned.path
-        and _int(existing.get("line")) == planned.line
-        and _string(existing.get("side")) == "RIGHT"
     )
 
 
@@ -567,127 +534,38 @@ def publish_inline_review_comments(
     existing = _list_existing_inline_comments(
         api_url, token, repository, pr_number, github_request
     )
-    thread_states = (
-        _list_review_thread_states(
+    current = {comment.fingerprint: comment for comment in plan.comments}
+    resolved = 0
+    new_comments = [
+        comment
+        for fingerprint, comment in current.items()
+        if not any(
+            item.get("id") is not None for item in existing.get(fingerprint, [])
+        )
+    ]
+    stale_comments = [
+        old
+        for fingerprint, old_comments in existing.items()
+        if fingerprint not in current
+        for old in old_comments
+        if old.get("id") is not None
+    ]
+    if stale_comments:
+        thread_states = _list_review_thread_states(
             api_url, token, repository, pr_number, github_request
         )
-        if existing
-        else {}
-    )
-    current = {comment.fingerprint: comment for comment in plan.comments}
-    updated = 0
-    resolved = 0
-    new_comments: list[InlineComment] = []
-
-    for fingerprint, comment in current.items():
-        matching_comments = [
-            item
-            for item in existing.get(fingerprint, [])
-            if item.get("id") is not None
-            and _inline_comment_matches_current_location(item, comment, commit_id)
-        ]
-        replaced_comments = [
-            item
-            for item in existing.get(fingerprint, [])
-            if item.get("id") is not None and item not in matching_comments
-        ]
-        for replaced in replaced_comments:
-            _set_inline_comment_thread_resolved(
-                api_url,
-                token,
-                replaced,
-                thread_states,
-                True,
-                github_request,
-            )
-            github_request(
-                api_url,
-                token,
-                f"/repos/{repository}/pulls/comments/{replaced['id']}",
-                method="PATCH",
-                payload={
-                    "body": (
-                        "<!-- whylog-ai-inline-replaced -->\n"
-                        "새 커밋의 같은 위치에 최신 자동 리뷰를 다시 등록했습니다."
-                    )
-                },
-            )
-            resolved += 1
-
-        matching_comments.sort(key=lambda item: int(item["id"]))
-        if matching_comments:
-            old = matching_comments[-1]
-            _set_inline_comment_thread_resolved(
+        for old in stale_comments:
+            if _resolve_inline_comment_thread(
                 api_url,
                 token,
                 old,
                 thread_states,
-                False,
                 github_request,
-            )
-            github_request(
-                api_url,
-                token,
-                f"/repos/{repository}/pulls/comments/{old['id']}",
-                method="PATCH",
-                payload={"body": comment.body},
-            )
-            updated += 1
-            for duplicate in matching_comments[:-1]:
-                _set_inline_comment_thread_resolved(
-                    api_url,
-                    token,
-                    duplicate,
-                    thread_states,
-                    True,
-                    github_request,
-                )
-                github_request(
-                    api_url,
-                    token,
-                    f"/repos/{repository}/pulls/comments/{duplicate['id']}",
-                    method="PATCH",
-                    payload={
-                        "body": (
-                            "<!-- whylog-ai-inline-duplicate -->\n"
-                            "동일 위치의 중복 자동 리뷰를 최신 코멘트로 통합했습니다."
-                        )
-                    },
-                )
+            ):
                 resolved += 1
-        else:
-            new_comments.append(comment)
-
-    for fingerprint, old_comments in existing.items():
-        if fingerprint in current:
-            continue
-        for old in old_comments:
-            if old.get("id") is None:
-                continue
-            body = (
-                "<!-- whylog-ai-inline-resolved -->\n"
-                "현재 실행에서 재검출되지 않음(자동 추정). "
-                "사람이 실제 반영 여부를 확인하세요."
-            )
-            _set_inline_comment_thread_resolved(
-                api_url,
-                token,
-                old,
-                thread_states,
-                True,
-                github_request,
-            )
-            github_request(
-                api_url,
-                token,
-                f"/repos/{repository}/pulls/comments/{old['id']}",
-                method="PATCH",
-                payload={"body": body},
-            )
-            resolved += 1
 
     if not new_comments:
-        return InlinePublishResult(False, 0, updated, resolved, plan.fallback_findings)
+        return InlinePublishResult(False, 0, 0, resolved, plan.fallback_findings)
 
     posted = 0
     fallback = list(plan.fallback_findings)
@@ -726,7 +604,7 @@ def publish_inline_review_comments(
     return InlinePublishResult(
         posted > 0,
         posted,
-        updated,
+        0,
         resolved,
         tuple(fallback),
         first_error,

@@ -77,7 +77,6 @@ def review_threads_response(*threads: tuple[int, bool]) -> dict:
                                 "id": f"THREAD_{comment_id}",
                                 "isResolved": resolved,
                                 "viewerCanResolve": not resolved,
-                                "viewerCanUnresolve": resolved,
                                 "comments": {
                                     "nodes": [{"id": f"COMMENT_{comment_id}"}]
                                 },
@@ -95,14 +94,13 @@ def review_threads_response(*threads: tuple[int, bool]) -> dict:
     }
 
 
-def review_thread_mutation_response(comment_id: int, resolved: bool) -> dict:
-    operation = "resolveReviewThread" if resolved else "unresolveReviewThread"
+def review_thread_mutation_response(comment_id: int) -> dict:
     return {
         "data": {
-            operation: {
+            "resolveReviewThread": {
                 "thread": {
                     "id": f"THREAD_{comment_id}",
-                    "isResolved": resolved,
+                    "isResolved": True,
                 }
             }
         }
@@ -164,7 +162,7 @@ class PatchParsingTest(unittest.TestCase):
 
 
 class InlinePublishTest(unittest.TestCase):
-    def test_updates_duplicate_and_marks_stale_resolved(self):
+    def test_keeps_current_comment_and_resolves_stale_without_rewriting(self):
         current = finding("block", "server/src/App.java", 2)
         fingerprint = (
             rp.build_inline_review_plan(files(), result(blocking=(current,)))
@@ -192,9 +190,7 @@ class InlinePublishTest(unittest.TestCase):
                     },
                 ],
                 review_threads_response((10, False), (11, False)),
-                {"id": 10},
-                review_thread_mutation_response(11, True),
-                {"id": 11},
+                review_thread_mutation_response(11),
             ]
         )
 
@@ -210,12 +206,11 @@ class InlinePublishTest(unittest.TestCase):
         )
 
         self.assertEqual(published.posted, 0)
-        self.assertEqual(published.updated, 1)
+        self.assertEqual(published.updated, 0)
         self.assertEqual(published.resolved, 1)
         self.assertEqual(github.calls[1][0], "/graphql")
-        self.assertIn("/pulls/comments/10", github.calls[2][0])
-        self.assertIn("resolveReviewThread", github.calls[3][2]["query"])
-        self.assertIn("재검출되지 않음", github.calls[4][2]["body"])
+        self.assertIn("resolveReviewThread", github.calls[2][2]["query"])
+        self.assertFalse(any(call[1] == "PATCH" for call in github.calls))
 
     def test_posts_new_comments_individually_without_review_wrapper(self):
         github = FakeGitHub(responses=[[], {"id": 1}])
@@ -244,7 +239,7 @@ class InlinePublishTest(unittest.TestCase):
         self.assertEqual(github.calls[-1][2]["line"], 2)
         self.assertEqual(github.calls[-1][2]["commit_id"], "abc")
 
-    def test_duplicate_active_comments_are_consolidated(self):
+    def test_existing_active_comments_are_left_unchanged(self):
         current = finding("block", "server/src/App.java", 2)
         fingerprint = (
             rp.build_inline_review_plan(files(), result(blocking=(current,)))
@@ -274,11 +269,7 @@ class InlinePublishTest(unittest.TestCase):
                         "line": 2,
                         "side": "RIGHT",
                     },
-                ],
-                review_threads_response((10, False), (11, False)),
-                {"id": 11},
-                review_thread_mutation_response(10, True),
-                {"id": 10},
+                ]
             ]
         )
 
@@ -293,14 +284,12 @@ class InlinePublishTest(unittest.TestCase):
             github,
         )
 
-        self.assertEqual(published.updated, 1)
-        self.assertEqual(published.resolved, 1)
-        self.assertIn("/pulls/comments/11", github.calls[2][0])
-        self.assertIn("resolveReviewThread", github.calls[3][2]["query"])
-        self.assertIn("/pulls/comments/10", github.calls[4][0])
-        self.assertIn("중복", github.calls[4][2]["body"])
+        self.assertEqual(published.posted, 0)
+        self.assertEqual(published.updated, 0)
+        self.assertEqual(published.resolved, 0)
+        self.assertEqual(len(github.calls), 1)
 
-    def test_reappearing_finding_unresolves_existing_thread(self):
+    def test_existing_finding_is_never_reopened_or_rewritten(self):
         current = finding("block", "server/src/App.java", 2)
         fingerprint = (
             rp.build_inline_review_plan(files(), result(blocking=(current,)))
@@ -320,10 +309,7 @@ class InlinePublishTest(unittest.TestCase):
                         "line": 2,
                         "side": "RIGHT",
                     }
-                ],
-                review_threads_response((10, True)),
-                review_thread_mutation_response(10, False),
-                {"id": 10},
+                ]
             ]
         )
 
@@ -338,9 +324,46 @@ class InlinePublishTest(unittest.TestCase):
             github,
         )
 
-        self.assertEqual(published.updated, 1)
-        self.assertIn("unresolveReviewThread", github.calls[2][2]["query"])
-        self.assertIn("/pulls/comments/10", github.calls[3][0])
+        self.assertEqual(published.posted, 0)
+        self.assertEqual(published.updated, 0)
+        self.assertEqual(published.resolved, 0)
+        self.assertEqual(len(github.calls), 1)
+
+    def test_already_resolved_stale_comment_is_left_unchanged(self):
+        github = FakeGitHub(
+            responses=[
+                [
+                    {
+                        "id": 10,
+                        "node_id": "COMMENT_10",
+                        "body": "<!-- whylog-ai-inline-review: 0123456789abcdef01234567 --> old",
+                        "user": {"type": "Bot"},
+                    }
+                ],
+                review_threads_response((10, True)),
+            ]
+        )
+
+        published = rp.publish_inline_review_comments(
+            "api",
+            "token",
+            "WhyLog-App/WhyLog",
+            7,
+            "abc",
+            files(),
+            result(),
+            github,
+        )
+
+        self.assertEqual(published.resolved, 0)
+        self.assertEqual(
+            [call[0] for call in github.calls],
+            [
+                "/repos/WhyLog-App/WhyLog/pulls/7/comments?per_page=100&page=1",
+                "/graphql",
+            ],
+        )
+        self.assertFalse(any(call[1] == "PATCH" for call in github.calls))
 
     def test_resolution_permission_failure_does_not_rewrite_comment(self):
         threads = review_threads_response((10, False))
@@ -382,7 +405,7 @@ class InlinePublishTest(unittest.TestCase):
             ],
         )
 
-    def test_old_commit_comment_is_replaced_on_current_commit(self):
+    def test_old_commit_comment_is_not_reposted_while_finding_remains(self):
         current = finding("block", "server/src/App.java", 2)
         fingerprint = (
             rp.build_inline_review_plan(files(), result(blocking=(current,)))
@@ -402,11 +425,7 @@ class InlinePublishTest(unittest.TestCase):
                         "line": 2,
                         "side": "RIGHT",
                     }
-                ],
-                review_threads_response((10, False)),
-                review_thread_mutation_response(10, True),
-                {"id": 10},
-                {"id": 20},
+                ]
             ]
         )
 
@@ -421,13 +440,10 @@ class InlinePublishTest(unittest.TestCase):
             github,
         )
 
-        self.assertEqual(published.posted, 1)
+        self.assertEqual(published.posted, 0)
         self.assertEqual(published.updated, 0)
-        self.assertEqual(published.resolved, 1)
-        self.assertIn("resolveReviewThread", github.calls[2][2]["query"])
-        self.assertIn("최신 자동 리뷰", github.calls[3][2]["body"])
-        self.assertEqual(github.calls[4][1], "POST")
-        self.assertEqual(github.calls[4][2]["commit_id"], "new-commit")
+        self.assertEqual(published.resolved, 0)
+        self.assertEqual(len(github.calls), 1)
 
     def test_one_rejected_comment_does_not_drop_other_inline_comments(self):
         github = FakeGitHub(
