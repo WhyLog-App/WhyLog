@@ -10,6 +10,8 @@
 
 ## 반드시 지킬 것
 
+아래 규칙은 신규·수정 코드에 적용합니다. 변경하지 않은 기존 위반은 PR을 막지 않고 부채 이슈로 관리합니다.
+
 ### 계층
 
 - 호출 방향은 `controller → service → repository` 한 방향만 허용합니다. 역방향 호출과 controller에서 repository 직접 호출을 금지합니다.
@@ -26,7 +28,7 @@
 - `@Transactional`은 서비스 클래스에만 붙입니다. 컨트롤러와 리포지토리에는 붙이지 않습니다.
 - `XxxCommandService`는 클래스 레벨에 `@Transactional`을 붙입니다.
 - `XxxQueryService`는 클래스 레벨에 `@Transactional(readOnly = true)`를 붙입니다.
-- **같은 클래스 안의 다른 메서드를 호출하면 `@Transactional`이 적용되지 않습니다.** 프록시를 거치지 않기 때문입니다. 별도 트랜잭션 경계가 필요하면 다른 빈으로 분리해 호출합니다.
+- 같은 클래스 내부 호출은 프록시를 거치지 않으므로, 호출 대상 메서드에 별도로 선언한 `@Transactional` 속성(전파·격리·`readOnly` 등)이 적용되지 않습니다. 호출자가 연 트랜잭션은 유지됩니다. 별도 트랜잭션 경계가 필요하면 다른 빈으로 분리합니다.
 - **외부 호출(S3, FastAPI, LiveKit, GitHub API)을 트랜잭션 안에서 하지 않습니다.** 커밋 이후 실행이 필요하면 `TransactionSynchronizationManager`로 afterCommit에 등록합니다.
 
 ```java
@@ -60,8 +62,6 @@ scheduleAfterCommit(() -> s3Client.deleteFile(team.getImage()));
 - 인증된 사용자 식별자는 `@CurrentMember Long memberId`로 주입받습니다. `SecurityContextHolder`를 컨트롤러나 서비스에서 직접 조회하지 않습니다.
 
 ### 설정값 주입
-
-**이 규칙은 신규·수정 코드에만 적용합니다.** 기존 `@Value` 사용처는 부채 이슈로 따로 관리하며, 손대지 않은 코드를 이유로 PR을 막지 않습니다.
 
 - 같은 prefix를 공유하는 설정값이 3개 이상이면 `@ConfigurationProperties` 클래스 하나로 묶습니다.
 - `@Value`는 prefix를 공유하지 않는 독립적인 값 1~2개에만 씁니다.
@@ -98,13 +98,20 @@ public record LiveKitProperties(String apiKey, String apiSecret, String url) {}
 
 ## 테스트
 
-- 현재 서버에는 컨텍스트 로딩 테스트 외의 테스트가 없습니다.
+- 현재 서버 테스트는 `@SpringBootTest`가 비활성화된 빈 JUnit `contextLoads` 테스트 1개뿐이며, Spring 컨텍스트를 검증하지 않습니다.
 - **S2까지는 신규 테스트 작성을 요구하지 않습니다.** 테스트 부재를 이유로 PR을 막지 않습니다.
 - S3부터 테스트 도입 범위를 회의에서 정하고 이 문서를 갱신합니다.
 
 ## 검증
 
 가장 작은 검증부터 실행하고, 필요할 때만 범위를 넓힙니다. CI에 검증을 떠넘기지 않습니다.
+
+Java 파일을 수정했다면 Spotless로 자동 정리한 뒤 포맷·기본 린트 검사를 먼저 통과시킵니다.
+
+```bash
+./gradlew spotlessApply
+./gradlew spotlessCheck checkstyleMain checkstyleTest
+```
 
 ```bash
 ./gradlew compileJava 2>&1 | tail -c 4000
