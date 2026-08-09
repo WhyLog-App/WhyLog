@@ -682,6 +682,25 @@ class DocOnlyDetectionTest(unittest.TestCase):
             )
         )
 
+    def test_rejects_invalid_review_doc_number_without_raising(self):
+        github = FakeGitHub(
+            responses=[
+                {
+                    "commit": {
+                        "message": "docs(docs): PR-invalid 리뷰 판단 근거 기록"
+                    },
+                    "files": [{"filename": "docs/pr-reviews/PR-invalid.md"}],
+                    "parents": [{"sha": "parent-sha"}],
+                }
+            ]
+        )
+
+        self.assertIsNone(
+            rp.generated_doc_only_parent_sha(
+                "api", "token", "repo", {"head": {"sha": "abc"}}, github
+            )
+        )
+
     def test_recognizes_pr_review_document_path(self):
         self.assertTrue(rp.is_pr_review_doc_path("docs/pr-reviews/PR-1.md"))
         self.assertFalse(rp.is_pr_review_doc_path("docs/pr-reviews/README.md"))

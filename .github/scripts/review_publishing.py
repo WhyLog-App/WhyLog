@@ -142,8 +142,13 @@ def pr_review_doc_path(pr_number: int) -> str:
     return f"{DOC_ROOT}/PR-{pr_number}.md"
 
 
+def _pr_number_from_review_doc_path(path: str) -> int | None:
+    match = re.fullmatch(r"docs/pr-reviews/PR-([1-9][0-9]*)\.md", path.strip())
+    return int(match.group(1)) if match else None
+
+
 def is_pr_review_doc_path(path: str) -> bool:
-    return bool(re.fullmatch(r"docs/pr-reviews/PR-[1-9][0-9]*\.md", path.strip()))
+    return _pr_number_from_review_doc_path(path) is not None
 
 
 def parse_right_side_lines(files: Sequence[Mapping[str, Any]]) -> dict[str, set[int]]:
@@ -1021,8 +1026,10 @@ def generated_doc_only_parent_sha(
         or not isinstance(parents[0], Mapping)
     ):
         return None
-    document_pr_number = int(Path(paths[0]).stem.removeprefix("PR-"))
-    if message != _doc_commit_message(document_pr_number):
+    document_pr_number = _pr_number_from_review_doc_path(paths[0])
+    if document_pr_number is None or message != _doc_commit_message(
+        document_pr_number
+    ):
         return None
     return _string(parents[0].get("sha")) or None
 
