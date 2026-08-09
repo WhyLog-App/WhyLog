@@ -71,28 +71,10 @@ src/
 #### Branch Strategy
 - main: 배포 가능한 최종 코드만 관리합니다.
 - develop: 완성된 기능을 지속적으로 병합하는 브랜치입니다.
-- {type}/{기능 요약}: 기능 개발용 브랜치입니다. (예: `feat/meeting`)
+- 작업 브랜치 이름은 루트 `AGENTS.md`의 `<type>/<short-description>` 규칙을 따릅니다. (예: `feat/meeting-summary`)
 
 #### Commit Convention
-커밋 타입을 접두로 사용합니다. (예: `feat: 회의 생성 기능 구현`)
-
-| **Type** | **Description** |
-| --- | --- |
-| **feat** | 새로운 기능 추가 |
-| **fix** | 버그 수정 |
-| **docs** | 문서 수정 |
-| **style** | 코드 formatting, 세미콜론 누락, 코드 자체의 변경이 없는 경우 |
-| **refactor** | 코드 리팩토링 |
-| **test** | 테스트 코드, 리팩토링 테스트 코드 추가 |
-| **chore** | 패키지 매니저 수정, 그 외 기타 수정 (예: .gitignore) |
-| **design** | CSS 등 사용자 UI 디자인 변경 |
-| **comment** | 필요한 주석 추가 및 변경 |
-| **rename** | 파일 또는 폴더 명을 수정하거나 옮기는 작업만인 경우 |
-| **remove** | 파일을 삭제하는 작업만 수행한 경우 |
-| **init** | 프로젝트 초기 세팅 |
-| **merge** | 브랜치 merge |
-| **!BREAKING CHANGE** | 커다란 API 변경의 경우 |
-| **!HOTFIX** | 급하게 치명적인 버그를 고쳐야 하는 경우 |
+루트 `AGENTS.md`의 커밋 메시지 규칙을 따릅니다. 서버만 변경한 예시는 `feat(server): 회의 생성 기능 구현`이며, 여러 파트를 함께 변경하면 scope를 생략합니다.
 
 #### Pull Request (PR)
 - 본인을 Assignee로 지정하고, 팀원 1명 이상의 승인을 받은 뒤 develop 브랜치로 머지합니다.

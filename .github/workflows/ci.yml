@@ -40,7 +40,9 @@ jobs:
               [file.filename, file.previous_filename].filter(Boolean),
             );
             const shared = paths.some((path) =>
-              [".editorconfig", ".gitattributes", ".github/workflows/ci.yml"].includes(path),
+              [".editorconfig", ".gitattributes", ".github/workflows/ci.yml"].includes(path) ||
+              path.startsWith(".github/scripts/") ||
+              path.startsWith(".github/prompts/"),
             );
 
             core.setOutput("ai", shared || paths.some((path) => path.startsWith("ai/")));
@@ -58,15 +60,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version-file: ai/pyproject.toml
 
@@ -93,12 +95,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
@@ -120,15 +122,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -143,6 +145,94 @@ jobs:
       - name: Type check and build
         run: pnpm build
 
+  review_harness:
+    name: AI review tooling tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout pull request revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Test review harness
+        run: |
+          python -m unittest discover -s .github/scripts -p "test_*.py"
+          python -m compileall -q .github/scripts
+
+  ai-review:
+    name: AI review
+    needs:
+      - changes
+      - ai
+      - server
+      - web
+      - review_harness
+    if: >-
+      always() &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      needs.changes.result == 'success' &&
+      (needs.ai.result == 'success' || needs.ai.result == 'skipped') &&
+      (needs.server.result == 'success' || needs.server.result == 'skipped') &&
+      (needs.web.result == 'success' || needs.web.result == 'skipped') &&
+      needs.review_harness.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout trusted base revision
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Detect trusted reviewer
+        id: trusted-reviewer
+        run: |
+          if [ -f .github/scripts/ai_review.py ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Trusted base does not contain the AI reviewer; skipping bootstrap review."
+          fi
+
+      - name: Set up Python
+        if: steps.trusted-reviewer.outputs.available == 'true'
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Review pull request
+        if: steps.trusted-reviewer.outputs.available == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          AI_REVIEW_PUSH_TOKEN: ${{ secrets.AI_REVIEW_PUSH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY_IS_PRIVATE: ${{ github.event.repository.private }}
+          PYTHONUNBUFFERED: "1"
+        run: python .github/scripts/ai_review.py
+
+      - name: Upload PR review document
+        if: always() && steps.trusted-reviewer.outputs.available == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: pr-review-${{ github.event.pull_request.number }}
+          path: docs/pr-reviews/PR-${{ github.event.pull_request.number }}.md
+          if-no-files-found: ignore
+          retention-days: 30
+
   quality:
     name: quality gate
     if: always()
@@ -151,6 +241,8 @@ jobs:
       - ai
       - server
       - web
+      - review_harness
+      - ai-review
     runs-on: ubuntu-latest
 
     steps:
@@ -160,6 +252,8 @@ jobs:
           AI_RESULT: ${{ needs.ai.result }}
           SERVER_RESULT: ${{ needs.server.result }}
           WEB_RESULT: ${{ needs.web.result }}
+          REVIEW_HARNESS_RESULT: ${{ needs.review_harness.result }}
+          AI_REVIEW_RESULT: ${{ needs.ai-review.result }}
         run: |
           if [ "$CHANGES_RESULT" != "success" ]; then
             echo "Change detection failed: $CHANGES_RESULT"
@@ -173,4 +267,14 @@ jobs:
             fi
           done
 
-          echo "All required machine checks passed."
+          if [ "$REVIEW_HARNESS_RESULT" != "success" ]; then
+            echo "Review harness check failed: $REVIEW_HARNESS_RESULT"
+            exit 1
+          fi
+
+          if [ "$AI_REVIEW_RESULT" != "success" ]; then
+            echo "AI review failed or did not run: $AI_REVIEW_RESULT"
+            exit 1
+          fi
+
+          echo "All required machine checks and AI review passed."
