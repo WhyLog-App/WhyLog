@@ -985,10 +985,7 @@ def sync_pr_review_document(
 
 
 def _doc_commit_message(pr_number: int) -> str:
-    return (
-        f"docs(docs): PR-{pr_number} 리뷰 판단 근거 기록 "
-        "[Generated-By: whylog-ai-review]"
-    )
+    return f"docs(docs): PR-{pr_number} 리뷰 판단 근거 기록"
 
 
 def generated_doc_only_parent_sha(
@@ -1016,8 +1013,6 @@ def generated_doc_only_parent_sha(
         raw_files = commit.get("files")
         if isinstance(raw_files, list):
             files = raw_files
-    if "Generated-By: whylog-ai-review" not in message:
-        return None
     paths = [
         item.get("filename")
         for item in files
@@ -1031,6 +1026,9 @@ def generated_doc_only_parent_sha(
         or len(parents) != 1
         or not isinstance(parents[0], Mapping)
     ):
+        return None
+    document_pr_number = int(Path(paths[0]).stem.removeprefix("PR-"))
+    if message != _doc_commit_message(document_pr_number):
         return None
     return _string(parents[0].get("sha")) or None
 

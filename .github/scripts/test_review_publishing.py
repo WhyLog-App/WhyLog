@@ -559,8 +559,7 @@ class ContentsSyncTest(unittest.TestCase):
         self.assertEqual(commit_call[2]["parents"], ["headsha"])
         self.assertEqual(
             commit_call[2]["message"],
-            "docs(docs): PR-7 리뷰 판단 근거 기록 "
-            "[Generated-By: whylog-ai-review]",
+            "docs(docs): PR-7 리뷰 판단 근거 기록",
         )
 
     def test_sync_stale_head_is_artifact_only(self):
@@ -598,8 +597,7 @@ class DocOnlyDetectionTest(unittest.TestCase):
             responses=[
                 {
                     "commit": {
-                        "message": "docs(docs): PR-7 리뷰 판단 근거 기록 "
-                        "[Generated-By: whylog-ai-review]"
+                        "message": "docs(docs): PR-7 리뷰 판단 근거 기록"
                     },
                     "files": [{"filename": "docs/pr-reviews/PR-7.md"}],
                     "parents": [{"sha": "parent-sha"}],
@@ -614,7 +612,7 @@ class DocOnlyDetectionTest(unittest.TestCase):
             "parent-sha",
         )
 
-    def test_rejects_non_review_doc_or_missing_trailer(self):
+    def test_rejects_non_review_doc_or_wrong_message(self):
         github = FakeGitHub(
             responses=[
                 {
@@ -630,6 +628,27 @@ class DocOnlyDetectionTest(unittest.TestCase):
                 "api", "token", "repo", {"head": {"sha": "abc"}}, github
             )
         )
+
+    def test_rejects_mismatched_pr_number_in_generated_message(self):
+        github = FakeGitHub(
+            responses=[
+                {
+                    "commit": {
+                        "message": "docs(docs): PR-8 리뷰 판단 근거 기록"
+                    },
+                    "files": [{"filename": "docs/pr-reviews/PR-7.md"}],
+                    "parents": [{"sha": "parent-sha"}],
+                }
+            ]
+        )
+
+        self.assertIsNone(
+            rp.generated_doc_only_parent_sha(
+                "api", "token", "repo", {"head": {"sha": "abc"}}, github
+            )
+        )
+
+    def test_recognizes_pr_review_document_path(self):
         self.assertTrue(rp.is_pr_review_doc_path("docs/pr-reviews/PR-1.md"))
         self.assertFalse(rp.is_pr_review_doc_path("docs/pr-reviews/README.md"))
 
