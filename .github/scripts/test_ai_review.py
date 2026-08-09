@@ -262,7 +262,7 @@ class CommentRenderingTest(unittest.TestCase):
             ai_review.Review("요약", (), ()),
         )
         inline = ai_review.review_publishing.InlinePublishResult(
-            created_review=True,
+            created_comments=True,
             posted=2,
             updated=1,
             resolved=1,
@@ -391,7 +391,7 @@ class EndToEndWiringTest(unittest.TestCase):
             }
 
             inline_result = ai_review.review_publishing.InlinePublishResult(
-                created_review=False,
+                created_comments=False,
                 posted=0,
                 updated=0,
                 resolved=0,

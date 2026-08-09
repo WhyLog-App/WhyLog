@@ -60,7 +60,7 @@ class InlineReviewPlan:
 
 @dataclass(frozen=True)
 class InlinePublishResult:
-    created_review: bool
+    created_comments: bool
     posted: int
     updated: int
     resolved: int
@@ -142,8 +142,13 @@ def pr_review_doc_path(pr_number: int) -> str:
     return f"{DOC_ROOT}/PR-{pr_number}.md"
 
 
+def _pr_number_from_review_doc_path(path: str) -> int | None:
+    match = re.fullmatch(r"docs/pr-reviews/PR-([1-9][0-9]*)\.md", path.strip())
+    return int(match.group(1)) if match else None
+
+
 def is_pr_review_doc_path(path: str) -> bool:
-    return bool(re.fullmatch(r"docs/pr-reviews/PR-[1-9][0-9]*\.md", path.strip()))
+    return _pr_number_from_review_doc_path(path) is not None
 
 
 def parse_right_side_lines(files: Sequence[Mapping[str, Any]]) -> dict[str, set[int]]:
@@ -429,53 +434,47 @@ def publish_inline_review_comments(
     if not new_comments:
         return InlinePublishResult(False, 0, updated, resolved, plan.fallback_findings)
 
-    payload = {
-        "commit_id": commit_id,
-        "body": "WhyLog AI 자동 줄 단위 리뷰입니다.",
-        "event": "COMMENT",
-        "comments": [
-            {
-                "path": comment.path,
-                "line": comment.line,
-                "side": "RIGHT",
-                "body": comment.body,
-            }
-            for comment in new_comments
-        ],
-    }
-    try:
-        github_request(
-            api_url,
-            token,
-            f"/repos/{repository}/pulls/{pr_number}/reviews",
-            method="POST",
-            payload=payload,
-        )
-    except Exception as error:
-        if _is_status_error(error, 422):
-            fallback = list(plan.fallback_findings)
-            fallback.extend(
-                {
-                    "kind": comment.kind,
-                    "file": comment.path,
+    posted = 0
+    fallback = list(plan.fallback_findings)
+    first_error: str | None = None
+    for comment in new_comments:
+        try:
+            github_request(
+                api_url,
+                token,
+                f"/repos/{repository}/pulls/{pr_number}/comments",
+                method="POST",
+                payload={
+                    "commit_id": commit_id,
+                    "path": comment.path,
                     "line": comment.line,
-                    "fingerprint": comment.fingerprint,
-                    "fallback_reason": "github_inline_review_422",
-                }
-                for comment in new_comments
+                    "side": "RIGHT",
+                    "body": comment.body,
+                },
             )
-            return InlinePublishResult(
-                created_review=False,
-                posted=0,
-                updated=updated,
-                resolved=resolved,
-                fallback_findings=tuple(fallback),
-                post_failed_fallback=str(error)[:500],
-            )
-        raise
+        except Exception as error:
+            if _is_status_error(error, 422):
+                fallback.append(
+                    {
+                        "kind": comment.kind,
+                        "file": comment.path,
+                        "line": comment.line,
+                        "fingerprint": comment.fingerprint,
+                        "fallback_reason": "github_inline_comment_422",
+                    }
+                )
+                first_error = first_error or str(error)[:500]
+                continue
+            raise
+        posted += 1
 
     return InlinePublishResult(
-        True, len(new_comments), updated, resolved, plan.fallback_findings
+        posted > 0,
+        posted,
+        updated,
+        resolved,
+        tuple(fallback),
+        first_error,
     )
 
 
@@ -985,16 +984,7 @@ def sync_pr_review_document(
 
 
 def _doc_commit_message(pr_number: int) -> str:
-    return (
-        f"docs(docs): PR-{pr_number} 리뷰 판단 근거를 저장소에 남김\n\n"
-        "Constraint: CI AI review result must remain readable from repository docs\n"
-        "Rejected: Direct push to protected base with the default GITHUB_TOKEN | branch protection and auditability require branch-scoped document updates only\n"
-        "Confidence: medium\n"
-        "Scope-risk: narrow\n"
-        "Directive: Do not edit generated state markers by hand\n"
-        "Tested: AI review publishing workflow generated this document\n"
-        "Generated-By: whylog-ai-review\n"
-    )
+    return f"docs(docs): PR-{pr_number} 리뷰 판단 근거 기록"
 
 
 def generated_doc_only_parent_sha(
@@ -1022,8 +1012,6 @@ def generated_doc_only_parent_sha(
         raw_files = commit.get("files")
         if isinstance(raw_files, list):
             files = raw_files
-    if "Generated-By: whylog-ai-review" not in message:
-        return None
     paths = [
         item.get("filename")
         for item in files
@@ -1036,6 +1024,11 @@ def generated_doc_only_parent_sha(
         or not isinstance(parents, list)
         or len(parents) != 1
         or not isinstance(parents[0], Mapping)
+    ):
+        return None
+    document_pr_number = _pr_number_from_review_doc_path(paths[0])
+    if document_pr_number is None or message != _doc_commit_message(
+        document_pr_number
     ):
         return None
     return _string(parents[0].get("sha")) or None

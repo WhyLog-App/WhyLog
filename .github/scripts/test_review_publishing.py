@@ -168,7 +168,7 @@ class InlinePublishTest(unittest.TestCase):
         self.assertIn("/pulls/comments/10", github.calls[1][0])
         self.assertIn("재검출되지 않음", github.calls[2][2]["body"])
 
-    def test_posts_new_comments_as_one_review(self):
+    def test_posts_new_comments_individually_without_review_wrapper(self):
         github = FakeGitHub(responses=[[], {"id": 1}])
 
         published = rp.publish_inline_review_comments(
@@ -182,16 +182,18 @@ class InlinePublishTest(unittest.TestCase):
             github,
         )
 
-        self.assertTrue(published.created_review)
+        self.assertTrue(published.created_comments)
         self.assertEqual(published.posted, 1)
         self.assertEqual(
-            github.calls[-1][0], "/repos/WhyLog-App/WhyLog/pulls/7/reviews"
+            github.calls[-1][0], "/repos/WhyLog-App/WhyLog/pulls/7/comments"
         )
-        self.assertEqual(
-            github.calls[-1][2]["body"], "WhyLog AI 자동 줄 단위 리뷰입니다."
+        self.assertTrue(
+            github.calls[-1][2]["body"].startswith("<!-- whylog-ai-inline-review:")
         )
-        self.assertEqual(github.calls[-1][2]["event"], "COMMENT")
-        self.assertEqual(github.calls[-1][2]["comments"][0]["side"], "RIGHT")
+        self.assertIn("규칙 위반", github.calls[-1][2]["body"])
+        self.assertEqual(github.calls[-1][2]["side"], "RIGHT")
+        self.assertEqual(github.calls[-1][2]["line"], 2)
+        self.assertEqual(github.calls[-1][2]["commit_id"], "abc")
 
     def test_duplicate_active_comments_are_consolidated(self):
         current = finding("block", "server/src/App.java", 2)
@@ -287,6 +289,38 @@ class InlinePublishTest(unittest.TestCase):
         self.assertEqual(github.calls[2][1], "POST")
         self.assertEqual(github.calls[2][2]["commit_id"], "new-commit")
 
+    def test_one_rejected_comment_does_not_drop_other_inline_comments(self):
+        github = FakeGitHub(
+            responses=[[], {"id": 20}],
+            errors=[None, HttpError(422), None],
+        )
+
+        published = rp.publish_inline_review_comments(
+            "api",
+            "token",
+            "WhyLog-App/WhyLog",
+            7,
+            "abc",
+            files(),
+            result(
+                blocking=(finding("b", "server/src/App.java", 2),),
+                suggestions=(finding("s", "server/src/App.java", 12),),
+            ),
+            github,
+        )
+
+        self.assertTrue(published.created_comments)
+        self.assertEqual(published.posted, 1)
+        self.assertEqual(len(published.fallback_findings), 1)
+        self.assertEqual(published.fallback_findings[0]["line"], 2)
+        self.assertEqual(
+            [call[0] for call in github.calls[1:]],
+            [
+                "/repos/WhyLog-App/WhyLog/pulls/7/comments",
+                "/repos/WhyLog-App/WhyLog/pulls/7/comments",
+            ],
+        )
+
     def test_post_422_returns_fallback_instead_of_raising(self):
         github = FakeGitHub(responses=[[]], errors=[None, HttpError(422)])
 
@@ -301,11 +335,11 @@ class InlinePublishTest(unittest.TestCase):
             github,
         )
 
-        self.assertFalse(published.created_review)
+        self.assertFalse(published.created_comments)
         self.assertEqual(published.posted, 0)
         self.assertEqual(
             published.fallback_findings[-1]["fallback_reason"],
-            "github_inline_review_422",
+            "github_inline_comment_422",
         )
         self.assertIn("HTTP 422", published.post_failed_fallback or "")
 
@@ -557,14 +591,9 @@ class ContentsSyncTest(unittest.TestCase):
         commit_call = github.calls[-2]
         self.assertEqual(commit_call[0], "/repos/repo/git/commits")
         self.assertEqual(commit_call[2]["parents"], ["headsha"])
-        self.assertIn("Generated-By: whylog-ai-review", commit_call[2]["message"])
-        self.assertTrue(
-            commit_call[2]["message"].startswith(
-                "docs(docs): PR-7 리뷰 판단 근거를 저장소에 남김"
-            )
-        )
-        self.assertIn(
-            "Rejected: Direct push to protected base", commit_call[2]["message"]
+        self.assertEqual(
+            commit_call[2]["message"],
+            "docs(docs): PR-7 리뷰 판단 근거 기록",
         )
 
     def test_sync_stale_head_is_artifact_only(self):
@@ -602,7 +631,7 @@ class DocOnlyDetectionTest(unittest.TestCase):
             responses=[
                 {
                     "commit": {
-                        "message": "docs(docs): PR-7 리뷰 판단 근거를 저장소에 남김\n\nGenerated-By: whylog-ai-review\n"
+                        "message": "docs(docs): PR-7 리뷰 판단 근거 기록"
                     },
                     "files": [{"filename": "docs/pr-reviews/PR-7.md"}],
                     "parents": [{"sha": "parent-sha"}],
@@ -617,7 +646,7 @@ class DocOnlyDetectionTest(unittest.TestCase):
             "parent-sha",
         )
 
-    def test_rejects_non_review_doc_or_missing_trailer(self):
+    def test_rejects_non_review_doc_or_wrong_message(self):
         github = FakeGitHub(
             responses=[
                 {
@@ -633,6 +662,46 @@ class DocOnlyDetectionTest(unittest.TestCase):
                 "api", "token", "repo", {"head": {"sha": "abc"}}, github
             )
         )
+
+    def test_rejects_mismatched_pr_number_in_generated_message(self):
+        github = FakeGitHub(
+            responses=[
+                {
+                    "commit": {
+                        "message": "docs(docs): PR-8 리뷰 판단 근거 기록"
+                    },
+                    "files": [{"filename": "docs/pr-reviews/PR-7.md"}],
+                    "parents": [{"sha": "parent-sha"}],
+                }
+            ]
+        )
+
+        self.assertIsNone(
+            rp.generated_doc_only_parent_sha(
+                "api", "token", "repo", {"head": {"sha": "abc"}}, github
+            )
+        )
+
+    def test_rejects_invalid_review_doc_number_without_raising(self):
+        github = FakeGitHub(
+            responses=[
+                {
+                    "commit": {
+                        "message": "docs(docs): PR-invalid 리뷰 판단 근거 기록"
+                    },
+                    "files": [{"filename": "docs/pr-reviews/PR-invalid.md"}],
+                    "parents": [{"sha": "parent-sha"}],
+                }
+            ]
+        )
+
+        self.assertIsNone(
+            rp.generated_doc_only_parent_sha(
+                "api", "token", "repo", {"head": {"sha": "abc"}}, github
+            )
+        )
+
+    def test_recognizes_pr_review_document_path(self):
         self.assertTrue(rp.is_pr_review_doc_path("docs/pr-reviews/PR-1.md"))
         self.assertFalse(rp.is_pr_review_doc_path("docs/pr-reviews/README.md"))
 
