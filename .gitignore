@@ -26,3 +26,7 @@ logs/
 *.temp
 *.swp
 *~
+
+# Python caches
+__pycache__/
+*.py[cod]

@@ -40,7 +40,9 @@ jobs:
               [file.filename, file.previous_filename].filter(Boolean),
             );
             const shared = paths.some((path) =>
-              [".editorconfig", ".gitattributes", ".github/workflows/ci.yml"].includes(path),
+              [".editorconfig", ".gitattributes", ".github/workflows/ci.yml"].includes(path) ||
+              path.startsWith(".github/scripts/") ||
+              path.startsWith(".github/prompts/"),
             );
 
             core.setOutput("ai", shared || paths.some((path) => path.startsWith("ai/")));
@@ -143,6 +145,72 @@ jobs:
       - name: Type check and build
         run: pnpm build
 
+  review_harness:
+    name: review harness quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout pull request revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Test review harness
+        run: |
+          python -m unittest discover -s .github/scripts -p "test_*.py"
+          python -m compileall -q .github/scripts
+
+  ai-review:
+    name: AI review
+    needs:
+      - changes
+      - ai
+      - server
+      - web
+      - review_harness
+    if: >-
+      always() &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      needs.changes.result == 'success' &&
+      (needs.ai.result == 'success' || needs.ai.result == 'skipped') &&
+      (needs.server.result == 'success' || needs.server.result == 'skipped') &&
+      (needs.web.result == 'success' || needs.web.result == 'skipped') &&
+      needs.review_harness.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout trusted base revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Review pull request
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY_IS_PRIVATE: ${{ github.event.repository.private }}
+          PYTHONUNBUFFERED: "1"
+        run: python .github/scripts/ai_review.py
+
   quality:
     name: quality gate
     if: always()
@@ -151,6 +219,8 @@ jobs:
       - ai
       - server
       - web
+      - review_harness
+      - ai-review
     runs-on: ubuntu-latest
 
     steps:
@@ -160,6 +230,8 @@ jobs:
           AI_RESULT: ${{ needs.ai.result }}
           SERVER_RESULT: ${{ needs.server.result }}
           WEB_RESULT: ${{ needs.web.result }}
+          REVIEW_HARNESS_RESULT: ${{ needs.review_harness.result }}
+          AI_REVIEW_RESULT: ${{ needs.ai-review.result }}
         run: |
           if [ "$CHANGES_RESULT" != "success" ]; then
             echo "Change detection failed: $CHANGES_RESULT"
@@ -173,4 +245,14 @@ jobs:
             fi
           done
 
-          echo "All required machine checks passed."
+          if [ "$REVIEW_HARNESS_RESULT" != "success" ]; then
+            echo "Review harness check failed: $REVIEW_HARNESS_RESULT"
+            exit 1
+          fi
+
+          if [ "$AI_REVIEW_RESULT" != "success" ]; then
+            echo "AI review failed or did not run: $AI_REVIEW_RESULT"
+            exit 1
+          fi
+
+          echo "All required machine checks and AI review passed."
