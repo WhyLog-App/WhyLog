@@ -30,7 +30,8 @@
 - API Docs: Swagger (springdoc-openapi)
 - Logging: Log4j2
 - Build Tool: Gradle
-- Deploy: AWS <!-- Docker · GitHub Actions 사용 시 추가 -->
+- Deploy: AWS
+- Local Dev: Docker Compose (MySQL, Redis)
 
 
 ## 서버 아키텍처
@@ -46,6 +47,62 @@
 
 ## API 문서
 - Swagger UI: `/swagger-ui/index.html` (springdoc-openapi)
+
+
+## 실행 방법
+
+두 방법 모두 서버 앱 자체는 로컬에서 `./gradlew bootRun`으로 실행합니다. 차이는 MySQL/Redis를 어떻게 붙이느냐입니다.
+
+```bash
+cp .env.example .env
+# .env를 열어 값 채우기 (JWT_SECRET, GITHUB_TOKEN_ENCRYPTION_KEY, AWS_*, FAST_API_BASE_URL 등)
+# 실제 기능(S3 업로드·GitHub 연동·LiveKit)을 안 쓸 거면 .env.example의 더미값 그대로 둬도 서버는 기동됩니다.
+```
+
+### 1) Docker Compose로 실행
+
+로컬에 MySQL/Redis를 직접 설치하지 않고 컨테이너로 띄웁니다.
+
+```bash
+./scripts/dev.sh
+```
+
+`dev.sh`는 먼저 `.env`의 필수 값이 채워졌는지 검사하고(`scripts/check-env.sh`), 통과하면 `docker compose up -d`로 MySQL(3306)·Redis(6379)를 기동한 뒤 `.env` 값을 환경변수로 로드해 `./gradlew bootRun`을 실행합니다. 필수 값이 비어 있으면 어떤 변수인지 출력하고 종료합니다. 각 단계를 직접 실행하려면:
+
+```bash
+docker compose up -d --wait   # MySQL(3306), Redis(6379) 기동 후 healthy가 될 때까지 대기
+set -a; source .env; set +a   # .env 값을 환경변수로 로드 (zsh/bash)
+./gradlew bootRun
+```
+
+- 종료: `docker compose down` (데이터를 지우려면 `docker compose down -v`)
+- `.env.example`의 `DEV_DB_URL`, `DEV_REDIS_HOST` 등은 이 compose 설정에 맞춰져 있어 그대로 쓰면 됩니다.
+
+### 2) Docker 없이 실행
+
+로컬에 MySQL 8, Redis를 직접 설치해 기동하거나(예: `brew install mysql redis`), 팀이 공유하는 개발용 DB/Redis에 접속합니다.
+
+```bash
+# 예: 로컬 설치 시
+brew install mysql redis ffmpeg   # ffprobe는 오디오 길이 분석에 필요
+brew services start mysql
+brew services start redis
+```
+
+- `.env`의 `DEV_DB_URL`, `DEV_DB_USERNAME`, `DEV_DB_PASSWORD`, `DEV_REDIS_HOST`, `DEV_REDIS_PORT`, `DEV_REDIS_PASSWORD`를 실제 접속 정보로 맞춥니다.
+- `AUDIO_FFPROBE_COMMAND`를 로컬 ffprobe 경로로 맞춥니다 (macOS Homebrew 기준 기본값은 `/opt/homebrew/bin/ffprobe`).
+
+```bash
+./scripts/check-env.sh        # 필수 값이 채워졌는지 검사
+set -a; source .env; set +a
+./gradlew bootRun
+```
+
+IntelliJ를 쓴다면 터미널 대신 아래처럼 실행해도 됩니다.
+
+1. `Run` → `Edit Configurations` → `ServerApplication`의 `Environment variables`에서 값을 채웁니다.
+   - 직접 하나씩 입력하거나, 옆의 폴더 아이콘(`Paste`/`파일 아이콘`)으로 `.env` 파일을 그대로 불러와도 됩니다.
+2. `ServerApplication.java`를 열고 상단(또는 좌측) 실행 버튼을 누르면 됩니다.
 
 
 ## 프로젝트 구조
