@@ -18,12 +18,11 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @Table(
-        name = "Decision_Commits",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_decision_commits_decision_commit",
-                columnNames = {"decision_id", "commit_id"}
-        )
-)
+        name = "decision_commits",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_decision_commits_decision_commit",
+                        columnNames = {"decision_id", "commit_id"}))
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class DecisionCommits extends BaseEntity {
 

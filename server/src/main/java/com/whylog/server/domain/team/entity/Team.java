@@ -21,7 +21,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Team")
+@Table(name = "team")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Team extends BaseEntity {
 
@@ -43,18 +43,17 @@ public class Team extends BaseEntity {
     }
 
     public static Team create(TeamRequest.TeamCreateDTO dto, String image) {
-        return Team.builder()
-                .name(dto.getName())
-                .image(image)
-                .build();
+        return Team.builder().name(dto.getName()).image(image).build();
     }
 
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<TeamMember> teamMembers = new ArrayList<>();
-//
+
+    //
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<Meeting> meetings = new ArrayList<>();
-//
+
+    //
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<Repository> repositories = new ArrayList<>();
 }

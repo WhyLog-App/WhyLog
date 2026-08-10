@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Decision_Timeline")
+@Table(name = "decision_timeline")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class DecisionTimeline extends BaseEntity {
 
@@ -48,12 +48,13 @@ public class DecisionTimeline extends BaseEntity {
     @Column(name = "utterance", columnDefinition = "TEXT")
     private String utterance;
 
-    public static DecisionTimeline create(Decision decision,
-                                          String timestamp,
-                                          String step,
-                                          String content,
-                                          Long memberId,
-                                          String utterance) {
+    public static DecisionTimeline create(
+            Decision decision,
+            String timestamp,
+            String step,
+            String content,
+            Long memberId,
+            String utterance) {
         DecisionTimeline decisionTimeline = new DecisionTimeline();
         decisionTimeline.decision = decision;
         decisionTimeline.timestamp = timestamp;

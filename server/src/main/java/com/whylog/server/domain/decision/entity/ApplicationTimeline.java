@@ -14,12 +14,11 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Application_Timeline")
+@Table(name = "application_timeline")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ApplicationTimeline extends BaseEntity {
 
-    @EmbeddedId
-    private ApplicationTimelineId id;
+    @EmbeddedId private ApplicationTimelineId id;
 
     @MapsId("applicationId")
     @ManyToOne(fetch = FetchType.LAZY)
@@ -31,9 +30,11 @@ public class ApplicationTimeline extends BaseEntity {
     @JoinColumn(name = "decision_timeline_pk", nullable = false)
     private DecisionTimeline decisionTimeline;
 
-    public static ApplicationTimeline create(Application application, DecisionTimeline decisionTimeline) {
+    public static ApplicationTimeline create(
+            Application application, DecisionTimeline decisionTimeline) {
         ApplicationTimeline applicationTimeline = new ApplicationTimeline();
-        applicationTimeline.id = new ApplicationTimelineId(application.getId(), decisionTimeline.getId());
+        applicationTimeline.id =
+                new ApplicationTimelineId(application.getId(), decisionTimeline.getId());
         applicationTimeline.application = application;
         applicationTimeline.decisionTimeline = decisionTimeline;
         return applicationTimeline;

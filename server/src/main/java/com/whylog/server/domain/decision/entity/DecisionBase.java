@@ -17,7 +17,7 @@ import lombok.NoArgsConstructor;
 // 결정근거
 @Entity
 @Getter
-@Table(name = "Decision_Base")
+@Table(name = "decision_base")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class DecisionBase extends BaseEntity {
 
