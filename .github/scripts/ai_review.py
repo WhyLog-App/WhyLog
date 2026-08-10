@@ -635,6 +635,7 @@ def upsert_pr_comment(
     repository: str,
     pr_number: int,
     body: str,
+    actor_login: str = "",
 ) -> None:
     existing_id: int | None = None
     for page in range(1, 11):
@@ -648,8 +649,9 @@ def upsert_pr_comment(
         for comment in comments:
             if not isinstance(comment, dict):
                 continue
-            author = comment.get("user", {}).get("type")
-            if author == "Bot" and COMMENT_MARKER in str(comment.get("body", "")):
+            if review_publishing.comment_matches_actor(
+                comment, actor_login
+            ) and COMMENT_MARKER in str(comment.get("body", "")):
                 existing_id = comment.get("id")
                 break
         if existing_id is not None or len(comments) < 100:
@@ -721,6 +723,9 @@ def run() -> int:
     gemini_api_key = os.environ.get("GEMINI_API_KEY", "")
     openrouter_api_key = os.environ.get("OPENROUTER_API_KEY", "")
     push_token = os.environ.get("AI_REVIEW_PUSH_TOKEN", "")
+    review_actor_login = os.environ.get("AI_REVIEW_ACTOR_LOGIN", "").strip()
+    if not review_actor_login:
+        raise ReviewError("AI_REVIEW_ACTOR_LOGIN is not configured")
 
     pr_number, pull_request = _load_event(event_path)
     _assert_internal_pull_request(pull_request)
@@ -786,6 +791,7 @@ def run() -> int:
                         "이전 판단 유지"
                     ),
                 ),
+                actor_login=review_actor_login,
             )
             return 1 if preserved_result.review.blocking else 0
 
@@ -835,6 +841,7 @@ def run() -> int:
         reviewable_files,
         result,
         github_request,
+        actor_login=review_actor_login,
     )
 
     document_path = review_publishing.pr_review_doc_path(pr_number)
@@ -857,6 +864,7 @@ def run() -> int:
         repository,
         pr_number,
         render_comment(result, inline_result, document_status),
+        actor_login=review_actor_login,
     )
 
     if not generated_doc_only:
@@ -889,6 +897,7 @@ def run() -> int:
                 repository,
                 pr_number,
                 render_comment(result, inline_result, document_status),
+                actor_login=review_actor_login,
             )
         except Exception as error:
             message = _redact(
@@ -904,6 +913,7 @@ def run() -> int:
                 repository,
                 pr_number,
                 render_comment(result, inline_result, document_status),
+                actor_login=review_actor_login,
             )
             return 1
     return 1 if result.review.blocking else 0
@@ -934,6 +944,7 @@ def main() -> int:
                     repository,
                     pr_number,
                     render_failure_comment(message),
+                    actor_login=os.environ.get("AI_REVIEW_ACTOR_LOGIN", ""),
                 )
         except Exception as comment_error:
             comment_message = _redact(
