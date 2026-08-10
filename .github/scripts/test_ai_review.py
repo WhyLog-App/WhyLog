@@ -318,6 +318,33 @@ class CommentRenderingTest(unittest.TestCase):
         self.assertIn("/issues/comments/99", github_request.call_args_list[-1].args[2])
         self.assertEqual(github_request.call_args_list[-1].kwargs["method"], "PATCH")
 
+    @mock.patch.object(ai_review, "github_request")
+    def test_updates_existing_configured_user_comment(
+        self, github_request: mock.Mock
+    ) -> None:
+        github_request.side_effect = [
+            [
+                {
+                    "id": 99,
+                    "body": ai_review.COMMENT_MARKER,
+                    "user": {"login": "whylog-dev", "type": "User"},
+                }
+            ],
+            {"id": 99},
+        ]
+
+        ai_review.upsert_pr_comment(
+            "https://api.github.com",
+            "token",
+            "WhyLog-App/WhyLog",
+            3,
+            "updated review",
+            actor_login="whylog-dev",
+        )
+
+        self.assertIn("/issues/comments/99", github_request.call_args_list[-1].args[2])
+        self.assertEqual(github_request.call_args_list[-1].kwargs["method"], "PATCH")
+
 
 class PullRequestSafetyTest(unittest.TestCase):
     def test_rejects_fork_pull_request(self) -> None:
@@ -385,6 +412,7 @@ class EndToEndWiringTest(unittest.TestCase):
                 "GITHUB_WORKSPACE": str(workspace),
                 "GITHUB_REPOSITORY": "WhyLog-App/WhyLog",
                 "GITHUB_TOKEN": "github-token",
+                "AI_REVIEW_ACTOR_LOGIN": "whylog-dev",
                 "GEMINI_API_KEY": "gemini-key",
                 "OPENROUTER_API_KEY": "openrouter-key",
                 "REPOSITORY_IS_PRIVATE": "false",
@@ -487,6 +515,7 @@ class EndToEndWiringTest(unittest.TestCase):
                 "GITHUB_WORKSPACE": str(workspace),
                 "GITHUB_REPOSITORY": "WhyLog-App/WhyLog",
                 "GITHUB_TOKEN": "github-token",
+                "AI_REVIEW_ACTOR_LOGIN": "whylog-dev",
                 "GEMINI_API_KEY": "gemini-key",
                 "OPENROUTER_API_KEY": "openrouter-key",
                 "AI_REVIEW_PUSH_TOKEN": "push-token",
@@ -527,6 +556,7 @@ class EndToEndWiringTest(unittest.TestCase):
                 "GITHUB_WORKSPACE": str(workspace),
                 "GITHUB_REPOSITORY": "WhyLog-App/WhyLog",
                 "GITHUB_TOKEN": "github-token",
+                "AI_REVIEW_ACTOR_LOGIN": "whylog-dev",
                 "GEMINI_API_KEY": "gemini-key",
                 "REPOSITORY_IS_PRIVATE": "false",
             }
@@ -600,6 +630,7 @@ class EndToEndWiringTest(unittest.TestCase):
                 "GITHUB_WORKSPACE": str(workspace),
                 "GITHUB_REPOSITORY": "WhyLog-App/WhyLog",
                 "GITHUB_TOKEN": "github-token",
+                "AI_REVIEW_ACTOR_LOGIN": "whylog-dev",
                 "GEMINI_API_KEY": "gemini-key",
                 "AI_REVIEW_PUSH_TOKEN": "push-token",
                 "REPOSITORY_IS_PRIVATE": "false",

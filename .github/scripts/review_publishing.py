@@ -123,6 +123,18 @@ def _string(value: Any, default: str = "") -> str:
     return value if isinstance(value, str) else default
 
 
+def comment_matches_actor(
+    comment: Mapping[str, Any], actor_login: str = ""
+) -> bool:
+    user = comment.get("user")
+    if not isinstance(user, Mapping):
+        return False
+    expected_login = actor_login.strip().casefold()
+    if expected_login:
+        return _string(user.get("login")).casefold() == expected_login
+    return user.get("type") == "Bot"
+
+
 def _int(value: Any) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
 
@@ -341,6 +353,7 @@ def _list_existing_inline_comments(
     repository: str,
     pr_number: int,
     github_request: GithubRequest,
+    actor_login: str = "",
 ) -> dict[str, list[Mapping[str, Any]]]:
     existing: dict[str, list[Mapping[str, Any]]] = {}
     for page in range(1, 11):
@@ -354,10 +367,8 @@ def _list_existing_inline_comments(
         for comment in comments:
             if not isinstance(comment, Mapping):
                 continue
-            user = comment.get("user")
-            user_type = user.get("type") if isinstance(user, Mapping) else None
             fingerprint = _extract_fingerprint(comment.get("body"))
-            if user_type == "Bot" and fingerprint:
+            if comment_matches_actor(comment, actor_login) and fingerprint:
                 existing.setdefault(fingerprint, []).append(comment)
         if len(comments) < 100:
             break
@@ -529,10 +540,16 @@ def publish_inline_review_comments(
     files: Sequence[Mapping[str, Any]],
     result: Any,
     github_request: GithubRequest,
+    actor_login: str = "",
 ) -> InlinePublishResult:
     plan = build_inline_review_plan(files, result)
     existing = _list_existing_inline_comments(
-        api_url, token, repository, pr_number, github_request
+        api_url,
+        token,
+        repository,
+        pr_number,
+        github_request,
+        actor_login,
     )
     current = {comment.fingerprint: comment for comment in plan.comments}
     resolved = 0

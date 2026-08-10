@@ -162,6 +162,41 @@ class PatchParsingTest(unittest.TestCase):
 
 
 class InlinePublishTest(unittest.TestCase):
+    def test_configured_user_comment_is_not_reposted(self):
+        current = finding("block", "server/src/App.java", 2)
+        fingerprint = (
+            rp.build_inline_review_plan(files(), result(blocking=(current,)))
+            .comments[0]
+            .fingerprint
+        )
+        github = FakeGitHub(
+            responses=[
+                [
+                    {
+                        "id": 10,
+                        "node_id": "COMMENT_10",
+                        "body": f"<!-- whylog-ai-inline-review: {fingerprint} --> old",
+                        "user": {"login": "whylog-dev", "type": "User"},
+                    }
+                ]
+            ]
+        )
+
+        published = rp.publish_inline_review_comments(
+            "api",
+            "token",
+            "WhyLog-App/WhyLog",
+            7,
+            "abc",
+            files(),
+            result(blocking=(current,)),
+            github,
+            actor_login="whylog-dev",
+        )
+
+        self.assertEqual(published.posted, 0)
+        self.assertFalse(any(call[1] == "POST" for call in github.calls))
+
     def test_keeps_current_comment_and_resolves_stale_without_rewriting(self):
         current = finding("block", "server/src/App.java", 2)
         fingerprint = (
