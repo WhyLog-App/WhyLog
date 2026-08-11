@@ -12,19 +12,18 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MapsId;
 import jakarta.persistence.Table;
-import lombok.Builder;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Meeting_Member")
+@Table(name = "meeting_member")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class MeetingMember extends BaseEntity {
 
-    @EmbeddedId
-    private MeetingMemberId id;
+    @EmbeddedId private MeetingMemberId id;
 
     @MapsId("meetingId")
     @ManyToOne(fetch = FetchType.LAZY)

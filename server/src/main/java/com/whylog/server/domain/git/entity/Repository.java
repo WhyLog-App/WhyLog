@@ -22,7 +22,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Repository")
+@Table(name = "repository")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Repository extends BaseEntity {
 
@@ -55,9 +55,7 @@ public class Repository extends BaseEntity {
         return repository;
     }
 
-    /**
-     * 마지막 동기화 시간을 업데이트합니다.
-     */
+    /** 마지막 동기화 시간을 업데이트합니다. */
     public void updateLastSyncedAt(LocalDateTime syncedAt) {
         this.lastSyncedAt = syncedAt;
     }

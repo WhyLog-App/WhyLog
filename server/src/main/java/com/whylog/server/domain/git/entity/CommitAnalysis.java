@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Commit_Analysis")
+@Table(name = "commit_analysis")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CommitAnalysis extends BaseEntity {
 

@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Dialogue")
+@Table(name = "dialogue")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Dialogue extends BaseEntity {
 
@@ -41,7 +41,8 @@ public class Dialogue extends BaseEntity {
     @Column(name = "speech_datetime", nullable = false)
     private LocalDateTime speechDateTime;
 
-    public static Dialogue create(Meeting meeting, Member member, String content, LocalDateTime speechDateTime) {
+    public static Dialogue create(
+            Meeting meeting, Member member, String content, LocalDateTime speechDateTime) {
         Dialogue dialogue = new Dialogue();
         dialogue.meeting = meeting;
         dialogue.member = member;

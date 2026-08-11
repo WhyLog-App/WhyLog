@@ -4,6 +4,7 @@
 
 - `AGENTS.md` — Server 개발 규칙과 참조 구현 경로
 - [`docs/review-checklist.md`](docs/review-checklist.md) — 머지 전 체크리스트. AI 리뷰의 판정 기준으로도 사용합니다.
+- [`docs/migrations.md`](docs/migrations.md) — Flyway 마이그레이션·mock.sql 파일명 규칙과 실행 방법
 - 새 문서를 추가하거나 경로를 변경하면 이 목차와 루트 `AGENTS.md`의 파트 인덱스를 함께 갱신합니다.
 
 아래 경로 표기는 모두 `src/main/java/com/whylog/server/` 를 기준으로 합니다.

@@ -20,12 +20,11 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Team_Member")
+@Table(name = "team_member")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TeamMember extends BaseEntity {
 
-    @EmbeddedId
-    private TeamMemberId id;
+    @EmbeddedId private TeamMemberId id;
 
     @MapsId("teamId")
     @ManyToOne(fetch = FetchType.LAZY)

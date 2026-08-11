@@ -21,7 +21,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Decision")
+@Table(name = "decision")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Decision extends BaseEntity {
 
@@ -42,12 +42,13 @@ public class Decision extends BaseEntity {
 
     @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<Application> applications = new ArrayList<>();
-//
-//    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<DecisionTimeline> decisionTimelines = new ArrayList<>();
-//
-//    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private final List<DecisionBase> decisionBases = new ArrayList<>();
+
+    //
+    //    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
+    //    private final List<DecisionTimeline> decisionTimelines = new ArrayList<>();
+    //
+    //    @OneToMany(mappedBy = "decision", cascade = CascadeType.ALL, orphanRemoval = true)
+    //    private final List<DecisionBase> decisionBases = new ArrayList<>();
 
     public static Decision create(Meeting meeting, boolean isCreated) {
         Decision decision = new Decision();

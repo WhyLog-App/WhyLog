@@ -1,19 +1,24 @@
 package com.whylog.server.domain.decision.entity;
 
 import com.whylog.server.global.entity.BaseEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MapsId;
+import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Application_Base")
+@Table(name = "application_base")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ApplicationBase extends BaseEntity {
 
-    @EmbeddedId
-    private ApplicationBaseId id;
+    @EmbeddedId private ApplicationBaseId id;
 
     @MapsId("applicationId")
     @ManyToOne(fetch = FetchType.LAZY)

@@ -2,15 +2,24 @@ package com.whylog.server.domain.meeting.entity;
 
 import com.whylog.server.global.entity.BaseEntity;
 import com.whylog.server.global.util.json.StringListJsonConverter;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.util.List;
 
 @Entity
 @Getter
-@Table(name = "Meeting_Analysis")
+@Table(name = "meeting_analysis")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class MeetingAnalysis extends BaseEntity {
 
@@ -85,7 +94,5 @@ public class MeetingAnalysis extends BaseEntity {
             List<String> topics,
             List<String> coreContext,
             List<String> applicationTitles,
-            List<String> applicationReasons
-    ) {
-    }
+            List<String> applicationReasons) {}
 }

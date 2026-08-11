@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "Changed_File")
+@Table(name = "changed_file")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ChangedFile extends BaseEntity {
 

@@ -1,26 +1,37 @@
 package com.whylog.server.domain.meeting.entity;
 
-import com.whylog.server.domain.decision.entity.Decision;
 import com.whylog.server.domain.meeting.dto.MeetingRequest;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
 import com.whylog.server.domain.team.entity.Team;
 import com.whylog.server.global.entity.BaseEntity;
-import jakarta.persistence.*;
-
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Getter
-@Table(name = "Meeting")
+@Table(name = "meeting")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class
-Meeting extends BaseEntity {
+public class Meeting extends BaseEntity {
 
     @Id
     @Column(name = "meeting_id")
@@ -61,17 +72,14 @@ Meeting extends BaseEntity {
     }
 
     public static Meeting create(MeetingRequest.MeetingCreateDTO dto, Team team) {
-        return Meeting.builder()
-                .name(dto.getName())
-                .team(team)
-                .build();
+        return Meeting.builder().name(dto.getName()).team(team).build();
     }
 
-    public MeetingStatus getStatus(){
+    public MeetingStatus getStatus() {
         return this.endDateTime == null ? MeetingStatus.ONGOING : MeetingStatus.COMPLETED;
     }
 
-    public boolean isOngoing(){
+    public boolean isOngoing() {
         return this.endDateTime == null;
     }
 
@@ -82,7 +90,7 @@ Meeting extends BaseEntity {
     }
 
     public Long getDuration() {
-        if(this.endDateTime == null) return null;
+        if (this.endDateTime == null) return null;
         return ChronoUnit.MINUTES.between(startDateTime, endDateTime);
     }
 
@@ -101,15 +109,18 @@ Meeting extends BaseEntity {
 
     @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<MeetingMember> meetingMembers = new ArrayList<>();
-//
+
+    //
     @OneToOne(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
     private MeetingAnalysis meetingAnalysis;
-//
+
+    //
     @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<Dialogue> dialogues = new ArrayList<>();
-//
-//    @OneToOne(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private Decision decision;
+
+    //
+    //    @OneToOne(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true)
+    //    private Decision decision;
 
     public void attachMeetingAnalysis(MeetingAnalysis meetingAnalysis) {
         this.meetingAnalysis = meetingAnalysis;
