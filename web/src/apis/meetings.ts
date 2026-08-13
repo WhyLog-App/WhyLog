@@ -11,7 +11,6 @@ import type {
   MeetingHistory,
   MeetingListItem,
   MeetingStatus,
-  RtcTokenResult,
 } from "@/types/meeting";
 import { http } from "@/utils/http";
 
@@ -56,23 +55,6 @@ export const getMeetingDetail = async (
     throw new Error(data.message);
   }
   return data.result;
-};
-
-export const getRtcToken = async (
-  meetingId: number,
-): Promise<{ serverUrl: string; token: string; roomName: string }> => {
-  const { data } = await http.get<
-    unknown,
-    { data: ApiResponse<RtcTokenResult> }
-  >(ENDPOINT.MEETINGS.RTC_TOKEN(meetingId));
-  if (!data.isSuccess) {
-    throw new Error(data.message);
-  }
-  return {
-    serverUrl: data.result.server_url,
-    token: data.result.token,
-    roomName: data.result.room_name,
-  };
 };
 
 export const getMeetingAnalysis = async (

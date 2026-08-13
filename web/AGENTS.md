@@ -17,7 +17,7 @@
 | 서버 상태 | TanStack Query 5 | 서버에서 온 데이터는 전부 여기 |
 | HTTP | Axios (`@/utils/http`) | JWT 인터셉터 내장 |
 | 스타일 | Tailwind CSS 4 | CSS Modules 사용 안 함 |
-| 실시간 | `livekit-client` | 회의 화면 전용 |
+| 실시간 | WebRTC P2P mesh + WebSocket | 회의 화면 전용. 시그널링은 서버 WS가 중계 |
 | 검사 | Biome 2.4.7 | 포맷 + 린트 + import 정렬 |
 | 패키지 | pnpm | `pnpm-lock.yaml` 커밋 필수 |
 

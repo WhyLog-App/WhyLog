@@ -60,7 +60,7 @@ const InProgressPage = () => {
     participants,
     isWsConnected,
     isRoomConnected,
-    hasRtcToken,
+    hasLocalMedia,
     retryAttempt,
     errorMessage,
     transcripts,
@@ -75,6 +75,7 @@ const InProgressPage = () => {
   } = useMeetingRoom({
     meetingId,
     displayName: myName,
+    selfMemberId: myMemberId,
   });
 
   const MAX_CONNECTION_RETRIES = 3;
@@ -154,7 +155,7 @@ const InProgressPage = () => {
         <MeetingConnectionOverlay
           isWsConnected={isWsConnected}
           isRoomConnected={isRoomConnected}
-          hasRtcToken={hasRtcToken}
+          hasLocalMedia={hasLocalMedia}
           errorMessage={errorMessage}
           retryAttempt={retryAttempt}
           maxRetries={MAX_CONNECTION_RETRIES}

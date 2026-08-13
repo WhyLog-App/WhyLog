@@ -3,7 +3,7 @@ import EmptyStateIllustrationUrl from "@/assets/illustrations/empty_state_illust
 interface MeetingConnectionOverlayProps {
   isWsConnected: boolean;
   isRoomConnected: boolean;
-  hasRtcToken: boolean;
+  hasLocalMedia: boolean;
   errorMessage: string | null;
   retryAttempt: number;
   maxRetries: number;
@@ -14,7 +14,7 @@ interface MeetingConnectionOverlayProps {
 const getStatusText = ({
   isWsConnected,
   isRoomConnected,
-  hasRtcToken,
+  hasLocalMedia,
   errorMessage,
   retryAttempt,
   maxRetries,
@@ -25,8 +25,8 @@ const getStatusText = ({
   if (errorMessage) {
     return `연결 재시도 중... (${retryAttempt}/${maxRetries})`;
   }
-  if (!hasRtcToken) {
-    return "회의 토큰 발급 중...";
+  if (!hasLocalMedia) {
+    return "마이크 준비 중...";
   }
   if (!isRoomConnected) {
     return "회의실에 입장하는 중...";
@@ -40,7 +40,7 @@ const getStatusText = ({
 const MeetingConnectionOverlay = ({
   isWsConnected,
   isRoomConnected,
-  hasRtcToken,
+  hasLocalMedia,
   errorMessage,
   retryAttempt,
   maxRetries,
@@ -50,7 +50,7 @@ const MeetingConnectionOverlay = ({
   const statusText = getStatusText({
     isWsConnected,
     isRoomConnected,
-    hasRtcToken,
+    hasLocalMedia,
     errorMessage,
     retryAttempt,
     maxRetries,

@@ -1,64 +1,84 @@
 import { useCallback, useEffect, useMemo } from "react";
 import type { RoomParticipant } from "../types";
-import { useLiveKitRoom } from "./useLiveKitRoom";
 import { useMeetingSignaling } from "./useMeetingSignaling";
+import { useWebRtcMesh } from "./useWebRtcMesh";
 
 interface UseMeetingRoomOptions {
   meetingId: number | null;
   displayName: string;
+  /** JWT에서 꺼낸 본인 memberId. mesh의 offer 방향과 본인 타일 표시에 쓴다. */
+  selfMemberId: number | null;
 }
 
 /**
  * 회의방 통합 훅.
- * - WebSocket(signaling, transcripts) + LiveKit(SFU, 미디어) 두 채널을 묶어
- *   하나의 인터페이스로 노출한다.
- * - 참가자 목록은 두 소스를 병합 (id 기준 중복 제거)
- * - 연결 진행 상태(hasRtcToken, retryAttempt)와 수동 재시도(manualRetry) 노출
+ * - WebSocket 하나로 signaling(roster·자막)과 WebRTC offer/answer/ice를 함께 나른다.
+ * - 미디어는 P2P mesh(useWebRtcMesh). 참가자 목록의 정본은 서버 roster다.
+ * - 연결 진행 상태(hasLocalMedia, retryAttempt)와 수동 재시도(manualRetry) 노출
  */
 export const useMeetingRoom = ({
   meetingId,
   displayName,
+  selfMemberId,
 }: UseMeetingRoomOptions) => {
   const signaling = useMeetingSignaling({ meetingId, displayName });
-  const livekit = useLiveKitRoom({ meetingId });
 
-  const participants = useMemo<RoomParticipant[]>(() => {
-    const map = new Map<string, RoomParticipant>();
-    [...signaling.participants, ...livekit.participants].forEach((p) => {
-      if (!map.has(p.id)) map.set(p.id, p);
-    });
-    return Array.from(map.values());
-  }, [signaling.participants, livekit.participants]);
+  const peerMemberIds = useMemo(
+    () =>
+      signaling.participants
+        .map((participant) => Number(participant.id))
+        .filter((id) => Number.isFinite(id)),
+    [signaling.participants],
+  );
+
+  const mesh = useWebRtcMesh({
+    meetingId,
+    selfMemberId,
+    peerMemberIds,
+    isWsConnected: signaling.isConnected,
+    sendSignal: signaling.sendSignal,
+    subscribeSignal: signaling.subscribeSignal,
+  });
+
+  const participants = useMemo<RoomParticipant[]>(
+    () =>
+      signaling.participants.map((participant) => ({
+        ...participant,
+        isSelf: participant.id === String(selfMemberId),
+        isSpeaking: mesh.speakingMemberIds.includes(participant.id),
+      })),
+    [signaling.participants, mesh.speakingMemberIds, selfMemberId],
+  );
 
   const manualRetry = useCallback(() => {
     signaling.manualRetry();
-    livekit.manualRetry();
-  }, [signaling.manualRetry, livekit.manualRetry]);
+    mesh.manualRetry();
+  }, [signaling.manualRetry, mesh.manualRetry]);
 
-  const retryAttempt = Math.max(signaling.retryAttempt, livekit.retryAttempt);
+  const retryAttempt = Math.max(signaling.retryAttempt, mesh.retryAttempt);
 
-  // 타인이 회의를 종료한 시그널이 오면 LiveKit Room/마이크 즉시 해제
+  // 타인이 회의를 종료한 시그널이 오면 peer 연결과 마이크 트랙 즉시 해제
+  const meshDisconnect = mesh.disconnect;
   useEffect(() => {
     if (!signaling.isMeetingEnded) return;
-    void livekit.isConnected;
-    void livekit.disconnect();
-  }, [signaling.isMeetingEnded, livekit.isConnected, livekit.disconnect]);
+    meshDisconnect();
+  }, [signaling.isMeetingEnded, meshDisconnect]);
 
   return {
     participants,
     isWsConnected: signaling.isConnected,
-    isRoomConnected: livekit.isConnected,
-    hasRtcToken: livekit.hasRtcToken,
+    isRoomConnected: mesh.isConnected,
+    hasLocalMedia: mesh.hasLocalMedia,
     retryAttempt,
-    // LiveKit 에러를 우선 노출, 없으면 signaling 에러
-    errorMessage: livekit.errorMessage ?? signaling.errorMessage,
+    // 미디어 에러를 우선 노출, 없으면 signaling 에러
+    errorMessage: mesh.errorMessage ?? signaling.errorMessage,
     transcripts: signaling.transcripts,
     interimByMember: signaling.interimByMember,
     sendMessage: signaling.sendMessage,
-    isMicEnabled: livekit.isMicEnabled,
-    isAudioOutputEnabled: livekit.isAudioOutputEnabled,
-    setMicrophoneEnabled: livekit.setMicrophoneEnabled,
-    setAudioOutputEnabled: livekit.setAudioOutputEnabled,
+    isMicEnabled: mesh.isMicEnabled,
+    isAudioOutputEnabled: mesh.isAudioOutputEnabled,
+    setMicrophoneEnabled: mesh.setMicrophoneEnabled,
+    setAudioOutputEnabled: mesh.setAudioOutputEnabled,
     manualRetry,
     isMeetingEnded: signaling.isMeetingEnded,
   };
