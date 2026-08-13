@@ -1,0 +1,202 @@
+name: Notify
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "AGENTS.md"
+      - "*/AGENTS.md"
+      - "docs/**"
+      - "biome.json"
+      - "web/biome.json"
+      - ".editorconfig"
+      - "!docs/pr-reviews/**"
+
+  pull_request:
+    types: [closed]
+
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  rules-changed:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 바뀐 규칙 파일 목록
+        id: files
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            echo "BEFORE($BEFORE)에 도달할 수 없어 직전 커밋과 비교합니다."
+            BEFORE="${AFTER}^"
+          fi
+          {
+            echo "list<<__EOF__"
+            git diff --name-only "$BEFORE" "$AFTER" -- \
+              'AGENTS.md' '*/AGENTS.md' 'docs/**' 'biome.json' 'web/biome.json' '.editorconfig' \
+              ':(exclude)docs/pr-reviews/**'
+            echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 알림
+        env:
+          WEBHOOK: ${{ secrets.BOT_CHANNEL_WEBHOOK_URL }}
+          BRANCH: ${{ github.ref_name }}
+          FILES: ${{ steps.files.outputs.list }}
+          LINK: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+          SHA: ${{ github.sha }}
+          AUTHOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WEBHOOK:-}" ]; then
+            echo "::notice::BOT_CHANNEL_WEBHOOK_URL 미설정 — 알림을 건너뜁니다."
+            exit 0
+          fi
+
+          if [ -z "$(printf '%s' "${FILES:-}" | tr -d '[:space:]')" ]; then
+            echo "::notice::규칙 파일 변경 없음 — 알림을 보내지 않습니다."
+            exit 0
+          fi
+          jq -n \
+            --arg branch "$BRANCH" --arg files "$FILES" \
+            --arg link "$LINK" --arg sha "$SHA" --arg author "$AUTHOR" \
+            '{
+              allowed_mentions: { parse: [] },
+              embeds: [{
+                title: "📘 규칙 문서 변경",
+                url: $link,
+                description: "작업 시작 전 `git pull` 하세요.",
+                color: 5793266,
+                fields: [
+                  { name: "브랜치", value: $branch, inline: true },
+                  { name: "올린 사람", value: $author, inline: true },
+                  { name: "변경 파일", value: ("```\n" + $files[0:900] + "\n```") }
+                ],
+                footer: { text: ("커밋 " + $sha[0:7]) }
+              }]
+            }' \
+          | curl -sS --fail-with-body --retry 3 --retry-delay 2 --max-time 30 \
+              -X POST -H 'Content-Type: application/json' \
+              --data-binary @- "$WEBHOOK"
+
+  pr-merged:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: 알림
+        env:
+          WEBHOOK: ${{ secrets.BOT_CHANNEL_WEBHOOK_URL }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_USER: ${{ github.event.pull_request.user.login }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+          ADDS: ${{ github.event.pull_request.additions }}
+          DELS: ${{ github.event.pull_request.deletions }}
+          FILES_N: ${{ github.event.pull_request.changed_files }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WEBHOOK:-}" ]; then
+            echo "::notice::BOT_CHANNEL_WEBHOOK_URL 미설정 — 알림을 건너뜁니다."
+            exit 0
+          fi
+          jq -n \
+            --arg url "$PR_URL" --arg num "$PR_NUM" --arg title "$PR_TITLE" \
+            --arg user "$PR_USER" --arg base "$BASE" \
+            --arg adds "$ADDS" --arg dels "$DELS" --arg files_n "$FILES_N" \
+            '{
+              allowed_mentions: { parse: [] },
+              embeds: [{
+                title: (("✅ PR 머지 · #" + $num + " " + $title)[0:250]),
+                url: $url,
+                color: 5763719,
+                fields: [
+                  { name: "담당", value: $user, inline: true },
+                  { name: "대상 브랜치", value: $base, inline: true },
+                  { name: "변경량", value: ("+" + $adds + " / −" + $dels + " · 파일 " + $files_n + "개"), inline: true }
+                ],
+                footer: { text: "사후 리뷰는 머지 후 24시간 내 · 집계 시트에 변경량/실제일 기록" }
+              }]
+            }' \
+          | curl -sS --fail-with-body --retry 3 --retry-delay 2 --max-time 30 \
+              -X POST -H 'Content-Type: application/json' \
+              --data-binary @- "$WEBHOOK"
+
+  ci-failing-streak:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 같은 브랜치의 직전 실행도 실패였는지 확인
+        id: streak
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WF_ID: ${{ github.event.workflow_run.workflow_id }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+
+          prev=$(gh api -X GET \
+            "repos/$REPO/actions/workflows/$WF_ID/runs" \
+            -f branch="$BRANCH" -f status=completed -F per_page=20 \
+            | jq -r --argjson run_id "$RUN_ID" '
+                [.workflow_runs[]
+                 | select(.id != $run_id)
+                 | select(.conclusion == "failure" or .conclusion == "success")][0].conclusion // "none"')
+          echo "직전 실행 결과: $prev"
+          echo "prev=$prev" >> "$GITHUB_OUTPUT"
+
+      - name: 알림 (직전도 실패였을 때만)
+        if: steps.streak.outputs.prev == 'failure'
+        env:
+          WEBHOOK: ${{ secrets.BOT_CHANNEL_WEBHOOK_URL }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          WF_NAME: ${{ github.event.workflow_run.name }}
+          ACTOR: ${{ github.event.workflow_run.head_commit.author.name }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WEBHOOK:-}" ]; then
+            echo "::notice::BOT_CHANNEL_WEBHOOK_URL 미설정 — 알림을 건너뜁니다."
+            exit 0
+          fi
+          jq -n \
+            --arg branch "$BRANCH" --arg url "$RUN_URL" \
+            --arg wf "$WF_NAME" --arg actor "$ACTOR" \
+            '{
+              allowed_mentions: { parse: [] },
+              embeds: [{
+                title: "🚨 CI 연속 실패 2회",
+                url: $url,
+                description: "한 번 실패는 알리지 않습니다. 두 번 연속이면 손이 필요하다는 뜻입니다.",
+                color: 15548997,
+                fields: [
+                  { name: "브랜치", value: $branch, inline: true },
+                  { name: "워크플로", value: $wf, inline: true },
+                  { name: "마지막 커밋", value: $actor, inline: true }
+                ]
+              }]
+            }' \
+          | curl -sS --fail-with-body --retry 3 --retry-delay 2 --max-time 30 \
+              -X POST -H 'Content-Type: application/json' \
+              --data-binary @- "$WEBHOOK"
