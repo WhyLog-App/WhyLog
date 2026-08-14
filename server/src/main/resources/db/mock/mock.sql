@@ -46,7 +46,7 @@ INSERT INTO team_member (team_id, member_id, created_at, updated_at, is_active, 
     (1, 3, NOW(), NOW(), 1, 'MEMBER'),
     (1, 4, NOW(), NOW(), 1, 'MEMBER');
 
--- repository & commits (10건)
+-- repository & commits (16건)
 INSERT INTO repository (repository_id, created_at, updated_at, name, url, last_synced_at, team_id) VALUES
     (1, NOW(), NOW(), 'whylog-server', 'https://github.com/WhyLog-App/whylog-server', NOW(), 1);
 
@@ -60,7 +60,13 @@ INSERT INTO commits (commit_id, created_at, updated_at, repository_id, hash, mes
     (7, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000007', 'perf: 회의 요약 캐싱 적용', '목데이터3', 'mock3@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 2 DAY), 70, 15),
     (8, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000008', 'fix: GitHub 웹훅 서명 검증 버그 수정', '목데이터4', 'mock4@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 1 DAY), 25, 8),
     (9, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000009', 'chore: Flyway 마이그레이션 도입', '목데이터1', 'mock1@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 1 DAY), 350, 0),
-    (10, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000010', 'docs: PR 리뷰 기록 문서화', '목데이터2', 'mock2@gmail.com', 'https://placehold.co/64x64', NOW(), 80, 2);
+    (10, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000010', 'docs: PR 리뷰 기록 문서화', '목데이터2', 'mock2@gmail.com', 'https://placehold.co/64x64', NOW(), 80, 2),
+    (11, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000011', 'feat: 적용사항 직접 연결 목록 조회 추가', '목데이터3', 'mock3@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 11 DAY), 110, 8),
+    (12, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000012', 'fix: 커밋 목록 페이징 중복 조회 수정', '목데이터4', 'mock4@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 10 DAY), 24, 14),
+    (13, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000013', 'refactor: Git 조회 응답 변환 로직 정리', '목데이터1', 'mock1@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 9 DAY), 75, 53),
+    (14, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000014', 'chore: GitHub 동기화 로그 레벨 조정', '목데이터2', 'mock2@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 8 DAY), 18, 6),
+    (15, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000015', 'test: 커밋 직접 연결 목록 조회 테스트 추가', '목데이터3', 'mock3@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 7 DAY), 96, 4),
+    (16, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000016', 'docs: 커밋 연결 API 사용 예시 보완', '목데이터4', 'mock4@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 6 DAY), 42, 1);
 
 INSERT INTO changed_file (changed_file_id, created_at, updated_at, commit_id, file_name) VALUES
     (1, NOW(), NOW(), 1, 'src/main/java/com/whylog/server/domain/user/service/LocalLoginService.java'),
@@ -74,7 +80,16 @@ INSERT INTO changed_file (changed_file_id, created_at, updated_at, commit_id, fi
     (9, NOW(), NOW(), 7, 'src/main/java/com/whylog/server/domain/meeting/service/MeetingAnalysisService.java'),
     (10, NOW(), NOW(), 8, 'src/main/java/com/whylog/server/global/external/github/GithubWebhookVerifier.java'),
     (11, NOW(), NOW(), 9, 'src/main/resources/db/migration/V1__init_schema.sql'),
-    (12, NOW(), NOW(), 10, 'docs/pr-reviews/2026-08.md');
+    (12, NOW(), NOW(), 10, 'docs/pr-reviews/2026-08.md'),
+    (13, NOW(), NOW(), 11, 'src/main/java/com/whylog/server/domain/git/service/GitQueryServiceImpl.java'),
+    (14, NOW(), NOW(), 11, 'src/main/java/com/whylog/server/domain/git/dto/GitResponse.java'),
+    (15, NOW(), NOW(), 12, 'src/main/java/com/whylog/server/domain/git/repository/CommitRepository.java'),
+    (16, NOW(), NOW(), 13, 'src/main/java/com/whylog/server/domain/git/service/GitQueryServiceImpl.java'),
+    (17, NOW(), NOW(), 13, 'src/main/java/com/whylog/server/domain/git/entity/Commit.java'),
+    (18, NOW(), NOW(), 14, 'src/main/java/com/whylog/server/global/external/github/GithubClient.java'),
+    (19, NOW(), NOW(), 15, 'src/test/java/com/whylog/server/domain/git/service/GitQueryServiceImplTest.java'),
+    (20, NOW(), NOW(), 15, 'src/main/java/com/whylog/server/domain/git/controller/GitController.java'),
+    (21, NOW(), NOW(), 16, 'src/main/java/com/whylog/server/domain/git/controller/GitController.java');
 
 INSERT INTO commit_analysis (commit_Analysis_id, created_at, updated_at, commit_id, summary, embedding_ready) VALUES
     (1, NOW(), NOW(), 1, '로그인 API에 이메일/비밀번호 검증 로직을 추가했다.', 1),
