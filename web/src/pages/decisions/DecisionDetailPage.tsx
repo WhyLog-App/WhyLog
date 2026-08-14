@@ -14,6 +14,8 @@ const DecisionDetailPage = ({ vm }: DecisionDetailPageProps) => {
       <ApplicationDetailTabs activeTab="code" />
       <CodeApplicationTab
         applicationId={vm.detail.application_id}
+        applicationName={vm.detail.name}
+        keywords={vm.detail.decision_reasons.map((reason) => reason.title)}
         recommendedCommits={vm.recommended_commits}
         linkedCommits={vm.linked_commits}
       />

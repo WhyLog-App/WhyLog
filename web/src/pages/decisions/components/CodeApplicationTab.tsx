@@ -8,6 +8,7 @@ import type { RepositoryCommitItem } from "@/types/git";
 import { useLinkCommit } from "../hooks/useLinkCommit";
 import { useRepositories } from "../hooks/useRepositories";
 import { useRepositoryCommitsInfinite } from "../hooks/useRepositoryCommitsInfinite";
+import { useUnlinkCommit } from "../hooks/useUnlinkCommit";
 import CommitCard from "./CommitCard";
 import CommitDetailPanel, {
   type CommitDetailCommit,
@@ -15,6 +16,8 @@ import CommitDetailPanel, {
 
 interface CodeApplicationTabProps {
   applicationId: number;
+  applicationName: string;
+  keywords: string[];
   recommendedCommits: ApplicationRecommendedCommit[];
   linkedCommits: ApplicationConnectedCommit[];
 }
@@ -119,6 +122,8 @@ const RepositoryTabs = ({
 
 const CodeApplicationTab = ({
   applicationId,
+  applicationName,
+  keywords,
   recommendedCommits,
   linkedCommits,
 }: CodeApplicationTabProps) => {
@@ -144,8 +149,25 @@ const CodeApplicationTab = ({
   const directCommitsByHash = new Map(
     directCommits.map((commit) => [commit.hash, commit]),
   );
-  const { linkCommits, errorMessage: linkErrorMessage } =
-    useLinkCommit(applicationId);
+  const {
+    linkCommits,
+    errorMessage: linkErrorMessage,
+    isPending: isLinkPending,
+  } = useLinkCommit(applicationId, {
+    onSuccess: () =>
+      setSelectedCommit((commit) =>
+        commit ? { ...commit, isConnected: true } : null,
+      ),
+  });
+  const { unlinkCommit, isPending: isUnlinkPending } = useUnlinkCommit(
+    applicationId,
+    {
+      onSuccess: () =>
+        setSelectedCommit((commit) =>
+          commit ? { ...commit, isConnected: false } : null,
+        ),
+    },
+  );
 
   useEffect(() => {
     if (selectedRepositoryId == null && repositories[0]) {
@@ -199,8 +221,10 @@ const CodeApplicationTab = ({
       </div>
       <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto">
         <div className="flex min-w-176 flex-1 overflow-hidden rounded-xl border border-(--color-border-default) bg-white">
-          <section className="flex min-w-88 flex-1 flex-col gap-3 border-r border-(--color-border-default) p-5">
-            <div className="flex items-center justify-between gap-2">
+          <section className="flex min-w-0 flex-1 flex-col border-r border-(--color-border-default) p-5">
+            <div
+              className={`flex items-center justify-between gap-2 ${sourceTab === "direct" ? "mb-1" : "mb-3"}`}
+            >
               <div className="flex items-center gap-1">
                 <i className="size-1.5 rounded-full bg-(--color-text-brand)" />
                 <h2 className="typo-subtitle4 text-(--color-text-primary)">
@@ -252,6 +276,11 @@ const CodeApplicationTab = ({
                             repositoryName: commit.repository_name,
                             hash: commit.commit_hash,
                             message: commit.message,
+                            commitId: Number(commit.commit_id),
+                            isConnected: linkedCommits.some(
+                              (linkedCommit) =>
+                                linkedCommit.commit_hash === commit.commit_hash,
+                            ),
                             reason: commit.reason,
                             repositoryId: repositories.find(
                               (repository) =>
@@ -259,8 +288,6 @@ const CodeApplicationTab = ({
                             )?.repository_id,
                             authorName: matchedCommit?.author_name,
                             committedDate: matchedCommit?.date_time,
-                            addedLines: matchedCommit?.added_lines,
-                            removedLines: matchedCommit?.deleted_lines,
                           })
                         }
                         onDragStart={() => startDragging(commit.commit_id)}
@@ -284,11 +311,14 @@ const CodeApplicationTab = ({
                         )?.name ?? "",
                       hash: commit.hash,
                       message: commit.message,
+                      commitId: commit.commit_id,
+                      isConnected: linkedCommits.some(
+                        (linkedCommit) =>
+                          linkedCommit.commit_hash === commit.hash,
+                      ),
                       repositoryId: selectedRepositoryId ?? undefined,
                       authorName: commit.author_name,
                       committedDate: commit.date_time,
-                      addedLines: commit.added_lines,
-                      removedLines: commit.deleted_lines,
                     })
                   }
                   onDragStart={startDragging}
@@ -297,7 +327,7 @@ const CodeApplicationTab = ({
               )}
             </div>
           </section>
-          <section className="flex min-w-88 flex-1 flex-col gap-3 border-r border-(--color-border-default) p-5">
+          <section className="flex min-w-0 flex-1 flex-col gap-3 p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <i className="size-1.5 rounded-full bg-(--color-green-500)" />
@@ -336,6 +366,22 @@ const CodeApplicationTab = ({
                     addedLines={matchedCommit?.added_lines}
                     removedLines={matchedCommit?.deleted_lines}
                     variant="linked"
+                    selected={selectedCommit?.hash === commit.commit_hash}
+                    onClick={() =>
+                      showDetail({
+                        repositoryName: commit.repository_name,
+                        hash: commit.commit_hash,
+                        message: commit.message,
+                        commitId: commit.commit_id,
+                        isConnected: true,
+                        repositoryId: repositories.find(
+                          (repository) =>
+                            repository.name === commit.repository_name,
+                        )?.repository_id,
+                        authorName: matchedCommit?.author_name,
+                        committedDate: commit.committed_date,
+                      })
+                    }
                   />
                 );
               })}
@@ -353,9 +399,14 @@ const CodeApplicationTab = ({
           </section>
         </div>
         <CommitDetailPanel
+          applicationName={applicationName}
+          keywords={keywords}
           commit={selectedCommit}
           collapsed={detailCollapsed}
           onToggle={() => setDetailCollapsed((value) => !value)}
+          onConnect={(commitId) => linkCommits([commitId])}
+          onUnlink={unlinkCommit}
+          isPending={isLinkPending || isUnlinkPending}
         />
       </div>
     </section>

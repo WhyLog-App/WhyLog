@@ -70,8 +70,7 @@ body {
 }
 
 .application-scroll::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  display: none;
 }
 
 .application-scroll::-webkit-scrollbar-track {
@@ -85,16 +84,6 @@ body {
   -webkit-box-shadow: none;
 }
 
-.application-scroll.is-scrolling::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.application-scroll.is-scrolling::-webkit-scrollbar-track {
-  background-color: transparent;
-  box-shadow: none;
-}
-
-.application-scroll.is-scrolling::-webkit-scrollbar-thumb {
-  background-color: var(--color-gray-400);
+.application-scroll {
+  scrollbar-width: none;
 }
