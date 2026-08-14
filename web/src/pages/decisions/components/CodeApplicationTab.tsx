@@ -4,7 +4,6 @@ import type {
   ApplicationConnectedCommit,
   ApplicationRecommendedCommit,
 } from "@/types/application";
-import type { RepositoryCommitItem } from "@/types/git";
 import { useLinkCommit } from "../hooks/useLinkCommit";
 import { useRepositories } from "../hooks/useRepositories";
 import { useRepositoryCommitsInfinite } from "../hooks/useRepositoryCommitsInfinite";
@@ -31,7 +30,7 @@ interface DetailCommitInput {
   commitId?: number;
   isConnected: boolean;
   reason?: string;
-  metadata?: RepositoryCommitItem;
+  authorName?: string;
   committedDate?: string;
 }
 
@@ -43,7 +42,7 @@ const toDetailCommit = ({
   commitId,
   isConnected,
   reason,
-  metadata,
+  authorName,
   committedDate,
 }: DetailCommitInput): CommitDetailCommit => ({
   repositoryName,
@@ -53,8 +52,8 @@ const toDetailCommit = ({
   commitId,
   isConnected,
   reason,
-  authorName: metadata?.author_name,
-  committedDate: committedDate ?? metadata?.date_time,
+  authorName,
+  committedDate,
 });
 
 const CodeApplicationTab = ({
@@ -105,10 +104,6 @@ const CodeApplicationTab = ({
       ),
     [repositories],
   );
-  const directCommitsByHash = useMemo(
-    () => new Map(directCommits.map((commit) => [commit.hash, commit])),
-    [directCommits],
-  );
   const linkedCommitHashes = useMemo(
     () => new Set(linkedCommits.map((commit) => commit.commit_hash)),
     [linkedCommits],
@@ -125,17 +120,18 @@ const CodeApplicationTab = ({
           : commit,
       ),
   });
-  const { unlinkCommit, isPending: isUnlinkPending } = useUnlinkCommit(
-    applicationId,
-    {
-      onSuccess: (commitId) =>
-        setSelectedCommit((commit) =>
-          commit?.commitId === commitId
-            ? { ...commit, isConnected: false }
-            : commit,
-        ),
-    },
-  );
+  const {
+    unlinkCommit,
+    errorMessage: unlinkErrorMessage,
+    isPending: isUnlinkPending,
+  } = useUnlinkCommit(applicationId, {
+    onSuccess: (commitId) =>
+      setSelectedCommit((commit) =>
+        commit?.commitId === commitId
+          ? { ...commit, isConnected: false }
+          : commit,
+      ),
+  });
 
   useEffect(() => {
     if (selectedRepositoryId == null && repositories[0]) {
@@ -214,7 +210,6 @@ const CodeApplicationTab = ({
             <div className="application-scroll flex flex-1 flex-col overflow-y-auto">
               {sourceTab === "recommended" ? (
                 recommendedCommits.map((commit) => {
-                  const metadata = directCommitsByHash.get(commit.commit_hash);
                   return (
                     <CommitCard
                       key={commit.commit_id}
@@ -222,10 +217,9 @@ const CodeApplicationTab = ({
                       message={commit.message}
                       repositoryName={commit.repository_name}
                       reason={commit.reason}
-                      authorName={metadata?.author_name}
-                      committedDate={metadata?.date_time}
-                      addedLines={metadata?.added_lines}
-                      removedLines={metadata?.deleted_lines}
+                      authorName={commit.author_name}
+                      addedLines={commit.added_lines}
+                      removedLines={commit.deleted_lines}
                       variant="recommended"
                       selected={selectedCommit?.hash === commit.commit_hash}
                       onClick={() =>
@@ -242,7 +236,7 @@ const CodeApplicationTab = ({
                               commit.commit_hash,
                             ),
                             reason: commit.reason,
-                            metadata,
+                            authorName: commit.author_name,
                           }),
                         )
                       }
@@ -280,7 +274,8 @@ const CodeApplicationTab = ({
                         message: commit.message,
                         commitId: commit.commit_id,
                         isConnected: linkedCommitHashes.has(commit.hash),
-                        metadata: commit,
+                        authorName: commit.author_name,
+                        committedDate: commit.date_time,
                       }),
                     )
                   }
@@ -304,6 +299,11 @@ const CodeApplicationTab = ({
                 {linkErrorMessage}
               </p>
             ) : null}
+            {unlinkErrorMessage ? (
+              <p className="typo-caption1 text-(--color-status-error)">
+                {unlinkErrorMessage}
+              </p>
+            ) : null}
             <section
               role="application"
               onDragOver={(event) => {
@@ -314,19 +314,16 @@ const CodeApplicationTab = ({
               className="application-scroll relative flex flex-1 flex-col overflow-y-auto"
             >
               {linkedCommits.map((commit) => {
-                const matchedCommit = directCommitsByHash.get(
-                  commit.commit_hash,
-                );
                 return (
                   <CommitCard
                     key={commit.commit_id}
                     hash={commit.commit_hash}
                     message={commit.message}
                     repositoryName={commit.repository_name}
-                    authorName={matchedCommit?.author_name}
+                    authorName={commit.author_name}
                     committedDate={commit.committed_date}
-                    addedLines={matchedCommit?.added_lines}
-                    removedLines={matchedCommit?.deleted_lines}
+                    addedLines={commit.added_lines}
+                    removedLines={commit.deleted_lines}
                     variant="linked"
                     selected={selectedCommit?.hash === commit.commit_hash}
                     onClick={() =>
@@ -340,7 +337,7 @@ const CodeApplicationTab = ({
                           repositoryId: repositoryIdByName.get(
                             commit.repository_name,
                           ),
-                          metadata: matchedCommit,
+                          authorName: commit.author_name,
                           committedDate: commit.committed_date,
                         }),
                       )

@@ -80,7 +80,9 @@ const CommitCard = ({
             <span className="text-(--color-green-500)">+{addedLines}</span>
           ) : null}
           {removedLines != null ? (
-            <span className="ml-1 text-(--color-red-700)">-{removedLines}</span>
+            <span className="ml-1 text-(--color-status-error)">
+              -{removedLines}
+            </span>
           ) : null}
         </span>
       ) : null}
