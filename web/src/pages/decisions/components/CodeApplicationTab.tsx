@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import type {
   ApplicationConnectedCommit,
@@ -13,6 +13,7 @@ import CommitCard from "./CommitCard";
 import CommitDetailPanel, {
   type CommitDetailCommit,
 } from "./CommitDetailPanel";
+import DirectCommitList from "./DirectCommitList";
 
 interface CodeApplicationTabProps {
   applicationId: number;
@@ -22,120 +23,39 @@ interface CodeApplicationTabProps {
   linkedCommits: ApplicationConnectedCommit[];
 }
 
-interface DirectCommitListProps {
-  repositories: { repository_id: number; name: string }[];
-  selectedRepositoryId: number | null;
+interface DetailCommitInput {
   repositoryName: string;
-  onSelectRepository: (repositoryId: number) => void;
-  commits: RepositoryCommitItem[];
-  hasNextPage: boolean;
-  isFetchingNextPage: boolean;
-  onLoadMore: () => void;
-  onSelectCommit: (commit: RepositoryCommitItem) => void;
-  onDragStart: (commitId: number) => void;
-  onDragEnd: () => void;
+  repositoryId?: number;
+  hash: string;
+  message: string;
+  commitId?: number;
+  isConnected: boolean;
+  reason?: string;
+  metadata?: RepositoryCommitItem;
+  committedDate?: string;
 }
 
-const DirectCommitList = ({
-  repositories,
-  selectedRepositoryId,
+const toDetailCommit = ({
   repositoryName,
-  onSelectRepository,
-  commits,
-  hasNextPage,
-  isFetchingNextPage,
-  onLoadMore,
-  onSelectCommit,
-  onDragStart,
-  onDragEnd,
-}: DirectCommitListProps) => (
-  <>
-    <RepositoryTabs
-      repositories={repositories}
-      selectedRepositoryId={selectedRepositoryId}
-      onSelectRepository={onSelectRepository}
-    />
-    <div
-      onScroll={(event) => {
-        const element = event.currentTarget;
-        const remaining =
-          element.scrollHeight - element.scrollTop - element.clientHeight;
-        if (hasNextPage && !isFetchingNextPage && remaining < 80) onLoadMore();
-      }}
-      className="flex flex-1 flex-col overflow-y-auto"
-    >
-      {commits.map((commit) => (
-        <CommitCard
-          key={commit.commit_id}
-          hash={commit.hash}
-          message={commit.message}
-          repositoryName={repositoryName}
-          variant="direct"
-          authorName={commit.author_name}
-          committedDate={commit.date_time}
-          addedLines={commit.added_lines}
-          removedLines={commit.deleted_lines}
-          onClick={() => onSelectCommit(commit)}
-          onDragStart={() => onDragStart(commit.commit_id)}
-          onDragEnd={onDragEnd}
-        />
-      ))}
-      {isFetchingNextPage ? (
-        <p className="py-3 text-center typo-caption1 text-(--color-text-tertiary)">
-          커밋을 더 불러오는 중입니다
-        </p>
-      ) : null}
-    </div>
-  </>
-);
-
-const RepositoryTabs = ({
-  repositories,
-  selectedRepositoryId,
-  onSelectRepository,
-}: Pick<
-  DirectCommitListProps,
-  "repositories" | "selectedRepositoryId" | "onSelectRepository"
->) => {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const dragStartRef = useRef<{ x: number; scrollLeft: number } | null>(null);
-  return (
-    <section
-      role="application"
-      ref={scrollRef}
-      onMouseDown={(event) => {
-        dragStartRef.current = {
-          x: event.clientX,
-          scrollLeft: scrollRef.current?.scrollLeft ?? 0,
-        };
-      }}
-      onMouseMove={(event) => {
-        if (dragStartRef.current && scrollRef.current)
-          scrollRef.current.scrollLeft =
-            dragStartRef.current.scrollLeft -
-            (event.clientX - dragStartRef.current.x);
-      }}
-      onMouseUp={() => {
-        dragStartRef.current = null;
-      }}
-      onMouseLeave={() => {
-        dragStartRef.current = null;
-      }}
-      className="flex min-h-10 gap-1 overflow-x-auto px-0 py-1"
-    >
-      {repositories.map((repository) => (
-        <button
-          key={repository.repository_id}
-          type="button"
-          onClick={() => onSelectRepository(repository.repository_id)}
-          className={`shrink-0 rounded-full border px-2 py-1 typo-caption1 ${selectedRepositoryId === repository.repository_id ? "border-(--color-action-primary) bg-(--color-action-primary) text-(--color-text-inverse)" : "border-(--color-border-default) bg-(--color-bg-subtle) text-(--color-text-secondary)"}`}
-        >
-          {repository.name}
-        </button>
-      ))}
-    </section>
-  );
-};
+  repositoryId,
+  hash,
+  message,
+  commitId,
+  isConnected,
+  reason,
+  metadata,
+  committedDate,
+}: DetailCommitInput): CommitDetailCommit => ({
+  repositoryName,
+  repositoryId,
+  hash,
+  message,
+  commitId,
+  isConnected,
+  reason,
+  authorName: metadata?.author_name,
+  committedDate: committedDate ?? metadata?.date_time,
+});
 
 const CodeApplicationTab = ({
   applicationId,
@@ -165,8 +85,33 @@ const CodeApplicationTab = ({
   } = useRepositoryCommitsInfinite(selectedRepositoryId, {
     enabled: selectedRepositoryId != null,
   });
-  const directCommitsByHash = new Map(
-    directCommits.map((commit) => [commit.hash, commit]),
+  const repositoryNameById = useMemo(
+    () =>
+      new Map(
+        repositories.map((repository) => [
+          repository.repository_id,
+          repository.name,
+        ]),
+      ),
+    [repositories],
+  );
+  const repositoryIdByName = useMemo(
+    () =>
+      new Map(
+        repositories.map((repository) => [
+          repository.name,
+          repository.repository_id,
+        ]),
+      ),
+    [repositories],
+  );
+  const directCommitsByHash = useMemo(
+    () => new Map(directCommits.map((commit) => [commit.hash, commit])),
+    [directCommits],
+  );
+  const linkedCommitHashes = useMemo(
+    () => new Set(linkedCommits.map((commit) => commit.commit_hash)),
+    [linkedCommits],
   );
   const {
     linkCommits,
@@ -268,58 +213,52 @@ const CodeApplicationTab = ({
             </div>
             <div className="application-scroll flex flex-1 flex-col overflow-y-auto">
               {sourceTab === "recommended" ? (
-                recommendedCommits.map((commit) =>
-                  (() => {
-                    const matchedCommit = directCommitsByHash.get(
-                      commit.commit_hash,
-                    );
-                    return (
-                      <CommitCard
-                        key={commit.commit_id}
-                        hash={commit.commit_hash}
-                        message={commit.message}
-                        repositoryName={commit.repository_name}
-                        reason={commit.reason}
-                        authorName={matchedCommit?.author_name}
-                        committedDate={matchedCommit?.date_time}
-                        addedLines={matchedCommit?.added_lines}
-                        removedLines={matchedCommit?.deleted_lines}
-                        variant="recommended"
-                        selected={selectedCommit?.hash === commit.commit_hash}
-                        onClick={() =>
-                          showDetail({
+                recommendedCommits.map((commit) => {
+                  const metadata = directCommitsByHash.get(commit.commit_hash);
+                  return (
+                    <CommitCard
+                      key={commit.commit_id}
+                      hash={commit.commit_hash}
+                      message={commit.message}
+                      repositoryName={commit.repository_name}
+                      reason={commit.reason}
+                      authorName={metadata?.author_name}
+                      committedDate={metadata?.date_time}
+                      addedLines={metadata?.added_lines}
+                      removedLines={metadata?.deleted_lines}
+                      variant="recommended"
+                      selected={selectedCommit?.hash === commit.commit_hash}
+                      onClick={() =>
+                        showDetail(
+                          toDetailCommit({
                             repositoryName: commit.repository_name,
+                            repositoryId: repositoryIdByName.get(
+                              commit.repository_name,
+                            ),
                             hash: commit.commit_hash,
                             message: commit.message,
                             commitId: Number(commit.commit_id),
-                            isConnected: linkedCommits.some(
-                              (linkedCommit) =>
-                                linkedCommit.commit_hash === commit.commit_hash,
+                            isConnected: linkedCommitHashes.has(
+                              commit.commit_hash,
                             ),
                             reason: commit.reason,
-                            repositoryId: repositories.find(
-                              (repository) =>
-                                repository.name === commit.repository_name,
-                            )?.repository_id,
-                            authorName: matchedCommit?.author_name,
-                            committedDate: matchedCommit?.date_time,
-                          })
-                        }
-                        onDragStart={() => startDragging(commit.commit_id)}
-                        onDragEnd={finishDragging}
-                      />
-                    );
-                  })(),
-                )
+                            metadata,
+                          }),
+                        )
+                      }
+                      onDragStart={() => startDragging(commit.commit_id)}
+                      onDragEnd={finishDragging}
+                    />
+                  );
+                })
               ) : (
                 <DirectCommitList
                   repositories={repositories}
                   selectedRepositoryId={selectedRepositoryId}
                   repositoryName={
-                    repositories.find(
-                      (repository) =>
-                        repository.repository_id === selectedRepositoryId,
-                    )?.name ?? ""
+                    selectedRepositoryId == null
+                      ? ""
+                      : (repositoryNameById.get(selectedRepositoryId) ?? "")
                   }
                   onSelectRepository={setSelectedRepositoryId}
                   commits={directCommits}
@@ -329,23 +268,21 @@ const CodeApplicationTab = ({
                     void fetchNextDirectPage();
                   }}
                   onSelectCommit={(commit) =>
-                    showDetail({
-                      repositoryName:
-                        repositories.find(
-                          (repository) =>
-                            repository.repository_id === selectedRepositoryId,
-                        )?.name ?? "",
-                      hash: commit.hash,
-                      message: commit.message,
-                      commitId: commit.commit_id,
-                      isConnected: linkedCommits.some(
-                        (linkedCommit) =>
-                          linkedCommit.commit_hash === commit.hash,
-                      ),
-                      repositoryId: selectedRepositoryId ?? undefined,
-                      authorName: commit.author_name,
-                      committedDate: commit.date_time,
-                    })
+                    showDetail(
+                      toDetailCommit({
+                        repositoryName:
+                          selectedRepositoryId == null
+                            ? ""
+                            : (repositoryNameById.get(selectedRepositoryId) ??
+                              ""),
+                        repositoryId: selectedRepositoryId ?? undefined,
+                        hash: commit.hash,
+                        message: commit.message,
+                        commitId: commit.commit_id,
+                        isConnected: linkedCommitHashes.has(commit.hash),
+                        metadata: commit,
+                      }),
+                    )
                   }
                   onDragStart={startDragging}
                   onDragEnd={finishDragging}
@@ -393,19 +330,20 @@ const CodeApplicationTab = ({
                     variant="linked"
                     selected={selectedCommit?.hash === commit.commit_hash}
                     onClick={() =>
-                      showDetail({
-                        repositoryName: commit.repository_name,
-                        hash: commit.commit_hash,
-                        message: commit.message,
-                        commitId: commit.commit_id,
-                        isConnected: true,
-                        repositoryId: repositories.find(
-                          (repository) =>
-                            repository.name === commit.repository_name,
-                        )?.repository_id,
-                        authorName: matchedCommit?.author_name,
-                        committedDate: commit.committed_date,
-                      })
+                      showDetail(
+                        toDetailCommit({
+                          repositoryName: commit.repository_name,
+                          hash: commit.commit_hash,
+                          message: commit.message,
+                          commitId: commit.commit_id,
+                          isConnected: true,
+                          repositoryId: repositoryIdByName.get(
+                            commit.repository_name,
+                          ),
+                          metadata: matchedCommit,
+                          committedDate: commit.committed_date,
+                        }),
+                      )
                     }
                   />
                 );
