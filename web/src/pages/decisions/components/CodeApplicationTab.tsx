@@ -25,8 +25,12 @@ interface CodeApplicationTabProps {
 interface DirectCommitListProps {
   repositories: { repository_id: number; name: string }[];
   selectedRepositoryId: number | null;
+  repositoryName: string;
   onSelectRepository: (repositoryId: number) => void;
   commits: RepositoryCommitItem[];
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  onLoadMore: () => void;
   onSelectCommit: (commit: RepositoryCommitItem) => void;
   onDragStart: (commitId: number) => void;
   onDragEnd: () => void;
@@ -35,8 +39,12 @@ interface DirectCommitListProps {
 const DirectCommitList = ({
   repositories,
   selectedRepositoryId,
+  repositoryName,
   onSelectRepository,
   commits,
+  hasNextPage,
+  isFetchingNextPage,
+  onLoadMore,
   onSelectCommit,
   onDragStart,
   onDragEnd,
@@ -47,17 +55,21 @@ const DirectCommitList = ({
       selectedRepositoryId={selectedRepositoryId}
       onSelectRepository={onSelectRepository}
     />
-    <div className="flex flex-col">
+    <div
+      onScroll={(event) => {
+        const element = event.currentTarget;
+        const remaining =
+          element.scrollHeight - element.scrollTop - element.clientHeight;
+        if (hasNextPage && !isFetchingNextPage && remaining < 80) onLoadMore();
+      }}
+      className="flex flex-1 flex-col overflow-y-auto"
+    >
       {commits.map((commit) => (
         <CommitCard
           key={commit.commit_id}
           hash={commit.hash}
           message={commit.message}
-          repositoryName={
-            repositories.find(
-              (repository) => repository.repository_id === selectedRepositoryId,
-            )?.name ?? ""
-          }
+          repositoryName={repositoryName}
           variant="direct"
           authorName={commit.author_name}
           committedDate={commit.date_time}
@@ -68,6 +80,11 @@ const DirectCommitList = ({
           onDragEnd={onDragEnd}
         />
       ))}
+      {isFetchingNextPage ? (
+        <p className="py-3 text-center typo-caption1 text-(--color-text-tertiary)">
+          커밋을 더 불러오는 중입니다
+        </p>
+      ) : null}
     </div>
   </>
 );
@@ -140,10 +157,14 @@ const CodeApplicationTab = ({
   >(null);
   const { teamId } = useCurrentTeam();
   const { data: repositories = [] } = useRepositories(teamId);
-  const { commits: directCommits } = useRepositoryCommitsInfinite(
-    selectedRepositoryId,
-    { enabled: selectedRepositoryId != null },
-  );
+  const {
+    commits: directCommits,
+    hasNextPage: hasNextDirectPage,
+    isFetchingNextPage: isFetchingNextDirectPage,
+    fetchNextPage: fetchNextDirectPage,
+  } = useRepositoryCommitsInfinite(selectedRepositoryId, {
+    enabled: selectedRepositoryId != null,
+  });
   const directCommitsByHash = new Map(
     directCommits.map((commit) => [commit.hash, commit]),
   );
@@ -152,17 +173,21 @@ const CodeApplicationTab = ({
     errorMessage: linkErrorMessage,
     isPending: isLinkPending,
   } = useLinkCommit(applicationId, {
-    onSuccess: () =>
+    onSuccess: (commitIds) =>
       setSelectedCommit((commit) =>
-        commit ? { ...commit, isConnected: true } : null,
+        commit && commit.commitId != null && commitIds.includes(commit.commitId)
+          ? { ...commit, isConnected: true }
+          : commit,
       ),
   });
   const { unlinkCommit, isPending: isUnlinkPending } = useUnlinkCommit(
     applicationId,
     {
-      onSuccess: () =>
+      onSuccess: (commitId) =>
         setSelectedCommit((commit) =>
-          commit ? { ...commit, isConnected: false } : null,
+          commit?.commitId === commitId
+            ? { ...commit, isConnected: false }
+            : commit,
         ),
     },
   );
@@ -290,8 +315,19 @@ const CodeApplicationTab = ({
                 <DirectCommitList
                   repositories={repositories}
                   selectedRepositoryId={selectedRepositoryId}
+                  repositoryName={
+                    repositories.find(
+                      (repository) =>
+                        repository.repository_id === selectedRepositoryId,
+                    )?.name ?? ""
+                  }
                   onSelectRepository={setSelectedRepositoryId}
                   commits={directCommits}
+                  hasNextPage={hasNextDirectPage}
+                  isFetchingNextPage={isFetchingNextDirectPage}
+                  onLoadMore={() => {
+                    void fetchNextDirectPage();
+                  }}
                   onSelectCommit={(commit) =>
                     showDetail({
                       repositoryName:

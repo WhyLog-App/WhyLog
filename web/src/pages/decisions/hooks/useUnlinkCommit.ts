@@ -7,7 +7,7 @@ import { APPLICATION_CONNECTED_COMMITS_QUERY_KEY } from "./useConnectedCommits";
 import { APPLICATION_RECOMMENDED_COMMITS_QUERY_KEY } from "./useRecommendedCommits";
 
 interface UseUnlinkCommitOptions {
-  onSuccess?: () => void;
+  onSuccess?: (commitId: number) => void;
 }
 
 export const useUnlinkCommit = (
@@ -20,7 +20,7 @@ export const useUnlinkCommit = (
   const mutation = useMutation({
     mutationFn: (commitId: number) =>
       unlinkCommit(applicationId, { commit_id: commitId }),
-    onSuccess: async () => {
+    onSuccess: async (_, commitId) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: [
@@ -32,7 +32,7 @@ export const useUnlinkCommit = (
           queryKey: [...APPLICATION_CONNECTED_COMMITS_QUERY_KEY, applicationId],
         }),
       ]);
-      options?.onSuccess?.();
+      options?.onSuccess?.(commitId);
     },
     onError: (error: unknown) => {
       if (isAxiosError<ApiResponse<unknown>>(error)) {
