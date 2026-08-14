@@ -45,11 +45,11 @@ const CommitDetailPanel = ({
 
   return (
     <aside
-      className={`flex shrink-0 flex-col overflow-hidden rounded-xl border border-(--color-border-default) bg-[#F8FAFF] transition-[width] ${collapsed ? "w-12" : "w-84"}`}
+      className={`flex shrink-0 flex-col overflow-hidden rounded-xl border border-(--color-border-default) bg-(--color-bg-default) transition-[width] ${collapsed ? "w-12" : "w-84"}`}
     >
       <div className="flex items-center justify-between border-b border-(--color-border-default) px-4 py-3">
         {!collapsed ? (
-          <h2 className="typo-subtitle4 text-(--color-text-primary)">
+          <h2 className="typo-subtitle5 text-(--color-text-primary)">
             커밋 상세
           </h2>
         ) : null}
@@ -70,11 +70,11 @@ const CommitDetailPanel = ({
         <div className="application-scroll flex flex-1 flex-col gap-3 overflow-y-auto p-4">
           {commit ? (
             <>
-              <p className="typo-subtitle4 leading-snug text-(--color-text-primary)">
+              <p className="typo-subtitle5 leading-snug text-(--color-text-primary)">
                 {commit.message}
               </p>
               <div className="flex items-center gap-2">
-                <span className="typo-caption1 text-(--color-text-secondary)">
+                <span className="typo-caption1 font-medium text-(--color-text-secondary)">
                   {commit.repositoryName}
                 </span>
                 <CommitHashBadge hash={commit.hash} />
@@ -89,22 +89,22 @@ const CommitDetailPanel = ({
                 }}
                 className={`w-full rounded-md px-3 py-2.5 typo-button-sm disabled:cursor-not-allowed disabled:opacity-60 ${
                   commit.isConnected
-                    ? "bg-gray-200 text-(--color-text-secondary)"
-                    : "bg-blue-600 text-white"
+                    ? "bg-(--color-action-disabled) text-(--color-text-secondary)"
+                    : "bg-(--color-action-primary) text-(--color-text-inverse)"
                 }`}
               >
                 {commit.isConnected ? "연결 취소" : "이 커밋 연결"}
               </button>
               <section className="flex flex-col gap-2 border-t border-(--color-border-default) pt-3">
-                <p className="typo-caption1 text-(--color-text-secondary)">
+                <p className="typo-body6 font-bold text-(--color-text-primary)">
                   연결 미리보기
                 </p>
-                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-md border border-white bg-white px-3 py-2.5">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-md border border-(--color-bg-surface) bg-(--color-bg-surface) px-3 py-2.5">
                   <div className="min-w-0 flex-1">
-                    <p className="typo-caption1 text-(--color-text-tertiary)">
+                    <p className="typo-caption2 text-(--color-text-tertiary)">
                       적용사항
                     </p>
-                    <p className="line-clamp-2 typo-caption1 text-(--color-text-primary)">
+                    <p className="line-clamp-2 typo-caption1 font-bold text-(--color-text-primary)">
                       {applicationName}
                     </p>
                   </div>
@@ -114,10 +114,10 @@ const CommitDetailPanel = ({
                     className="text-(--color-text-secondary)"
                   />
                   <div className="w-full rounded-md bg-(--color-bg-brand-subtle) px-2 py-1 text-left">
-                    <p className="typo-caption1 text-(--color-text-brand)">
+                    <p className="typo-caption2 text-(--color-text-brand)">
                       커밋
                     </p>
-                    <p className="typo-caption1 text-(--color-text-brand)">
+                    <p className="typo-caption1 font-bold text-(--color-text-brand)">
                       {commit.hash.slice(0, 7)}
                     </p>
                   </div>
@@ -125,24 +125,24 @@ const CommitDetailPanel = ({
               </section>
               {commit.reason ? (
                 <section className="flex flex-col gap-1 border-t border-(--color-border-default) pt-3">
-                  <p className="typo-caption1 text-(--color-text-secondary)">
+                  <p className="typo-body6 font-bold text-(--color-text-primary)">
                     추천 이유
                   </p>
-                  <p className="typo-caption1 leading-relaxed text-(--color-text-primary)">
+                  <p className="typo-caption1 leading-relaxed font-normal text-(--color-text-secondary)">
                     {commit.reason}
                   </p>
                 </section>
               ) : null}
               {keywords.length ? (
                 <section className="flex flex-col gap-1.5 border-t border-(--color-border-default) pt-3">
-                  <p className="typo-caption1 text-(--color-text-secondary)">
+                  <p className="typo-body6 font-bold text-(--color-text-primary)">
                     결정 키워드
                   </p>
                   <div className="flex flex-wrap gap-1">
                     {keywords.map((keyword) => (
                       <span
                         key={keyword}
-                        className="rounded-full bg-[#EEF2FF] px-2 py-0.5 typo-caption1 text-(--color-text-secondary)"
+                        className="rounded-full bg-(--color-bg-brand-subtle) px-2 py-0.5 typo-caption2 font-medium text-(--color-text-secondary)"
                       >
                         #{keyword}
                       </span>
@@ -153,25 +153,25 @@ const CommitDetailPanel = ({
               {detail?.changed_file_list?.length ? (
                 <section className="flex flex-col gap-2 border-t border-(--color-border-default) pt-3">
                   <div className="flex items-center justify-between">
-                    <p className="typo-caption1 text-(--color-text-secondary)">
+                    <p className="typo-body6 font-bold text-(--color-text-primary)">
                       영향 파일 ({detail.changed_file_count})
                     </p>
-                    <span className="typo-caption1 text-(--color-text-brand)">
+                    <span className="typo-caption1 font-medium text-(--color-text-brand)">
                       모든 변경 파일 보기 ›
                     </span>
                   </div>
                   {detail.changed_file_list.slice(0, 3).map((file) => (
                     <div
                       key={file.file_name}
-                      className="flex items-center gap-2 typo-caption1"
+                      className="flex items-center gap-2 typo-caption2"
                     >
                       <span className="min-w-0 flex-1 truncate text-(--color-text-secondary)">
                         {file.file_name}
                       </span>
-                      <span className="text-(--color-green-500)">
+                      <span className="font-bold text-(--color-green-500)">
                         +{file.added_lines}
                       </span>
-                      <span className="text-(--color-text-error)">
+                      <span className="font-bold text-(--color-status-error)">
                         -{file.deleted_lines}
                       </span>
                     </div>
@@ -179,23 +179,23 @@ const CommitDetailPanel = ({
                 </section>
               ) : null}
               <section className="flex flex-col gap-1.5 border-t border-(--color-border-default) pt-3">
-                <p className="typo-caption1 text-(--color-text-secondary)">
+                <p className="typo-body6 font-bold text-(--color-text-primary)">
                   커밋 정보
                 </p>
                 <div>
-                  <p className="typo-caption1 text-(--color-text-tertiary)">
+                  <p className="typo-caption2 text-(--color-text-tertiary)">
                     작성자
                   </p>
-                  <p className="typo-caption1 text-(--color-text-primary)">
+                  <p className="typo-caption1 font-medium text-(--color-text-primary)">
                     {detail?.author_name ?? commit.authorName ?? ""}
                     {detail?.author_email ? ` (${detail.author_email})` : ""}
                   </p>
                 </div>
                 <div>
-                  <p className="typo-caption1 text-(--color-text-tertiary)">
+                  <p className="typo-caption2 text-(--color-text-tertiary)">
                     작성 시각
                   </p>
-                  <p className="typo-caption1 text-(--color-text-primary)">
+                  <p className="typo-caption1 font-medium text-(--color-text-primary)">
                     {detail?.date_time
                       ? formatCommittedDate(detail.date_time)
                       : commit.committedDate

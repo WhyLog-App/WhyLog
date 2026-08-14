@@ -6,7 +6,7 @@ interface CommitHashBadgeProps {
 const CommitHashBadge = ({ hash, className = "" }: CommitHashBadgeProps) => (
   <span
     title={hash}
-    className={`inline-flex items-center justify-center rounded bg-[#f5e5ff] px-3 py-0.5 font-mono text-[10px] leading-3.75 text-purple-700 ${className}`}
+    className={`inline-flex items-center justify-center rounded bg-(--color-purple-50) px-1.5 py-0.5 font-mono typo-caption1 text-(--color-purple-700) ${className}`}
   >
     {hash.slice(0, 6)}
   </span>

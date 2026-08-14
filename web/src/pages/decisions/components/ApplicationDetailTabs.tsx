@@ -9,9 +9,13 @@ const TABS: { id: ApplicationDetailTab; label: string }[] = [
 
 interface ApplicationDetailTabsProps {
   activeTab: ApplicationDetailTab;
+  onTabChange?: (tab: ApplicationDetailTab) => void;
 }
 
-const ApplicationDetailTabs = ({ activeTab }: ApplicationDetailTabsProps) => (
+const ApplicationDetailTabs = ({
+  activeTab,
+  onTabChange,
+}: ApplicationDetailTabsProps) => (
   <nav
     aria-label="적용사항 상세 탭"
     className="flex items-center gap-7 border-b border-(--color-border-default)"
@@ -19,8 +23,11 @@ const ApplicationDetailTabs = ({ activeTab }: ApplicationDetailTabsProps) => (
     {TABS.map((tab) => {
       const active = tab.id === activeTab;
       return (
-        <span
+        <button
           key={tab.id}
+          type="button"
+          aria-current={active ? "page" : undefined}
+          onClick={() => onTabChange?.(tab.id)}
           className={`-mb-px border-b-2 px-0.5 pb-2 typo-button-md ${
             active
               ? "border-(--color-text-brand) text-(--color-text-brand)"
@@ -28,7 +35,7 @@ const ApplicationDetailTabs = ({ activeTab }: ApplicationDetailTabsProps) => (
           }`}
         >
           {tab.label}
-        </span>
+        </button>
       );
     })}
   </nav>

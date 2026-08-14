@@ -111,7 +111,7 @@ const RepositoryTabs = ({
           key={repository.repository_id}
           type="button"
           onClick={() => onSelectRepository(repository.repository_id)}
-          className={`shrink-0 rounded-full border px-2 py-1 typo-caption1 ${selectedRepositoryId === repository.repository_id ? "border-blue-600 bg-blue-600 text-white" : "border-gray-300 bg-gray-100 text-gray-700"}`}
+          className={`shrink-0 rounded-full border px-2 py-1 typo-caption1 ${selectedRepositoryId === repository.repository_id ? "border-(--color-action-primary) bg-(--color-action-primary) text-(--color-text-inverse)" : "border-(--color-border-default) bg-(--color-bg-subtle) text-(--color-text-secondary)"}`}
         >
           {repository.name}
         </button>
@@ -134,8 +134,6 @@ const CodeApplicationTab = ({
     useState<CommitDetailCommit | null>(null);
   const [detailCollapsed, setDetailCollapsed] = useState(true);
   const [isDraggingCommit, setIsDraggingCommit] = useState(false);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [draggedCommitId, setDraggedCommitId] = useState<number | null>(null);
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<
     number | null
@@ -192,14 +190,9 @@ const CodeApplicationTab = ({
     if (draggedCommitId != null) linkCommits([draggedCommitId]);
     finishDragging();
   };
-  const handleScroll = () => {
-    setIsScrolling(true);
-    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
-    scrollTimerRef.current = setTimeout(() => setIsScrolling(false), 700);
-  };
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-      <div className="flex items-center gap-4 rounded-xl border border-(--color-border-default) bg-white px-5 py-3">
+      <div className="flex items-center gap-4 rounded-xl border border-(--color-border-default) bg-(--color-bg-surface) px-5 py-3">
         <span className="typo-body6 text-(--color-text-secondary)">
           <i className="mr-2 inline-block size-2 rounded-full bg-(--color-text-brand)" />
           추천{" "}
@@ -220,7 +213,7 @@ const CodeApplicationTab = ({
         </span>
       </div>
       <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto">
-        <div className="flex min-w-176 flex-1 overflow-hidden rounded-xl border border-(--color-border-default) bg-white">
+        <div className="flex min-w-176 flex-1 overflow-hidden rounded-xl border border-(--color-border-default) bg-(--color-bg-surface)">
           <section className="flex min-w-0 flex-1 flex-col border-r border-(--color-border-default) p-5">
             <div
               className={`flex items-center justify-between gap-2 ${sourceTab === "direct" ? "mb-1" : "mb-3"}`}
@@ -231,27 +224,24 @@ const CodeApplicationTab = ({
                   커밋 가져오기
                 </h2>
               </div>
-              <div className="flex shrink-0 items-center rounded-lg bg-gray-100 p-1 typo-caption1">
+              <div className="flex shrink-0 items-center rounded-lg bg-(--color-bg-subtle) p-1 typo-caption1">
                 <button
                   type="button"
                   onClick={() => setSourceTab("recommended")}
-                  className={`rounded-md px-3 py-1 ${sourceTab === "recommended" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"}`}
+                  className={`rounded-md px-3 py-1 ${sourceTab === "recommended" ? "bg-(--color-bg-surface) text-(--color-text-brand) shadow-sm" : "text-(--color-text-secondary)"}`}
                 >
                   추천 커밋
                 </button>
                 <button
                   type="button"
                   onClick={() => setSourceTab("direct")}
-                  className={`rounded-md px-3 py-1 ${sourceTab === "direct" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"}`}
+                  className={`rounded-md px-3 py-1 ${sourceTab === "direct" ? "bg-(--color-bg-surface) text-(--color-text-brand) shadow-sm" : "text-(--color-text-secondary)"}`}
                 >
                   직접 연결
                 </button>
               </div>
             </div>
-            <div
-              onScroll={handleScroll}
-              className={`application-scroll flex flex-1 flex-col overflow-y-auto ${isScrolling ? "is-scrolling" : ""}`}
-            >
+            <div className="application-scroll flex flex-1 flex-col overflow-y-auto">
               {sourceTab === "recommended" ? (
                 recommendedCommits.map((commit) =>
                   (() => {
@@ -337,7 +327,7 @@ const CodeApplicationTab = ({
               </div>
             </div>
             {linkErrorMessage ? (
-              <p className="typo-caption1 text-(--color-text-error)">
+              <p className="typo-caption1 text-(--color-status-error)">
                 {linkErrorMessage}
               </p>
             ) : null}
@@ -348,8 +338,7 @@ const CodeApplicationTab = ({
                 setIsDraggingCommit(true);
               }}
               onDrop={handleDrop}
-              onScroll={handleScroll}
-              className={`application-scroll relative flex flex-1 flex-col overflow-y-auto ${isScrolling ? "is-scrolling" : ""}`}
+              className="application-scroll relative flex flex-1 flex-col overflow-y-auto"
             >
               {linkedCommits.map((commit) => {
                 const matchedCommit = directCommitsByHash.get(
@@ -386,7 +375,7 @@ const CodeApplicationTab = ({
                 );
               })}
               {isDraggingCommit ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center rounded-lg border border-dashed border-(--color-border-brand) bg-blue-50/80 px-4 text-center">
+                <div className="absolute inset-0 flex flex-col items-center justify-center rounded-lg border border-dashed border-(--color-border-brand) bg-(--color-bg-brand-subtle)/80 px-4 text-center">
                   <p className="typo-button-sm text-(--color-text-brand)">
                     여기에 드래그하여 연결
                   </p>
