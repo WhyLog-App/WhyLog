@@ -20,10 +20,17 @@ WhyLog는 팀 회의를 녹음·전사하고 AI로 논의 주제와 결정 근�
 | 결정 타임라인 (DecisionTimeline) | 결정이 도출되기까지의 단계별 서술. 이슈제기 → 대안논의 → 적용합의 3단계로 고정 |
 | 신뢰도 (reliabilityScore / confidence) | 결정 또는 커밋 매칭 결과의 신뢰 정도를 나타내는 점수. Decision 자체의 신뢰도와 커밋 매칭 신뢰도는 서로 다른 값이니 혼동하지 않는다 |
 | 커밋 매칭 (CommitConnection) | 적용사항(Application)과 실제 Git 커밋을 연결하는 관계 |
+| 프로젝트 | 제품 문구에서 `Team`을 가리키는 이름 |
+| 활성 프로젝트 | `TeamMember.active = true`인 프로젝트. 프로필 프로젝트 목록과 집계 대상은 활성 프로젝트만 포함한다 |
+| 계정 상태 (accountStatus) | `UNVERIFIED`, `ACTIVE`, `WITHDRAWAL_PENDING`, `TOMBSTONED` 중 하나인 회원 생명주기 상태 |
+| 본인 프로필 | 로그인 사용자가 자기 계정 정보와 계정 관리 기능을 보는 비공개 프로필 |
+| 공개 멤버 프로필 | 로그인 사용자가 다른 멤버의 허용된 기본 정보와 집계만 보는 제한 공개 프로필 |
+| 저장 커밋 수 | GitHub 전체 커밋 수가 아니라 Server DB에 동기화되어 저장된 커밋 수 |
 
 ## 핵심 엔티티와 관계
 
-- Team 1—N Meeting, Repository / Team N—N Member (TeamMember 조인, role: OWNER·MEMBER)
+- Member 1—N TeamMember / Member는 `accountStatus`로 계정 생명주기를 가진다
+- Team 1—N Meeting, Repository / Team N—N Member (TeamMember 조인, role: OWNER·MEMBER, active)
 - Meeting 1—N Dialogue, MeetingMember(role: OWNER·GENERAL) / Meeting 1—1 MeetingAnalysis, Decision
 - Decision 1—N Application, DecisionBase, DecisionTimeline, DecisionCommits
 - Application N—N DecisionBase / DecisionTimeline / DecisionCommits (join 엔티티가 reason·confidence를 보유)
@@ -63,10 +70,38 @@ WhyLog는 팀 회의를 녹음·전사하고 AI로 논의 주제와 결정 근�
 - 팀 삭제는 반드시 해당 팀의 OWNER만 할 수 있다.
 - 팀을 삭제하면 그 팀의 회의들도 함께 정리되고(`meetingCleanupService`), 삭제 커밋 이후 진행중이던 실시간 회의 방을 닫는다.
 
+### 멤버 프로필과 계정 생명주기 (Member)
+
+- 계정 상태는 `UNVERIFIED`(이메일 미인증), `ACTIVE`(정상 사용), `WITHDRAWAL_PENDING`(30일 탈퇴 유예), `TOMBSTONED`(PII·인증정보 제거 완료)만 사용한다.
+- 기존 회원은 migration에서 `ACTIVE`, `email_verified_at = createdAt`, `purge_at = null`로 backfill한다.
+- `UNVERIFIED` 회원은 일반 JWT를 받을 수 없고 서비스 화면에 접근할 수 없다. 미인증 보존 기한이 지나면 cleanup이 이메일 점유를 해제한다.
+- `WITHDRAWAL_PENDING` 회원은 일반 서비스에 접근할 수 없고 복구 challenge만 사용할 수 있다. 30일 유예 안에는 `ACTIVE`로 복구할 수 있으며, 유예 중 타인 프로필과 허용된 과거 이력은 기존 표시를 유지한다. 유예 중 같은 이메일의 신규 가입은 복구로 안내한다.
+- `TOMBSTONED` 회원의 직접 프로필은 `404`다. FK와 공유 이력은 유지하고, 허용된 프로젝트 과거 화면에는 `탈퇴한 사용자`로 표시한다.
+- 본인 프로필 DTO에만 이메일, 계정 상태·기능, 최근 완료 회의·결정, GitHub 재연결·오류 정보를 포함한다. 공개 멤버 프로필 DTO에는 이 필드를 포함하지 않는다.
+- 프로필 프로젝트 목록은 `TeamMember.active = true`인 프로젝트만 포함한다. 프로젝트에서 나가면 양쪽 프로필 목록에서 즉시 빠지고, 프로젝트 내부 과거 기록에는 `나간 사용자`로 남는다.
+- 탈퇴 요청은 `ACTIVE` 회원만 가능하다. 하나라도 유일 OWNER인 활성 프로젝트가 있으면 탈퇴를 거부한다.
+- 탈퇴 완료 cleanup은 이메일, 비밀번호, 이름, 프로필 이미지 참조, GitHub 토큰 등 PII·인증정보를 제거하되 회의·발화·결정 이력은 삭제하지 않는다.
+- signup/login/email-change 이메일은 `trim` + `Locale.ROOT` lowercase로 정규화한 값을 `member.email`에 저장한다. 정규화 migration은 중복 계정을 병합하지 않고 중복 발견 시 중단한다.
+- 가입 인증, 이메일 변경, 복구 토큰은 해시된 일회용 토큰이며 기한을 가진다. 이메일 변경은 현재 비밀번호 재확인과 새 이메일 인증이 모두 끝나야 적용된다.
+- 비밀번호나 이메일을 변경하면 기존 refresh token을 폐기한다.
+- 이메일 발송과 S3 이미지 삭제는 outbox로 기록한 뒤 커밋 이후 처리한다. 실패는 성공으로 간주하지 않고 재시도 가능해야 한다.
+
+### 마이페이지·공개 프로필 통계
+
+- 통계는 활성 프로젝트별로만 제공한다.
+- 회의 수와 누적 회의 시간은 완료 회의(`endDateTime != null`)만 포함한다. 진행 중 회의는 제외한다.
+- 누적 회의 시간은 `startDateTime`과 `endDateTime`의 차이를 초 단위로 모두 합산한 뒤 화면에서 포맷한다. 회의별 분 단위 절삭·반올림 후 합산하지 않는다.
+- 개인 회의 통계는 대상 멤버가 `MeetingMember`로 참여한 완료 회의만 센다.
+- 프로젝트 회의 통계는 프로젝트의 완료 회의 전체를 센다.
+- 저장 커밋 수는 프로젝트의 모든 Repository에 저장된 Commit 수 합계다. 개인 커밋 수나 개인 커밋 매핑은 제공하지 않는다.
+- 본인 프로필에만 최신 완료 회의와 최신 결정을 기본 5개씩 제공한다. 공개 멤버 프로필에는 최근 기록과 커밋 피드를 제공하지 않는다.
+- 공개 멤버 프로필의 저장 커밋 최신성은 집계 내부 메타데이터 `SYNCED`, `STALE`, `UNAVAILABLE`과 기준시각만 노출한다. provider 오류, 토큰 상태, 저장소 URL, 내부 job ID는 노출하지 않는다.
+
 ### GitHub 연동 (Member)
 
 - GitHub 액세스 토큰은 AES로 암호화해 저장한다(`AESCryptoConverter`).
 - GitHub API가 401을 반환하면 저장된 토큰을 즉시 폐기한다(`clearGithubToken`) — 만료된 토큰을 계속 재사용하지 않는다.
+- 프로필용 GitHub refresh는 `ACTIVE` 본인만 request body 없이 요청할 수 있고 DB 트랜잭션 밖에서 실행한다. 본인의 GitHub 토큰으로 접근 가능한 모든 활성 프로젝트·저장소를 enqueue하며, member/repository dedupe, repository cooldown, member rate limit을 적용한다. 타인 프로필 조회는 외부 동기화를 시작하지 않는다.
 
 ### 커밋 · 레포지토리 (Git)
 
