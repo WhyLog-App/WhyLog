@@ -150,12 +150,15 @@ const CompletedPage = () => {
           />
           <div className="h-px w-full shrink-0 bg-(--color-border-divider)" />
           <CompletedTranscript items={transcript} />
-          <div className="shrink-0">
-            <AudioPlayerBar
-              durationSec={audio?.audio_duration ?? null}
-              audioUrl={audio?.audio_url ?? null}
-            />
-          </div>
+          {/* 실시간 회의가 WebRTC로 바뀌며 녹음이 사라졌다. 오디오가 있는 과거 회의에서만 보인다. */}
+          {audio?.audio_url && (
+            <div className="shrink-0">
+              <AudioPlayerBar
+                durationSec={audio.audio_duration ?? null}
+                audioUrl={audio.audio_url}
+              />
+            </div>
+          )}
         </section>
 
         <CompletedInfoPanels panels={panels} isAnalyzing={isAnalyzing} />
