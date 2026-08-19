@@ -1,10 +1,24 @@
 package com.whylog.server.domain.meeting.socket;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.whylog.server.domain.meeting.socket.message.*;
 import com.whylog.server.domain.meeting.service.MeetingCommandService;
+import com.whylog.server.domain.meeting.service.MeetingDialogueCommandService;
+import com.whylog.server.domain.meeting.socket.message.ConnectedMessage;
+import com.whylog.server.domain.meeting.socket.message.ErrorMessage;
+import com.whylog.server.domain.meeting.socket.message.LiveMessageEntry;
+import com.whylog.server.domain.meeting.socket.message.MeetingMessageType;
+import com.whylog.server.domain.meeting.socket.message.MeetingSocketMessage;
+import com.whylog.server.domain.meeting.socket.message.MeetingTextMessage;
+import com.whylog.server.domain.meeting.socket.message.ParticipantJoinedMessage;
+import com.whylog.server.domain.meeting.socket.message.ParticipantLeftMessage;
+import com.whylog.server.domain.meeting.socket.message.ParticipantSummary;
+import com.whylog.server.domain.meeting.socket.message.RosterMessage;
 import com.whylog.server.domain.meeting.socket.repository.MeetingLiveMessageRepository;
 import com.whylog.server.global.util.json.JsonConverter;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -14,13 +28,8 @@ import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
-import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.BinaryWebSocketHandler;
-
-import java.time.LocalDateTime;
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
+import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
 // 회의 웹소켓 연결의 입장, 퇴장, 텍스트 메시지, 오디오 바이너리 중계를 처리합니다.
 @Component
@@ -34,6 +43,7 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
     private final MeetingSocketRoomService meetingSocketRoomService;
     private final MeetingCommandService meetingCommandService;
     private final MeetingLiveMessageRepository meetingLiveMessageRepository;
+    private final MeetingDialogueCommandService meetingDialogueCommandService;
 
     // 웹소켓 연결 직후 참가자를 방에 등록하고 현재 참여자 목록과 입장 이벤트를 전파합니다.
     @Override
@@ -44,29 +54,34 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
             return;
         }
 
-        if (meetingSocketRoomService.existsParticipant(participant.meetingId(), participant.memberId())) {
-            sendError(session, MeetingMessageType.PARTICIPANT_ALREADY_JOINED, "이미 실시간으로 참여 중인 회의입니다.");
+        if (meetingSocketRoomService.existsParticipant(
+                participant.meetingId(), participant.memberId())) {
+            sendError(
+                    session,
+                    MeetingMessageType.PARTICIPANT_ALREADY_JOINED,
+                    "이미 실시간으로 참여 중인 회의입니다.");
             session.close(CloseStatus.NORMAL);
             return;
         }
         meetingSocketRoomService.join(participant);
 
-        List<ParticipantSummary> currentParticipants = participantSummaries(participant.meetingId());
-        ConnectedMessage connectedMessage = ConnectedMessage.create(
-                participant, currentParticipants
-        );
+        List<ParticipantSummary> currentParticipants =
+                participantSummaries(participant.meetingId());
+        ConnectedMessage connectedMessage =
+                ConnectedMessage.create(participant, currentParticipants);
         session.sendMessage(new TextMessage(JsonConverter.toJson(connectedMessage)));
 
         broadcastRoster(participant.meetingId(), currentParticipants);
         meetingSocketRoomService.broadcastText(
                 participant.meetingId(),
-                new TextMessage(JsonConverter.toJson(ParticipantJoinedMessage.create(participant)))
-        );
+                new TextMessage(
+                        JsonConverter.toJson(ParticipantJoinedMessage.create(participant))));
     }
 
     // 채팅, 자막, 시그널링 같은 텍스트 기반 회의 메시지를 파싱해 브로드캐스트 또는 단건 전달합니다.
     @Override
-    protected void handleTextMessage(@NonNull WebSocketSession session, @NonNull TextMessage message) {
+    protected void handleTextMessage(
+            @NonNull WebSocketSession session, @NonNull TextMessage message) {
         MeetingParticipant participant = createParticipant(session);
         MeetingSocketMessage incoming;
         try {
@@ -91,19 +106,24 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
 
     // 실시간 오디오는 WebRTC/SFU 경로로 전달하고, 웹소켓 바이너리 프레임은 더 이상 중계하지 않습니다.
     @Override
-    protected void handleBinaryMessage(@NonNull WebSocketSession session, BinaryMessage message) throws Exception {
-        sendError(session, "Binary audio relay over WebSocket is not supported. Use WebRTC transport for live audio.");
+    protected void handleBinaryMessage(@NonNull WebSocketSession session, BinaryMessage message)
+            throws Exception {
+        sendError(
+                session,
+                "Binary audio relay over WebSocket is not supported. Use WebRTC transport for live audio.");
     }
 
     // 정상 종료된 세션을 회의방에서 제거하고 퇴장 이벤트를 전파합니다.
     @Override
-    public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) throws Exception {
+    public void afterConnectionClosed(
+            @NonNull WebSocketSession session, @NonNull CloseStatus status) throws Exception {
         removeParticipant(session);
     }
 
     // 전송 오류가 발생한 세션을 정리하고 필요하면 서버 에러 상태로 연결을 닫습니다.
     @Override
-    public void handleTransportError(@NonNull WebSocketSession session, @NonNull Throwable exception) throws Exception {
+    public void handleTransportError(
+            @NonNull WebSocketSession session, @NonNull Throwable exception) throws Exception {
         removeParticipant(session);
         if (session.isOpen()) {
             session.close(CloseStatus.SERVER_ERROR);
@@ -112,7 +132,9 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
 
     // 세션을 회의방에서 제거하고 퇴장 이벤트 및 갱신된 roster를 방송합니다.
     private void removeParticipant(WebSocketSession session) {
-        Long meetingId = getAttribute(session, MeetingSocketAuthInterceptor.MEETING_ID_ATTRIBUTE, Long.class);
+        Long meetingId =
+                getAttribute(
+                        session, MeetingSocketAuthInterceptor.MEETING_ID_ATTRIBUTE, Long.class);
         if (meetingId == null) {
             return;
         }
@@ -123,13 +145,16 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
         }
 
         List<ParticipantSummary> currentParticipants = participantSummaries(meetingId);
-        meetingSocketRoomService.broadcastText(meetingId, new TextMessage(JsonConverter.toJson(new ParticipantLeftMessage(
-                MeetingMessageType.PARTICIPANT_LEFT,
+        meetingSocketRoomService.broadcastText(
                 meetingId,
-                removed.memberId(),
-                removed.name(),
-                now()
-        ))));
+                new TextMessage(
+                        JsonConverter.toJson(
+                                new ParticipantLeftMessage(
+                                        MeetingMessageType.PARTICIPANT_LEFT,
+                                        meetingId,
+                                        removed.memberId(),
+                                        removed.name(),
+                                        now()))));
         broadcastRoster(meetingId, currentParticipants);
 
         if (currentParticipants.isEmpty()) {
@@ -141,8 +166,9 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
     private void broadcastRoster(Long meetingId, List<ParticipantSummary> participantSummaries) {
         meetingSocketRoomService.broadcastText(
                 meetingId,
-                new TextMessage(JsonConverter.toJson(RosterMessage.create(meetingId, participantSummaries)))
-        );
+                new TextMessage(
+                        JsonConverter.toJson(
+                                RosterMessage.create(meetingId, participantSummaries))));
     }
 
     // 핸드셰이크에서 저장한 속성으로 참가자 정보를 복원합니다.
@@ -150,10 +176,16 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
         return createParticipant(session, session);
     }
 
-    private MeetingParticipant createParticipant(WebSocketSession session, WebSocketSession outboundSession) {
-        Long meetingId = getAttribute(session, MeetingSocketAuthInterceptor.MEETING_ID_ATTRIBUTE, Long.class);
-        Long memberId = getAttribute(session, MeetingSocketAuthInterceptor.MEMBER_ID_ATTRIBUTE, Long.class);
-        String name = getAttribute(session, MeetingSocketAuthInterceptor.MEMBER_NAME_ATTRIBUTE, String.class);
+    private MeetingParticipant createParticipant(
+            WebSocketSession session, WebSocketSession outboundSession) {
+        Long meetingId =
+                getAttribute(
+                        session, MeetingSocketAuthInterceptor.MEETING_ID_ATTRIBUTE, Long.class);
+        Long memberId =
+                getAttribute(session, MeetingSocketAuthInterceptor.MEMBER_ID_ATTRIBUTE, Long.class);
+        String name =
+                getAttribute(
+                        session, MeetingSocketAuthInterceptor.MEMBER_NAME_ATTRIBUTE, String.class);
 
         if (meetingId == null || memberId == null || !StringUtils.hasText(name)) {
             throw new IllegalStateException("WebSocket participant attributes are missing");
@@ -169,12 +201,8 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
 
     private void sendError(WebSocketSession session, MeetingMessageType type, String message) {
         try {
-            session.sendMessage(new TextMessage(
-                    JsonConverter.toJson(
-                            new ErrorMessage(
-                                    type, message
-                            )
-                    )));
+            session.sendMessage(
+                    new TextMessage(JsonConverter.toJson(new ErrorMessage(type, message))));
         } catch (Exception exception) {
             throw new IllegalStateException("Failed to send websocket error message", exception);
         }
@@ -193,20 +221,22 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
         return meetingSocketRoomService.listParticipants(meetingId);
     }
 
-    private void broadcastTextMessage(MeetingParticipant participant, MeetingMessageType type, MeetingSocketMessage incoming) {
+    private void broadcastTextMessage(
+            MeetingParticipant participant,
+            MeetingMessageType type,
+            MeetingSocketMessage incoming) {
         logIncomingText(participant, type, incoming);
         meetingSocketRoomService.broadcastText(
                 participant.meetingId(),
-                JsonConverter.toJson(MeetingTextMessage.createTextMessage(
-                        participant,
-                        type,
-                        null,
-                        Optional.ofNullable(incoming.text()).orElse(""),
-                        incoming.payload()
-                ))
-        );
-        if (type == MeetingMessageType.SPEECH
-                && StringUtils.hasText(incoming.text())) {
+                JsonConverter.toJson(
+                        MeetingTextMessage.createTextMessage(
+                                participant,
+                                type,
+                                null,
+                                Optional.ofNullable(incoming.text()).orElse(""),
+                                incoming.payload())));
+        if (type == MeetingMessageType.SPEECH && StringUtils.hasText(incoming.text())) {
+            LocalDateTime speechDateTime = LocalDateTime.now();
             meetingLiveMessageRepository.append(
                     participant.meetingId(),
                     new LiveMessageEntry(
@@ -216,9 +246,23 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
                             incoming.targetMemberId(),
                             incoming.text(),
                             incoming.payload(),
-                            LocalDateTime.now()
-                )
-            );
+                            speechDateTime));
+            persistSpeech(participant, incoming.text(), speechDateTime);
+        }
+    }
+
+    // 발화를 회의록으로 남깁니다. 저장이 실패해도 진행 중인 회의를 끊지 않습니다.
+    private void persistSpeech(
+            MeetingParticipant participant, String text, LocalDateTime speechDateTime) {
+        try {
+            meetingDialogueCommandService.appendSpeech(
+                    participant.meetingId(), participant.memberId(), text, speechDateTime);
+        } catch (Exception exception) {
+            log.error(
+                    "발화 저장 실패: meetingId={}, memberId={}",
+                    participant.meetingId(),
+                    participant.memberId(),
+                    exception);
         }
     }
 
@@ -226,8 +270,7 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
             WebSocketSession session,
             MeetingParticipant participant,
             MeetingMessageType type,
-            MeetingSocketMessage incoming
-    ) {
+            MeetingSocketMessage incoming) {
         if (incoming.targetMemberId() == null) {
             sendError(session, "targetMemberId is required for " + type.value());
             return;
@@ -236,14 +279,13 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
         meetingSocketRoomService.sendToMember(
                 participant.meetingId(),
                 incoming.targetMemberId(),
-                JsonConverter.toJson(MeetingTextMessage.createTextMessage(
-                        participant,
-                        type,
-                        incoming.targetMemberId(),
-                        null,
-                        incoming.payload()
-                ))
-        );
+                JsonConverter.toJson(
+                        MeetingTextMessage.createTextMessage(
+                                participant,
+                                type,
+                                incoming.targetMemberId(),
+                                null,
+                                incoming.payload())));
     }
 
     // 웹소켓 메시지에 사용할 현재 시각 문자열을 생성합니다.
@@ -251,7 +293,10 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
         return Instant.now().toString();
     }
 
-    private String logIncomingText(MeetingParticipant participant, MeetingMessageType type, MeetingSocketMessage incoming) {
+    private String logIncomingText(
+            MeetingParticipant participant,
+            MeetingMessageType type,
+            MeetingSocketMessage incoming) {
         String text = Optional.ofNullable(incoming.text()).orElse("");
         log.info(
                 "meeting text received: meetingId={}, memberId={}, name={}, type={}, targetMemberId={}, text={}",
@@ -260,17 +305,12 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
                 participant.name(),
                 type.value(),
                 incoming.targetMemberId(),
-                text
-        );
+                text);
         return text;
     }
 
     private WebSocketSession decorate(WebSocketSession session) {
         return new ConcurrentWebSocketSessionDecorator(
-                session,
-                SESSION_SEND_TIME_LIMIT_MS,
-                SESSION_BUFFER_SIZE_LIMIT_BYTES
-        );
+                session, SESSION_SEND_TIME_LIMIT_MS, SESSION_BUFFER_SIZE_LIMIT_BYTES);
     }
-
 }

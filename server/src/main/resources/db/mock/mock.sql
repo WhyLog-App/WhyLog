@@ -84,9 +84,9 @@ INSERT INTO commit_analysis (commit_Analysis_id, created_at, updated_at, commit_
     (5, NOW(), NOW(), 9, 'Flyway 마이그레이션과 mock 데이터 스크립트를 도입했다.', 0);
 
 -- meeting (종료된 회의 2건)
-INSERT INTO meeting (meeting_id, created_at, updated_at, team_id, name, start_date_time, end_date_time, audio_key, audio_egress_id, is_normally_ended) VALUES
-    (1, NOW(), NOW(), 1, '주간 스프린트 회의', DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY) + INTERVAL 1 HOUR, NULL, NULL, 1),
-    (2, NOW(), NOW(), 1, '결정 근거 회고 회의', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY) + INTERVAL 45 MINUTE, NULL, NULL, 1);
+INSERT INTO meeting (meeting_id, created_at, updated_at, team_id, name, start_date_time, end_date_time, audio_key, is_normally_ended) VALUES
+    (1, NOW(), NOW(), 1, '주간 스프린트 회의', DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY) + INTERVAL 1 HOUR, NULL, 1),
+    (2, NOW(), NOW(), 1, '결정 근거 회고 회의', DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY) + INTERVAL 45 MINUTE, NULL, 1);
 
 INSERT INTO meeting_member (meeting_id, member_id, created_at, updated_at, role) VALUES
     (1, 1, NOW(), NOW(), 'OWNER'),

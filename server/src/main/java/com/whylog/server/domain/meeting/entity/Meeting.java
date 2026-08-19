@@ -55,10 +55,6 @@ public class Meeting extends BaseEntity {
     @Column(name = "audio_key", length = 255)
     private String audioKey;
 
-    @Setter
-    @Column(name = "audio_egress_id", length = 100)
-    private String audioEgressId;
-
     @Column(name = "is_normally_ended", nullable = false)
     private Boolean isNormallyEnded;
 
