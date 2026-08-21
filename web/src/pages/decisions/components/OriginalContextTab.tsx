@@ -62,9 +62,9 @@ const ContextMessage = ({
 const OriginalContextTab = ({ messages, reasons }: OriginalContextTabProps) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const selectedMessage = messages[selectedIndex];
-  const relatedMessages = messages.filter(
-    (_, index) => index !== selectedIndex,
-  );
+  const relatedMessages = messages
+    .map((message, index) => ({ message, index }))
+    .filter(({ index }) => index !== selectedIndex);
   const primaryReason = reasons[0]?.title ?? "결정 핵심 근거";
 
   if (!selectedMessage) {
@@ -80,14 +80,9 @@ const OriginalContextTab = ({ messages, reasons }: OriginalContextTabProps) => {
   return (
     <section className="grid min-h-0 grid-cols-[minmax(17rem,0.55fr)_minmax(0,1fr)] gap-6">
       <GlassCard className="min-h-150 gap-4 p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="typo-body5 font-bold text-(--color-text-primary)">
-            맥락 목록
-          </h2>
-          <span aria-hidden className="typo-body6 text-(--color-text-tertiary)">
-            ☰
-          </span>
-        </div>
+        <h2 className="typo-body5 font-bold text-(--color-text-primary)">
+          맥락 목록
+        </h2>
         <div className="application-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
           {messages.map((message, index) => (
             <ContextMessage
@@ -117,21 +112,18 @@ const OriginalContextTab = ({ messages, reasons }: OriginalContextTabProps) => {
           <h2 className="typo-body5 font-bold text-(--color-text-primary)">
             관련 맥락
           </h2>
-          {relatedMessages.slice(0, 3).map((message) => (
+          {relatedMessages.map(({ message, index }) => (
             <button
               key={`${message.member_id}-${message.time}`}
               type="button"
-              onClick={() => setSelectedIndex(messages.indexOf(message))}
+              onClick={() => setSelectedIndex(index)}
               className="flex min-w-0 gap-2.5 text-left"
             >
               <span className="w-20 shrink-0 typo-caption1 font-medium text-(--color-text-brand)">
                 {message.time} {message.member_name}
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate typo-caption1 font-medium text-(--color-text-brand)">
-                  {primaryReason}
-                </span>
-                <span className="truncate typo-caption2 text-(--color-text-tertiary)">
+                <span className="line-clamp-2 typo-caption2 text-(--color-text-tertiary)">
                   {message.dialogue_content}
                 </span>
               </span>

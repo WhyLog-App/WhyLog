@@ -148,6 +148,9 @@ INSERT INTO decision (decision_id, created_at, updated_at, meeting_id, is_create
 INSERT INTO decision_base (decision_base_pk, created_at, updated_at, decision_id, content) VALUES
     (1, NOW(), NOW(), 1, '로그인 기능은 이번 스프린트 내 배포한다.'),
     (2, NOW(), NOW(), 1, '회의 종료 시간 버그와 결정 근거 조회 성능 문제를 이번 스프린트 최우선으로 수정한다.'),
+    (4, NOW(), NOW(), 1, '적용사항별 결정 근거 조회는 fetch join과 배치 조회를 조합해 N+1 쿼리를 제거한다.'),
+    (5, NOW(), NOW(), 1, '조회 결과는 필요한 필드만 projection으로 가져와 응답 크기와 객체 생성 비용을 줄인다.'),
+    (6, NOW(), NOW(), 1, '리팩터링 전후의 쿼리 수와 응답 시간을 측정해 성능 개선 효과를 검증한다.'),
     (3, NOW(), NOW(), 2, '커밋 추천 정확도를 높이기 위해 임베딩 파이프라인과 회의 요약 캐싱을 우선 적용한다.');
 
 INSERT INTO decision_commits (decision_commits_pk, created_at, updated_at, decision_id, commit_id) VALUES
@@ -157,7 +160,9 @@ INSERT INTO decision_commits (decision_commits_pk, created_at, updated_at, decis
     (4, NOW(), NOW(), 2, 4),
     (5, NOW(), NOW(), 2, 5),
     (6, NOW(), NOW(), 2, 7),
-    (7, NOW(), NOW(), 2, 8);
+    (7, NOW(), NOW(), 2, 8),
+    (8, NOW(), NOW(), 1, 11),
+    (9, NOW(), NOW(), 1, 13);
 
 INSERT INTO decision_timeline (decision_timeline_pk, created_at, updated_at, decision_id, timestamp, step, content, member_id, utterance) VALUES
     (1, NOW(), NOW(), 1, '00:01:00', '문제 제기', '로그인 기능과 회의 종료 버그를 같이 보기로 했다.', 1, '오늘은 로그인 기능 마무리하고 회의 종료 버그를 같이 볼게요.'),
@@ -168,7 +173,14 @@ INSERT INTO decision_timeline (decision_timeline_pk, created_at, updated_at, dec
     (6, NOW(), NOW(), 2, '00:01:00', '문제 제기', '커밋 추천 정확도를 다시 점검했다.', 1, '지난 회의에서 결정한 커밋 추천 정확도를 다시 점검해봤어요.'),
     (7, NOW(), NOW(), 2, '00:07:00', '원인 분석', '키워드 매칭만으로는 관련 없는 커밋도 추천된다는 점이 지적됐다.', 4, '커밋 메시지만으로는 관련 없는 커밋도 추천되는 경우가 있더라고요.'),
     (8, NOW(), NOW(), 2, '00:13:00', '대안 검토', '임베딩 기반 유사도 계산이 대안으로 제시됐다.', 3, '임베딩 기반으로 유사도를 계산하면 나아질 것 같아요.'),
-    (9, NOW(), NOW(), 2, '00:25:00', '결정', '임베딩 파이프라인과 캐싱을 이번 주 안에 적용하기로 했다.', 4, '그럼 임베딩 파이프라인이랑 캐싱을 이번 주 안에 붙여볼게요.');
+    (9, NOW(), NOW(), 2, '00:25:00', '결정', '임베딩 파이프라인과 캐싱을 이번 주 안에 적용하기로 했다.', 4, '그럼 임베딩 파이프라인이랑 캐싱을 이번 주 안에 붙여볼게요.'),
+    (10, NOW(), NOW(), 1, '00:18:00', '원인 분석', '적용사항별 조회 과정에서 연관 데이터를 반복 조회하는 문제가 확인됐다.', 1, '적용사항 하나를 열 때마다 결정 근거와 타임라인을 각각 다시 조회해서, 목록이 늘어나면 쿼리 수가 너무 많이 늘어나요.'),
+    (11, NOW(), NOW(), 1, '00:19:30', '대안 검토', 'fetch join과 배치 조회를 조합하는 방안을 검토했다.', 4, '기본 정보는 fetch join으로 가져오고, 컬렉션은 배치 조회로 분리하면 중복 행도 피하면서 N+1을 줄일 수 있을 것 같아요.'),
+    (12, NOW(), NOW(), 1, '00:20:30', '대안 검토', 'projection으로 응답 데이터를 줄이자는 의견이 제시됐다.', 3, '상세 화면에서 필요한 필드만 projection으로 조회하면 엔티티를 전부 만드는 비용도 줄고 응답도 더 가벼워질 거예요.'),
+    (13, NOW(), NOW(), 1, '00:22:00', '결정', '조회 쿼리를 리팩터링하고 성능을 측정하기로 결정했다.', 2, '좋습니다. fetch join과 projection을 적용해서 쿼리 수와 응답 시간을 같이 비교해보고 이번 스프린트에 반영하죠.'),
+    (14, NOW(), NOW(), 1, '00:17:00', '현황 확인', '리팩터링 전 조회 성능을 측정하기로 했다.', 2, '우선 현재 화면을 열 때 쿼리가 몇 번 나가는지 로그로 확인해보고, 응답 시간도 기준값을 남겨두면 비교하기 좋겠어요.'),
+    (15, NOW(), NOW(), 1, '00:20:00', '대안 검토', '컬렉션 fetch join의 페이징 제약을 고려했다.', 1, '컬렉션까지 한 번에 fetch join하면 페이징이 깨질 수 있으니, 목록과 상세 조회의 전략은 분리하는 게 안전해 보여요.'),
+    (16, NOW(), NOW(), 1, '00:21:15', '검증 계획', '중복 데이터와 조회 결과 일관성을 함께 점검하기로 했다.', 4, '쿼리 수만 줄어도 중복된 적용사항이 내려오면 안 되니까, 테스트 데이터로 결과 개수와 정렬도 같이 확인해야 합니다.');
 
 INSERT INTO application (application_id, created_at, updated_at, decision_id, name) VALUES
     (1, NOW(), NOW(), 1, '로그인 기능 배포'),
@@ -180,7 +192,9 @@ INSERT INTO application (application_id, created_at, updated_at, decision_id, na
 INSERT INTO application_base (application_id, decision_base_pk, created_at, updated_at) VALUES
     (1, 1, NOW(), NOW()),
     (2, 2, NOW(), NOW()),
-    (3, 2, NOW(), NOW()),
+    (3, 4, NOW(), NOW()),
+    (3, 5, NOW(), NOW()),
+    (3, 6, NOW(), NOW()),
     (4, 3, NOW(), NOW()),
     (5, 3, NOW(), NOW());
 
@@ -188,6 +202,8 @@ INSERT INTO application_commits (application_id, decision_commits_pk, created_at
     (1, 1, NOW(), NOW(), '로그인 API 구현 커밋이 결정 내용과 직접 연관된다.', 90),
     (2, 2, NOW(), NOW(), '회의 종료 시간 버그 수정 커밋이 결정 내용과 직접 연관된다.', 88),
     (3, 3, NOW(), NOW(), '결정 근거 조회 쿼리 리팩터링 커밋이 결정 내용과 직접 연관된다.', 84),
+    (3, 8, NOW(), NOW(), '적용사항 직접 연결 목록 조회를 추가해 조회 흐름과 연관된다.', 81),
+    (3, 9, NOW(), NOW(), 'Git 조회 응답 변환 로직을 정리해 projection 적용과 연관된다.', 79),
     (4, 4, NOW(), NOW(), '임베딩 파이프라인 구현 커밋이 결정 내용과 직접 연관된다.', 92),
     (5, 6, NOW(), NOW(), '회의 요약 캐싱 적용 커밋이 결정 내용과 직접 연관된다.', 86);
 
@@ -195,6 +211,13 @@ INSERT INTO application_timeline (application_id, decision_timeline_pk, created_
     (1, 2, NOW(), NOW()),
     (2, 3, NOW(), NOW()),
     (3, 4, NOW(), NOW()),
+    (3, 14, NOW(), NOW()),
+    (3, 10, NOW(), NOW()),
+    (3, 11, NOW(), NOW()),
+    (3, 15, NOW(), NOW()),
+    (3, 12, NOW(), NOW()),
+    (3, 16, NOW(), NOW()),
+    (3, 13, NOW(), NOW()),
     (4, 7, NOW(), NOW()),
     (5, 8, NOW(), NOW());
 
@@ -202,5 +225,7 @@ INSERT INTO commit_connection (application_id, commit_id, created_at, updated_at
     (1, 1, NOW(), NOW()),
     (2, 2, NOW(), NOW()),
     (3, 3, NOW(), NOW()),
+    (3, 11, NOW(), NOW()),
+    (3, 13, NOW(), NOW()),
     (4, 4, NOW(), NOW()),
     (5, 7, NOW(), NOW());
