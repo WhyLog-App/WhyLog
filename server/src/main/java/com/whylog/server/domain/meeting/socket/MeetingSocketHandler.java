@@ -236,9 +236,8 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
                                 Optional.ofNullable(incoming.text()).orElse(""),
                                 incoming.payload())));
         if (type == MeetingMessageType.SPEECH && StringUtils.hasText(incoming.text())) {
-            LocalDateTime speechDateTime = LocalDateTime.now();
-            meetingLiveMessageRepository.append(
-                    participant.meetingId(),
+            // 메모리 버퍼와 회의록이 같은 발화 객체를 공유해 타임스탬프가 어긋나지 않게 한다.
+            LiveMessageEntry entry =
                     new LiveMessageEntry(
                             participant.meetingId(),
                             participant.memberId(),
@@ -246,22 +245,21 @@ public class MeetingSocketHandler extends BinaryWebSocketHandler {
                             incoming.targetMemberId(),
                             incoming.text(),
                             incoming.payload(),
-                            speechDateTime));
-            persistSpeech(participant, incoming.text(), speechDateTime);
+                            LocalDateTime.now());
+            meetingLiveMessageRepository.append(participant.meetingId(), entry);
+            persistSpeech(entry);
         }
     }
 
     // 발화를 회의록으로 남깁니다. 저장이 실패해도 진행 중인 회의를 끊지 않습니다.
-    private void persistSpeech(
-            MeetingParticipant participant, String text, LocalDateTime speechDateTime) {
+    private void persistSpeech(LiveMessageEntry entry) {
         try {
-            meetingDialogueCommandService.appendSpeech(
-                    participant.meetingId(), participant.memberId(), text, speechDateTime);
+            meetingDialogueCommandService.appendSpeech(entry);
         } catch (Exception exception) {
             log.error(
                     "발화 저장 실패: meetingId={}, memberId={}",
-                    participant.meetingId(),
-                    participant.memberId(),
+                    entry.meetingId(),
+                    entry.fromMemberId(),
                     exception);
         }
     }
