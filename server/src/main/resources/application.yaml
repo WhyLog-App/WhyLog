@@ -52,11 +52,6 @@ jwt:
   access-token-expire-time: ${JWT_ACCESS_TOKEN_EXPIRE_TIME:3600000}
   refresh-token-expire-time: ${JWT_REFRESH_TOKEN_EXPIRE_TIME:1209600000}
 
-livekit:
-  url: ${LIVEKIT_URL:wss://example.livekit.invalid}
-  api-key: ${LIVEKIT_API_KEY:devkey}
-  api-secret: ${LIVEKIT_API_SECRET:01234567890123456789012345678901}
-
 github:
   token:
     encryption:

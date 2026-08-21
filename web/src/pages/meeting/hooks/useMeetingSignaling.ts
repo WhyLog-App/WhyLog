@@ -5,8 +5,15 @@ import type {
   InterimEntry,
   OutgoingMessageType,
   RoomParticipant,
+  SignalFrame,
+  SignalMessageType,
+  SignalPayload,
   TranscriptEntry,
 } from "../types";
+
+type SignalHandler = (frame: SignalFrame) => void;
+
+const SIGNAL_TYPES: readonly string[] = ["offer", "answer", "ice"];
 
 interface UseMeetingSignalingOptions {
   meetingId: number | null;
@@ -29,6 +36,8 @@ interface SignalingFrame {
   name?: string;
   text?: string;
   timestamp?: string;
+  target_member_id?: number;
+  payload?: SignalPayload;
 }
 
 const MAX_RETRIES = 3;
@@ -62,12 +71,38 @@ export const useMeetingSignaling = ({
   const [, setRetrySignal] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
+  // 시그널링 구독자. state로 두면 프레임마다 리렌더가 나므로 ref로 관리한다.
+  const signalHandlersRef = useRef<Set<SignalHandler>>(new Set());
 
   const sendMessage = useCallback((type: OutgoingMessageType, text: string) => {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return false;
     ws.send(JSON.stringify({ type, text }));
     return true;
+  }, []);
+
+  // 서버는 target_member_id 가 없는 offer/answer/ice 를 에러로 돌려준다.
+  const sendSignal = useCallback(
+    (
+      type: SignalMessageType,
+      targetMemberId: number,
+      payload: SignalPayload,
+    ) => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+      ws.send(
+        JSON.stringify({ type, target_member_id: targetMemberId, payload }),
+      );
+      return true;
+    },
+    [],
+  );
+
+  const subscribeSignal = useCallback((handler: SignalHandler) => {
+    signalHandlersRef.current.add(handler);
+    return () => {
+      signalHandlersRef.current.delete(handler);
+    };
   }, []);
 
   const manualRetry = useCallback(() => {
@@ -126,6 +161,21 @@ export const useMeetingSignaling = ({
       ws.onmessage = (ev) => {
         try {
           const msg = JSON.parse(ev.data) as SignalingFrame;
+
+          // offer/answer/ice 는 상태로 쌓지 않고 구독자(useWebRtcMesh)에게 바로 넘긴다.
+          if (SIGNAL_TYPES.includes(msg.type)) {
+            if (msg.from_member_id == null) return;
+            const frame: SignalFrame = {
+              type: msg.type as SignalMessageType,
+              fromMemberId: msg.from_member_id,
+              payload: msg.payload ?? {},
+            };
+            signalHandlersRef.current.forEach((handler) => {
+              handler(frame);
+            });
+            return;
+          }
+
           switch (msg.type) {
             case "connected":
             case "roster": {
@@ -281,6 +331,8 @@ export const useMeetingSignaling = ({
     transcripts,
     interimByMember,
     sendMessage,
+    sendSignal,
+    subscribeSignal,
     manualRetry,
     isMeetingEnded,
   };

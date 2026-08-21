@@ -53,7 +53,6 @@ WhyLog는 팀 회의를 녹음·전사하고 AI로 논의 주제와 결정 근�
 - 실시간 참여자가 모두 빠지면(`meetingSocketRoomService`의 참여자 목록이 비면) 서버가 자동으로 회의를 종료 처리한다(`autoEndMeetingIfEmpty`). 이때는 참여자에게 종료를 브로드캐스트하지 않는다(정상 종료와 구분).
 - 회의 종료 시 `isNormallyEnded = true`로 세팅한다. 진행 시간(`getDuration`)은 `endDateTime`이 있는, 즉 종료된 회의에서만 계산 가능하다(진행중이면 null).
 - 회의가 끝나면 커밋 이후 비동기로 오디오 분석(`MeetingAnalysisService.analyzeMeetingAudio`)이 트리거된다. 분석 실패는 로그만 남기고 회의 종료 자체를 실패시키지 않는다.
-- 회의 삭제 시 녹음 중이면(`audioEgressId` 존재) 먼저 LiveKit egress를 중지하고, 실패해도 로그만 남기고 삭제를 계속 진행한다(녹음 중지 실패가 데이터 정리를 막지 않는다).
 
 ### 팀 (Team)
 

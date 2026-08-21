@@ -75,10 +75,3 @@ export interface MeetingHistory {
   participants: MeetingMember[];
   dialogues: MeetingHistoryDialogue[];
 }
-
-export interface RtcTokenResult {
-  meeting_id: number;
-  room_name: string;
-  server_url: string;
-  token: string;
-}

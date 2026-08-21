@@ -5,18 +5,25 @@ interface ParticipantTileProps {
   name: string;
   isSelf?: boolean;
   profileImage?: string | null;
+  isSpeaking?: boolean;
 }
 
 const ParticipantTile = ({
   name,
   isSelf,
   profileImage,
+  isSpeaking,
 }: ParticipantTileProps) => {
+  // 발화 표시가 본인 테두리보다 우선한다. 둘 다 테두리라 겹치면 구분이 안 된다.
+  const borderClass = isSpeaking
+    ? "ring-4 ring-(--color-blue-500)"
+    : isSelf
+      ? "border-2 border-green-500"
+      : "";
+
   return (
     <div
-      className={`relative flex aspect-16/10 w-full items-center justify-center overflow-hidden rounded-2xl bg-(--color-dark-700) ${
-        isSelf ? "border-2 border-green-500" : ""
-      }`}
+      className={`relative flex aspect-16/10 w-full items-center justify-center overflow-hidden rounded-2xl bg-(--color-dark-700) ${borderClass}`}
     >
       {profileImage ? (
         <img

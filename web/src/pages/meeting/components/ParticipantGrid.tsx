@@ -17,6 +17,7 @@ const ParticipantGrid = ({ participants }: ParticipantGridProps) => {
           name={p.name}
           isSelf={p.isSelf}
           profileImage={p.profileImage}
+          isSpeaking={p.isSpeaking}
         />
       ))}
     </div>

@@ -30,7 +30,7 @@
 - `XxxCommandService`는 클래스 레벨에 `@Transactional`을 붙입니다.
 - `XxxQueryService`는 클래스 레벨에 `@Transactional(readOnly = true)`를 붙입니다.
 - 같은 클래스 내부 호출은 프록시를 거치지 않으므로, 호출 대상 메서드에 별도로 선언한 `@Transactional` 속성(전파·격리·`readOnly` 등)이 적용되지 않습니다. 호출자가 연 트랜잭션은 유지됩니다. 별도 트랜잭션 경계가 필요하면 다른 빈으로 분리합니다.
-- **외부 호출(S3, FastAPI, LiveKit, GitHub API)을 트랜잭션 안에서 하지 않습니다.** 커밋 이후 실행이 필요하면 `TransactionSynchronizationManager`로 afterCommit에 등록합니다.
+- **외부 호출(S3, FastAPI, GitHub API)을 트랜잭션 안에서 하지 않습니다.** 커밋 이후 실행이 필요하면 `TransactionSynchronizationManager`로 afterCommit에 등록합니다.
 
 ```java
 // ❌ 트랜잭션 안에서 S3 업로드 — 업로드가 걸리는 시간만큼 DB 커넥션을 붙잡는다
@@ -71,13 +71,13 @@ scheduleAfterCommit(() -> s3Client.deleteFile(team.getImage()));
 
 ```java
 // ❌ 같은 prefix를 @Value로 나눠 주입 — 설정 하나 바꾸려면 어느 클래스를 봐야 하는지 알 수 없다
-@Value("${livekit.api-key}") private String apiKey;
-@Value("${livekit.api-secret}") private String apiSecret;
-@Value("${livekit.url}") private String url;
+@Value("${cloud.aws.credentials.access-key}") private String accessKey;
+@Value("${cloud.aws.credentials.secret-key}") private String secretKey;
+@Value("${cloud.aws.region.static}") private String region;
 
 // ✅ 하나로 묶는다
-@ConfigurationProperties(prefix = "livekit")
-public record LiveKitProperties(String apiKey, String apiSecret, String url) {}
+@ConfigurationProperties(prefix = "cloud.aws")
+public record AwsProperties(String accessKey, String secretKey, String region) {}
 ```
 
 ### 코드 작성 공통
