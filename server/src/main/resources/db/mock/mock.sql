@@ -7,11 +7,13 @@
 SET FOREIGN_KEY_CHECKS = 0;
 
 TRUNCATE TABLE commit_connection;
+TRUNCATE TABLE application_context;
 TRUNCATE TABLE application_timeline;
 TRUNCATE TABLE application_commits;
 TRUNCATE TABLE application_base;
 TRUNCATE TABLE application;
 TRUNCATE TABLE decision_timeline;
+TRUNCATE TABLE decision_context;
 TRUNCATE TABLE decision_commits;
 TRUNCATE TABLE decision_base;
 TRUNCATE TABLE decision;
@@ -220,6 +222,46 @@ INSERT INTO application_timeline (application_id, decision_timeline_pk, created_
     (3, 13, NOW(), NOW()),
     (4, 7, NOW(), NOW()),
     (5, 8, NOW(), NOW());
+
+INSERT INTO decision_context (decision_context_pk, created_at, updated_at, decision_id, timestamp, content, member_id, utterance) VALUES
+    (1, NOW(), NOW(), 1, '00:01:00', '로그인 기능을 이번 스프린트에 마무리하기로 논의함', 1, '오늘은 로그인 기능 마무리하고 회의 종료 버그를 같이 볼게요.'),
+    (2, NOW(), NOW(), 1, '00:11:00', '로그인 API 검증 기준을 점검하기로 함', 1, '로그인 API의 이메일과 비밀번호 검증도 이번 배포 전에 다시 확인해볼게요.'),
+    (3, NOW(), NOW(), 1, '00:26:00', '로그인 API 구현 완료 후 리뷰를 요청하기로 함', 1, '로그인 API는 오늘 리뷰 요청 올리겠습니다.'),
+    (4, NOW(), NOW(), 1, '00:06:00', '회의 종료 시간이 어긋나는 문제를 공유함', 2, '회의 종료 시간이 UTC로 저장돼서 어긋나는 것 같아요.'),
+    (5, NOW(), NOW(), 1, '00:11:00', '타임존 설정 누락을 원인으로 분석함', 1, 'JPA 설정에 타임존을 명시하지 않은 게 원인 같습니다.'),
+    (6, NOW(), NOW(), 1, '00:16:00', '회의 종료 시간과 조회 성능 이슈를 함께 정리하자고 제안함', 3, '결정 근거 조회 쿼리도 N+1이 나서 같이 정리하면 좋겠어요.'),
+    (7, NOW(), NOW(), 1, '00:21:00', '회의 종료 시간 버그를 최우선 과제로 반영하기로 합의함', 2, '그럼 이번 스프린트 최우선 과제로 올릴게요.'),
+    (8, NOW(), NOW(), 1, '00:17:00', '리팩터링 전 조회 성능 기준을 측정하기로 함', 2, '우선 현재 화면을 열 때 쿼리가 몇 번 나가는지 로그로 확인해보고, 응답 시간도 기준값을 남겨두면 비교하기 좋겠어요.'),
+    (9, NOW(), NOW(), 1, '00:18:00', '반복 조회로 인한 N+1 문제를 확인함', 1, '적용사항 하나를 열 때마다 결정 근거와 타임라인을 각각 다시 조회해서, 목록이 늘어나면 쿼리 수가 너무 많이 늘어나요.'),
+    (10, NOW(), NOW(), 1, '00:19:30', 'fetch join과 배치 조회 조합을 대안으로 검토함', 4, '기본 정보는 fetch join으로 가져오고, 컬렉션은 배치 조회로 분리하면 중복 행도 피하면서 N+1을 줄일 수 있을 것 같아요.'),
+    (11, NOW(), NOW(), 1, '00:22:00', '조회 쿼리 리팩터링과 성능 측정을 합의함', 2, '좋습니다. fetch join과 projection을 적용해서 쿼리 수와 응답 시간을 같이 비교해보고 이번 스프린트에 반영하죠.'),
+    (12, NOW(), NOW(), 2, '00:01:00', '커밋 추천 정확도를 다시 점검함', 1, '지난 회의에서 결정한 커밋 추천 정확도를 다시 점검해봤어요.'),
+    (13, NOW(), NOW(), 2, '00:07:00', '키워드 매칭만으로는 관련 없는 커밋도 추천되는 문제를 공유함', 4, '커밋 메시지만으로는 관련 없는 커밋도 추천되는 경우가 있더라고요.'),
+    (14, NOW(), NOW(), 2, '00:13:00', '임베딩 기반 유사도 계산을 대안으로 제시함', 3, '임베딩 기반으로 유사도를 계산하면 나아질 것 같아요.'),
+    (15, NOW(), NOW(), 2, '00:25:00', '임베딩 파이프라인을 이번 주 안에 적용하기로 합의함', 4, '그럼 임베딩 파이프라인이랑 캐싱을 이번 주 안에 붙여볼게요.'),
+    (16, NOW(), NOW(), 2, '00:19:00', '회의 요약 재계산 비용을 캐싱으로 줄이자고 제안함', 1, '회의 요약도 매번 다시 계산돼서 느려요. 캐싱을 붙이면 좋겠어요.'),
+    (17, NOW(), NOW(), 2, '00:25:00', '회의 요약 캐싱을 이번 주 안에 적용하기로 합의함', 4, '그럼 임베딩 파이프라인이랑 캐싱을 이번 주 안에 붙여볼게요.'),
+    (18, NOW(), NOW(), 2, '00:30:00', '다음 회고에서 추천 정확도 변화를 확인하기로 함', 3, '다음 회고 때 추천 정확도 변화도 같이 확인해봐요.');
+
+INSERT INTO application_context (application_id, decision_context_pk, created_at, updated_at) VALUES
+    (1, 1, NOW(), NOW()),
+    (1, 2, NOW(), NOW()),
+    (1, 3, NOW(), NOW()),
+    (2, 4, NOW(), NOW()),
+    (2, 5, NOW(), NOW()),
+    (2, 6, NOW(), NOW()),
+    (2, 7, NOW(), NOW()),
+    (3, 8, NOW(), NOW()),
+    (3, 9, NOW(), NOW()),
+    (3, 10, NOW(), NOW()),
+    (3, 11, NOW(), NOW()),
+    (4, 12, NOW(), NOW()),
+    (4, 13, NOW(), NOW()),
+    (4, 14, NOW(), NOW()),
+    (4, 15, NOW(), NOW()),
+    (5, 16, NOW(), NOW()),
+    (5, 17, NOW(), NOW()),
+    (5, 18, NOW(), NOW());
 
 INSERT INTO commit_connection (application_id, commit_id, created_at, updated_at) VALUES
     (1, 1, NOW(), NOW()),

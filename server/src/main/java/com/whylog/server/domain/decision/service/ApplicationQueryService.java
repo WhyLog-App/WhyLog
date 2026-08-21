@@ -4,10 +4,12 @@ import com.whylog.server.domain.decision.dto.ApplicationResponse;
 import com.whylog.server.domain.decision.entity.Application;
 import com.whylog.server.domain.decision.entity.ApplicationBase;
 import com.whylog.server.domain.decision.entity.ApplicationCommits;
+import com.whylog.server.domain.decision.entity.ApplicationContext;
 import com.whylog.server.domain.decision.entity.ApplicationTimeline;
 import com.whylog.server.domain.decision.exception.ApplicationNotFoundException;
 import com.whylog.server.domain.decision.repository.ApplicationBaseRepository;
 import com.whylog.server.domain.decision.repository.ApplicationCommitsRepository;
+import com.whylog.server.domain.decision.repository.ApplicationContextRepository;
 import com.whylog.server.domain.decision.repository.ApplicationRepository;
 import com.whylog.server.domain.decision.repository.ApplicationTimelineRepository;
 import com.whylog.server.domain.git.entity.Commit;
@@ -22,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +36,7 @@ public class ApplicationQueryService {
 
     private final ApplicationRepository applicationRepository;
     private final ApplicationBaseRepository applicationBaseRepository;
+    private final ApplicationContextRepository applicationContextRepository;
     private final ApplicationTimelineRepository applicationTimelineRepository;
     private final ApplicationCommitsRepository applicationCommitsRepository;
     private final CommitRepository commitRepository;
@@ -46,12 +50,14 @@ public class ApplicationQueryService {
                         .findById(applicationId)
                         .orElseThrow(ApplicationNotFoundException::new);
 
-        // 적용사항에 연결된 근거/타임라인 원본 엔티티를 각각 조회
+        // 적용사항에 연결된 근거/타임라인/원문 맥락 원본 엔티티를 각각 조회
         List<ApplicationBase> applicationBases =
                 applicationBaseRepository.findByApplicationId(applicationId);
         List<ApplicationTimeline> applicationTimelines =
                 applicationTimelineRepository.findByApplicationId(applicationId);
-        Map<Long, Member> membersById = findMembersById(applicationTimelines);
+        List<ApplicationContext> applicationContexts =
+                applicationContextRepository.findByApplicationId(applicationId);
+        Map<Long, Member> membersById = findMembersById(applicationTimelines, applicationContexts);
 
         return ApplicationResponse.ApplicationDetailDTO.builder()
                 .applicationId(application.getId())
@@ -59,7 +65,7 @@ public class ApplicationQueryService {
                 .name(application.getName())
                 .decisionReasons(toDecisionReasonItems(applicationBases))
                 .decisionTimelines(toDecisionTimelineItems(applicationTimelines))
-                .decisionContexts(toDecisionContextItems(applicationTimelines, membersById))
+                .decisionContexts(toDecisionContextItems(applicationContexts, membersById))
                 .decisionReasonCount(applicationBases.size())
                 .build();
     }
@@ -248,34 +254,44 @@ public class ApplicationQueryService {
 
     // 원문 맥락은 발화자 정보와 원문 발화를 함께 내려줌
     private List<ApplicationResponse.DecisionContextItemDTO> toDecisionContextItems(
-            List<ApplicationTimeline> applicationTimelines, Map<Long, Member> membersById) {
-        return applicationTimelines.stream()
+            List<ApplicationContext> applicationContexts, Map<Long, Member> membersById) {
+        return applicationContexts.stream()
                 .map(
-                        applicationTimeline -> {
-                            Long memberId = applicationTimeline.getDecisionTimeline().getMemberId();
+                        applicationContext -> {
+                            Long memberId = applicationContext.getDecisionContext().getMemberId();
                             Member member = memberId != null ? membersById.get(memberId) : null;
 
                             return ApplicationResponse.DecisionContextItemDTO.builder()
-                                    .time(applicationTimeline.getDecisionTimeline().getTimestamp())
+                                    .time(applicationContext.getDecisionContext().getTimestamp())
                                     .memberId(memberId)
                                     .memberName(member != null ? member.getName() : null)
                                     .profileImage(memberUseCase.getProfileImageUrl(member))
+                                    .content(applicationContext.getDecisionContext().getContent())
                                     .dialogueContent(
-                                            applicationTimeline
-                                                    .getDecisionTimeline()
-                                                    .getUtterance())
+                                            applicationContext.getDecisionContext().getUtterance())
                                     .build();
                         })
                 .toList();
     }
 
-    // 타임라인에 포함된 발화자들을 한 번에 조회해 memberId 기준 맵으로 구성한다.
-    private Map<Long, Member> findMembersById(List<ApplicationTimeline> applicationTimelines) {
+    // 타임라인과 원문 맥락에 포함된 발화자들을 한 번에 조회해 memberId 기준 맵으로 구성한다.
+    private Map<Long, Member> findMembersById(
+            List<ApplicationTimeline> applicationTimelines,
+            List<ApplicationContext> applicationContexts) {
         List<Long> memberIds =
-                applicationTimelines.stream()
-                        .map(
-                                applicationTimeline ->
-                                        applicationTimeline.getDecisionTimeline().getMemberId())
+                Stream.concat(
+                                applicationTimelines.stream()
+                                        .map(
+                                                applicationTimeline ->
+                                                        applicationTimeline
+                                                                .getDecisionTimeline()
+                                                                .getMemberId()),
+                                applicationContexts.stream()
+                                        .map(
+                                                applicationContext ->
+                                                        applicationContext
+                                                                .getDecisionContext()
+                                                                .getMemberId()))
                         .filter(memberId -> memberId != null)
                         .distinct()
                         .toList();

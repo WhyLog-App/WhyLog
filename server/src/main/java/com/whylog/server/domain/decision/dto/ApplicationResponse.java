@@ -92,6 +92,9 @@ public class ApplicationResponse {
                 nullable = true)
         private String profileImage;
 
+        @Schema(description = "발화 요약", example = "로그인 API 검증 로직 추가를 합의함", nullable = true)
+        private String content;
+
         @Schema(description = "대화 내용", example = "아니 우리 이거 버그난다니까?!?@??@")
         private String dialogueContent;
     }
