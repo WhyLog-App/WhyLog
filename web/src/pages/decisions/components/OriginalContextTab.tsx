@@ -102,23 +102,12 @@ const OriginalContextTab = ({ messages, reasons }: OriginalContextTabProps) => {
 
       <div className="flex min-w-0 flex-col gap-5">
         <GlassCard className="gap-4 px-7 py-6">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <p className="typo-caption1 text-(--color-text-tertiary)">
-              {selectedMessage.time} · {selectedMessage.member_name}
-            </p>
-            <div className="flex items-center gap-4 typo-caption1 text-(--color-text-brand)">
-              <span>회의록</span>
-              <span>출처: 회의록</span>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h2 className="typo-title3 text-(--color-text-primary)">
-              {primaryReason}
-            </h2>
-            <span className="rounded-md bg-(--color-bg-brand-subtle) px-2.5 py-1 typo-caption2 font-medium text-(--color-text-brand)">
-              핵심 근거
-            </span>
-          </div>
+          <p className="typo-caption1 text-(--color-text-tertiary)">
+            {selectedMessage.time} · {selectedMessage.member_name}
+          </p>
+          <h2 className="typo-title3 text-(--color-text-primary)">
+            {primaryReason}
+          </h2>
           <blockquote className="rounded-lg bg-(--color-bg-subtle) px-5 py-4 typo-body6 leading-relaxed text-(--color-text-primary)">
             “{selectedMessage.dialogue_content}”
           </blockquote>
