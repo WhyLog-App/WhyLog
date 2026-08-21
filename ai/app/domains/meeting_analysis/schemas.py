@@ -44,6 +44,13 @@ class ApplicationTimelineItem(BaseModel):
     utterance: str = Field(description="실제 발화 원문")
 
 
+class ApplicationContextItem(BaseModel):
+    timestamp: str = Field(description="해당 발화 시각(HH:MM:SS)")
+    member_id: int | None = None
+    content: str = Field(description="해당 발화의 요약 한 문장")
+    utterance: str = Field(description="실제 발화 원문")
+
+
 class Application(BaseModel):
     application_id: int | None = Field(
         default=None,
@@ -61,6 +68,13 @@ class Application(BaseModel):
     timeline: list[ApplicationTimelineItem] = Field(
         default_factory=list,
         description="적용사항 도출 타임라인(이슈제기→대안논의→적용합의)",
+    )
+    context_items: list[ApplicationContextItem] = Field(
+        default_factory=list,
+        description=(
+            "적용사항과 관련된 개별 발화별 요약 목록. "
+            "timeline과 달리 관련된 발화를 빠짐없이 담는다."
+        ),
     )
 
 
