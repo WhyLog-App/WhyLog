@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import IconCircleUser from "@/assets/icons/user/ic_circle_user.svg?react";
 import { Icon } from "@/components/common/Icon";
 import type {
@@ -61,10 +61,15 @@ const ContextMessage = ({
 
 const OriginalContextTab = ({ messages, reasons }: OriginalContextTabProps) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const selectedMessage = messages[selectedIndex];
+  // biome-ignore lint/correctness/useExhaustiveDependencies: messages 참조 변경을 트리거로 사용
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [messages]);
+  const safeIndex = selectedIndex < messages.length ? selectedIndex : 0;
+  const selectedMessage = messages[safeIndex];
   const relatedMessages = messages
     .map((message, index) => ({ message, index }))
-    .filter(({ index }) => index !== selectedIndex);
+    .filter(({ index }) => index !== safeIndex);
   const primaryReason = reasons[0]?.title ?? "결정 핵심 근거";
 
   if (!selectedMessage) {
@@ -88,7 +93,7 @@ const OriginalContextTab = ({ messages, reasons }: OriginalContextTabProps) => {
             <ContextMessage
               key={`${message.member_id}-${message.time}-${message.dialogue_content}`}
               message={message}
-              selected={selectedIndex === index}
+              selected={safeIndex === index}
               onSelect={() => setSelectedIndex(index)}
             />
           ))}
@@ -101,7 +106,7 @@ const OriginalContextTab = ({ messages, reasons }: OriginalContextTabProps) => {
             {selectedMessage.time} · {selectedMessage.member_name}
           </p>
           <h2 className="typo-title3 text-(--color-text-primary)">
-            {primaryReason}
+            {selectedMessage.content || primaryReason}
           </h2>
           <blockquote className="rounded-lg bg-(--color-bg-subtle) px-5 py-4 typo-body6 leading-relaxed text-(--color-text-primary)">
             “{selectedMessage.dialogue_content}”
@@ -114,17 +119,18 @@ const OriginalContextTab = ({ messages, reasons }: OriginalContextTabProps) => {
           </h2>
           {relatedMessages.map(({ message, index }) => (
             <button
-              key={`${message.member_id}-${message.time}`}
+              key={`${message.member_id}-${message.time}-${message.dialogue_content}`}
               type="button"
               onClick={() => setSelectedIndex(index)}
               className="flex min-w-0 gap-2.5 text-left"
             >
-              <span className="w-20 shrink-0 typo-caption1 font-medium text-(--color-text-brand)">
-                {message.time} {message.member_name}
+              <span className="flex w-20 shrink-0 flex-col typo-caption1 text-(--color-text-brand)">
+                <span>{message.time}</span>
+                <span className="font-medium">{message.member_name}</span>
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="line-clamp-2 typo-caption2 text-(--color-text-tertiary)">
-                  {message.dialogue_content}
+                  {message.content || message.dialogue_content}
                 </span>
               </span>
             </button>

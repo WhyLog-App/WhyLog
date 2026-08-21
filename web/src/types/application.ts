@@ -10,6 +10,7 @@ export interface ApplicationContextMessage {
   member_id: number;
   member_name: string;
   profile_image: string;
+  content: string | null;
   dialogue_content: string;
 }
 
