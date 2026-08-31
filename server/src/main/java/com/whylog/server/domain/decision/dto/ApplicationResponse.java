@@ -1,16 +1,14 @@
 package com.whylog.server.domain.decision.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
 public class ApplicationResponse {
-
 
     @Getter
     @NoArgsConstructor
@@ -70,7 +68,6 @@ public class ApplicationResponse {
 
         @Schema(description = "타임라인 내용", example = "장애 이슈 제기")
         private String content;
-
     }
 
     @Getter
@@ -83,19 +80,24 @@ public class ApplicationResponse {
         @Schema(description = "타임라인 시간", example = "2026-03-24T12:28:00")
         private String time;
 
-        @Schema(description = "발화자 ID", example = "1", nullable = true)
+        @Schema(
+                description = "프로필 링크용 발화자 ID. 나간 사용자/탈퇴한 사용자는 null",
+                example = "1",
+                nullable = true)
         private Long memberId;
 
         @Schema(description = "발화자 이름", example = "김주뇽", nullable = true)
         private String memberName;
 
-        @Schema(description = "발화자 프로필 사진", example = "https://example.com/profile.jpg", nullable = true)
+        @Schema(
+                description = "발화자 프로필 사진",
+                example = "https://example.com/profile.jpg",
+                nullable = true)
         private String profileImage;
 
         @Schema(description = "대화 내용", example = "아니 우리 이거 버그난다니까?!?@??@")
         private String dialogueContent;
     }
-
 
     @Getter
     @NoArgsConstructor
@@ -109,7 +111,6 @@ public class ApplicationResponse {
 
         @Schema(description = "근거 내용", example = "운영복잡 우려로 보류")
         private String title;
-
     }
 
     @Getter
@@ -216,5 +217,4 @@ public class ApplicationResponse {
         @Schema(description = "연결된 커밋 ID 목록", example = "[1, 2, 3]")
         private List<Long> commitIds;
     }
-
 }
