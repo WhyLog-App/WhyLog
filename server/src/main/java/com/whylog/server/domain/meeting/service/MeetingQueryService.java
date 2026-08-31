@@ -6,55 +6,66 @@ import com.whylog.server.domain.meeting.entity.Meeting;
 import com.whylog.server.domain.meeting.entity.MeetingAnalysis;
 import com.whylog.server.domain.meeting.entity.MeetingMember;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
+import com.whylog.server.domain.meeting.exception.MeetingNotFoundException;
+import com.whylog.server.domain.meeting.repository.MeetingRepository;
 import com.whylog.server.domain.user.entity.Member;
-import com.whylog.server.domain.user.service.MemberUseCase;
+import com.whylog.server.domain.user.service.MemberDisplayResolver;
 import com.whylog.server.global.apiPayload.exception.ParameterRequiredException;
+import com.whylog.server.global.external.s3.S3Client;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class MeetingQueryService {
 
-    private final MeetingUseCase meetingUseCase;
+    private final MeetingRepository meetingRepository;
     private final MeetingAudioReplayService meetingAudioReplayService;
-    private final MemberUseCase memberUseCase;
+    private final MemberDisplayResolver memberDisplayResolver;
+    private final S3Client s3Client;
 
     // 미팅 목록 조회
-    @Transactional(readOnly = true)
-    public List<MeetingResponse.MeetingListDTO> getMeetings(Long teamId, MeetingStatus status){
+    public List<MeetingResponse.MeetingListDTO> getMeetings(Long teamId, MeetingStatus status) {
 
         // 기본값: 진행완료
         MeetingStatus targetStatus = status != null ? status : MeetingStatus.COMPLETED;
 
-        List<Meeting> meetings = meetingUseCase.findMeetingByTeamId(teamId);
+        List<Meeting> meetings = meetingRepository.findWithAnalysis(teamId);
 
         return meetings.stream()
-                .filter( m -> checkMeetingStatus(m, targetStatus)) // 상태 일치 체크
-                .map(m -> MeetingResponse.MeetingListDTO.builder()
-                        .meetingId(m.getId())
-                        .name(m.getName())
-                        .status(m.getStatus())
-                        .elapse( !m.isOngoing() ? m.getElapse() : null ) // 진행완료일 경우 null로 반환
-                        .build()
-                ).toList();
-
+                .filter(m -> checkMeetingStatus(m, targetStatus)) // 상태 일치 체크
+                .map(
+                        m ->
+                                MeetingResponse.MeetingListDTO.builder()
+                                        .meetingId(m.getId())
+                                        .name(m.getName())
+                                        .status(m.getStatus())
+                                        .elapse(
+                                                !m.isOngoing()
+                                                        ? m.getElapse()
+                                                        : null) // 진행완료일 경우 null로 반환
+                                        .build())
+                .toList();
     }
 
     // 회의 기본 정보 조회
-    @Transactional(readOnly = true)
-    public MeetingResponse.MeetingDetailDTO getMeetingDefaultInfo(Long meetingId){
+    public MeetingResponse.MeetingDetailDTO getMeetingDefaultInfo(Long meetingId) {
 
-        if (meetingId == null) { // null check
+        if (meetingId == null) {
             throw new ParameterRequiredException();
         }
 
-        Meeting meeting = meetingUseCase.findMeetingById(meetingId);
+        Meeting meeting = findMeetingWithMembers(meetingId);
+        List<Member> participants = participants(meeting);
+
+        Map<Long, MemberDisplayResolver.DisplayMember> displayMembers =
+                memberDisplayResolver.resolveByTeam(meeting.getTeam().getId(), participants);
 
         return MeetingResponse.MeetingDetailDTO.builder()
                 .meetingId(meeting.getId())
@@ -62,85 +73,134 @@ public class MeetingQueryService {
                 .startDateTime(meeting.getStartDateTime())
                 .endDateTime(meeting.getEndDateTime())
                 .duration(meeting.getDuration())
-                .memberCount( meetingUseCase.getMeetingMemberCount(meeting) )
-                .members( memberToParticipantsInfo(meetingUseCase.getParticipantsInfo(meeting)) )
-                .audioDuration( meetingAudioReplayService.resolveAudioDurationIfAvailable(meeting) )
+                .memberCount(participants.size())
+                .members(memberToParticipantsInfo(participants, displayMembers))
+                .audioDuration(meetingAudioReplayService.resolveAudioDurationIfAvailable(meeting))
                 .build();
     }
 
-    private List<MeetingResponse.MeetingParticipantInfo> memberToParticipantsInfo(List<Member> members){
+    private List<MeetingResponse.MeetingParticipantInfo> memberToParticipantsInfo(
+            List<Member> members, Map<Long, MemberDisplayResolver.DisplayMember> displayMembers) {
         return members.stream()
-                .map(member -> MeetingResponse.MeetingParticipantInfo.builder()
-                        .memberId(member.getId())
-                        .name(member.getName())
-                        .profileImage(memberUseCase.getProfileImageUrl(member))
-                        .build()
-                ).toList();
+                .map(
+                        member -> {
+                            MemberDisplayResolver.DisplayMember displayMember =
+                                    displayMember(member, displayMembers);
+                            return MeetingResponse.MeetingParticipantInfo.builder()
+                                    .memberId(displayMember.memberId())
+                                    .name(displayMember.name())
+                                    .profileImage(profileImageUrl(displayMember))
+                                    .build();
+                        })
+                .toList();
     }
 
-    private boolean checkMeetingStatus(Meeting meeting, MeetingStatus status){
+    private List<Member> participants(Meeting meeting) {
+        return meeting.getMeetingMembers().stream().map(MeetingMember::getMember).toList();
+    }
+
+    private boolean checkMeetingStatus(Meeting meeting, MeetingStatus status) {
         return meeting.getStatus() == status;
     }
 
-    @Transactional(readOnly = true)
     public MeetingResponse.AudioDTO getMeetingAudio(Long meetingId) {
-        Meeting meeting = meetingUseCase.findMeetingById(meetingId);
+        Meeting meeting = findMeeting(meetingId);
         return meetingAudioReplayService.buildAudioResponse(meeting);
     }
 
-    @Transactional(readOnly = true)
     public MeetingResponse.AnalysisResultDTO getAnalysis(Long meetingId) {
 
-        Meeting meeting = meetingUseCase.findWithAnalysisByMeetingId(meetingId);
+        Meeting meeting = findMeetingWithAnalysis(meetingId);
 
         MeetingAnalysis meetingAnalysis = meeting.getMeetingAnalysis();
 
-        if(meetingAnalysis == null) // null이면 isAnalyzed = false인 응답 반환
+        if (meetingAnalysis == null) {
             return MeetingResponse.AnalysisResultDTO.createFalse(meetingId);
+        }
 
-        Integer audioDuration = meetingAudioReplayService.resolveAudioDurationIfAvailable(meetingAnalysis.getMeeting());
+        Integer audioDuration =
+                meetingAudioReplayService.resolveAudioDurationIfAvailable(
+                        meetingAnalysis.getMeeting());
         return MeetingResponse.AnalysisResultDTO.create(meetingAnalysis, audioDuration);
     }
 
-    @Transactional(readOnly = true)
     public MeetingResponse.HistoryListDTO getDialogueHistory(Long meetingId) {
 
-        // 회의 정보 조회 -> 대화 정보, 참여자 같이 조회
-        Meeting meeting = meetingUseCase.findWithDialogue(meetingId);
+        Meeting meeting = findMeetingWithDialogue(meetingId);
+        Meeting meetingWithMembers = findMeetingWithMembers(meetingId);
         List<Dialogue> dialogues = meeting.getDialogues();
-        List<Member> members = meeting.getMeetingMembers().stream()
-                .map(MeetingMember::getMember)
-                .toList();
+        List<Member> members =
+                meetingWithMembers.getMeetingMembers().stream()
+                        .map(MeetingMember::getMember)
+                        .toList();
+        Map<Long, MemberDisplayResolver.DisplayMember> displayMembers =
+                memberDisplayResolver.resolveByTeam(meeting.getTeam().getId(), members);
 
-        // dto 생성 및 반환
-        return createHistoryListDto(meeting, dialogues, members);
+        return createHistoryListDto(meeting, dialogues, members, displayMembers);
     }
 
-    private MeetingResponse.HistoryListDTO createHistoryListDto(Meeting meeting, List<Dialogue> dialogues, List<Member> members) {
+    private MeetingResponse.HistoryListDTO createHistoryListDto(
+            Meeting meeting,
+            List<Dialogue> dialogues,
+            List<Member> members,
+            Map<Long, MemberDisplayResolver.DisplayMember> displayMembers) {
         return MeetingResponse.HistoryListDTO.builder()
-                .participants(createParticipantDtos(members))
-                .dialogues(createDialogueDtos(meeting, dialogues))
+                .participants(createParticipantDtos(members, displayMembers))
+                .dialogues(createDialogueDtos(meeting, dialogues, displayMembers))
                 .build();
     }
 
-    private List<MeetingResponse.HistoryListDTO.ParticipantDTO> createParticipantDtos(List<Member> members) {
-        return members.stream().map(member -> MeetingResponse.HistoryListDTO.ParticipantDTO.builder()
-                .memberId(member.getId())
-                .name(member.getName())
-                .profileImage(memberUseCase.getProfileImageUrl(member))
-                .build()
-        ).toList();
+    private List<MeetingResponse.HistoryListDTO.ParticipantDTO> createParticipantDtos(
+            List<Member> members, Map<Long, MemberDisplayResolver.DisplayMember> displayMembers) {
+        return members.stream()
+                .map(
+                        member -> {
+                            MemberDisplayResolver.DisplayMember displayMember =
+                                    displayMember(member, displayMembers);
+                            return MeetingResponse.HistoryListDTO.ParticipantDTO.builder()
+                                    .memberId(displayMember.memberId())
+                                    .name(displayMember.name())
+                                    .profileImage(profileImageUrl(displayMember))
+                                    .build();
+                        })
+                .toList();
     }
 
-    private List<MeetingResponse.HistoryListDTO.DialogueDTO> createDialogueDtos(Meeting meeting, List<Dialogue> dialogues) {
+    private List<MeetingResponse.HistoryListDTO.DialogueDTO> createDialogueDtos(
+            Meeting meeting,
+            List<Dialogue> dialogues,
+            Map<Long, MemberDisplayResolver.DisplayMember> displayMembers) {
         LocalDateTime startDateTime = meeting.getStartDateTime();
 
-        return dialogues.stream().map(dialogue -> MeetingResponse.HistoryListDTO.DialogueDTO.builder()
-                .memberId(dialogue.getMember().getId())
-                .content(dialogue.getContent())
-                .timestamp(formatElapsed(startDateTime, dialogue.getSpeechDateTime()))
-                .build()
-        ).toList();
+        return dialogues.stream()
+                .map(
+                        dialogue -> {
+                            MemberDisplayResolver.DisplayMember displayMember =
+                                    displayMember(dialogue.getMember(), displayMembers);
+                            return MeetingResponse.HistoryListDTO.DialogueDTO.builder()
+                                    .memberId(displayMember.memberId())
+                                    .name(displayMember.name())
+                                    .profileImage(profileImageUrl(displayMember))
+                                    .content(dialogue.getContent())
+                                    .timestamp(
+                                            formatElapsed(
+                                                    startDateTime, dialogue.getSpeechDateTime()))
+                                    .build();
+                        })
+                .toList();
+    }
+
+    private MemberDisplayResolver.DisplayMember displayMember(
+            Member member, Map<Long, MemberDisplayResolver.DisplayMember> displayMembers) {
+        if (member == null || member.getId() == null) {
+            return memberDisplayResolver.resolve(member, null);
+        }
+        return displayMembers.getOrDefault(
+                member.getId(), memberDisplayResolver.resolve(member, null));
+    }
+
+    private String profileImageUrl(MemberDisplayResolver.DisplayMember displayMember) {
+        return displayMember == null ? null : s3Client.getFileUrl(displayMember.profileImageKey());
     }
 
     private String formatElapsed(LocalDateTime startDateTime, LocalDateTime speechDateTime) {
@@ -159,4 +219,25 @@ public class MeetingQueryService {
         return String.format("%02d:%02d", minutes, seconds);
     }
 
+    private Meeting findMeeting(Long meetingId) {
+        return meetingRepository.findById(meetingId).orElseThrow(MeetingNotFoundException::new);
+    }
+
+    private Meeting findMeetingWithMembers(Long meetingId) {
+        return meetingRepository
+                .findWithMembers(meetingId)
+                .orElseThrow(MeetingNotFoundException::new);
+    }
+
+    private Meeting findMeetingWithAnalysis(Long meetingId) {
+        return meetingRepository
+                .findByMeetingId(meetingId)
+                .orElseThrow(MeetingNotFoundException::new);
+    }
+
+    private Meeting findMeetingWithDialogue(Long meetingId) {
+        return meetingRepository
+                .findWithDialogue(meetingId)
+                .orElseThrow(MeetingNotFoundException::new);
+    }
 }

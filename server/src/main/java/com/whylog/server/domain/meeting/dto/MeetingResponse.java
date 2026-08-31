@@ -2,14 +2,13 @@ package com.whylog.server.domain.meeting.dto;
 
 import com.whylog.server.domain.meeting.entity.MeetingAnalysis;
 import com.whylog.server.domain.meeting.enums.MeetingStatus;
-import com.whylog.server.domain.meeting.socket.MeetingParticipant;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
-import java.util.List;
 
 public class MeetingResponse {
 
@@ -31,7 +30,6 @@ public class MeetingResponse {
 
         @Schema(description = "경과시간 (시:분:초)", example = "00:00:00")
         private String elapse;
-
     }
 
     @Getter
@@ -158,8 +156,7 @@ public class MeetingResponse {
         @Schema(
                 description = "녹음 파일의 재생 시간(초). 녹음본이 아직 없거나 길이를 확인할 수 없으면 null 입니다.",
                 example = "120",
-                nullable = true
-        )
+                nullable = true)
         private Integer audioDuration;
     }
 
@@ -183,15 +180,19 @@ public class MeetingResponse {
         @Schema(description = "참여자 정보")
         public static class ParticipantDTO {
 
-            @Schema(description = "참여자 ID", example = "1")
+            @Schema(
+                    description = "프로필 링크용 참여자 ID. 나간 사용자/탈퇴한 사용자는 null",
+                    example = "1",
+                    nullable = true)
             private Long memberId;
 
             @Schema(description = "참여자명", example = "김준용")
             private String name;
 
-            @Schema(description = "참여자 프로필 사진 URL", example = "https://example.com/profile/user-1.jpg")
+            @Schema(
+                    description = "참여자 프로필 사진 URL",
+                    example = "https://example.com/profile/user-1.jpg")
             private String profileImage;
-
         }
 
         @Getter
@@ -201,17 +202,27 @@ public class MeetingResponse {
         @Schema(description = "개별 대화 기록")
         public static class DialogueDTO {
 
-            @Schema(description = "발화자 id", example = "1")
+            @Schema(
+                    description = "프로필 링크용 발화자 id. 나간 사용자/탈퇴한 사용자는 null",
+                    example = "1",
+                    nullable = true)
             private Long memberId;
+
+            @Schema(description = "발화자 표시 이름", example = "김준용", nullable = true)
+            private String name;
+
+            @Schema(
+                    description = "발화자 프로필 사진 URL",
+                    example = "https://example.com/profile/user-1.jpg",
+                    nullable = true)
+            private String profileImage;
 
             @Schema(description = "대화 내용", example = "아니 우리 이거 버그난다니까?!?@??@")
             private String content;
 
             @Schema(description = "말한 시간", example = "00:22")
             private String timestamp;
-
         }
-
     }
 
     @Getter
@@ -239,23 +250,32 @@ public class MeetingResponse {
         @Schema(description = "회의 재생 시간(초)", example = "43", nullable = true)
         private Integer audioDuration;
 
-        @Schema(description = "논의 주제 목록", example = "[\"서버 저장 상태 확인\", \"배포 DB 환경\"]", nullable = true)
+        @Schema(
+                description = "논의 주제 목록",
+                example = "[\"서버 저장 상태 확인\", \"배포 DB 환경\"]",
+                nullable = true)
         private List<String> topics;
 
-        @Schema(description = "핵심 맥락 목록", example = "[\"서버에 데이터가 저장되지 않은 상태로 추정됨\"]", nullable = true)
+        @Schema(
+                description = "핵심 맥락 목록",
+                example = "[\"서버에 데이터가 저장되지 않은 상태로 추정됨\"]",
+                nullable = true)
         private List<String> coreContext;
 
-        @Schema(description = "적용사항 제목 목록", example = "[\"서버 저장 절차 정리\", \"배포 DB 점검\"]", nullable = true)
+        @Schema(
+                description = "적용사항 제목 목록",
+                example = "[\"서버 저장 절차 정리\", \"배포 DB 점검\"]",
+                nullable = true)
         private List<String> applicationTitles;
 
-        @Schema(description = "적용사항 사유 목록", example = "[\"저장 실패 원인을 추적하기 위해\", \"배포 환경 차이를 확인하기 위해\"]", nullable = true)
+        @Schema(
+                description = "적용사항 사유 목록",
+                example = "[\"저장 실패 원인을 추적하기 위해\", \"배포 환경 차이를 확인하기 위해\"]",
+                nullable = true)
         private List<String> applicationReasons;
 
         public static AnalysisResultDTO createFalse(Long meetingId) {
-            return AnalysisResultDTO.builder()
-                    .meetingId(meetingId)
-                    .isAnalyzed(false)
-                    .build();
+            return AnalysisResultDTO.builder().meetingId(meetingId).isAnalyzed(false).build();
         }
 
         public static AnalysisResultDTO create(MeetingAnalysis ma, Integer audioDuration) {
@@ -272,7 +292,6 @@ public class MeetingResponse {
                     .applicationReasons(ma.getApplicationReasons())
                     .build();
         }
-
     }
 
     @Getter
@@ -284,20 +303,21 @@ public class MeetingResponse {
         @Schema(description = "회의 ID", example = "1")
         private Long meetingId;
 
-        @Schema(description = "실제 재생 가능한 오디오 저장 키(S3 object key). 예: recordings/meeting-1-audio.mp4", example = "recordings/meeting-1-audio.mp4")
+        @Schema(
+                description =
+                        "실제 재생 가능한 오디오 저장 키(S3 object key). 예: recordings/meeting-1-audio.mp4",
+                example = "recordings/meeting-1-audio.mp4")
         private String audioKey;
 
         @Schema(
                 description = "10분짜리 presigned URL. 브라우저는 이 URL로 오디오를 직접 받아 재생합니다.",
-                example = "https://example.com/presigned-audio-url"
-        )
+                example = "https://example.com/presigned-audio-url")
         private String audioUrl;
 
         @Schema(
                 description = "녹음 파일의 재생 시간(초). 아직 파일이 없거나 길이를 알 수 없으면 null 입니다.",
                 example = "120",
-                nullable = true
-        )
+                nullable = true)
         private Integer audioDuration;
     }
 
@@ -320,9 +340,9 @@ public class MeetingResponse {
     @AllArgsConstructor
     @Builder
     @Schema(description = "미팅 내 참여자 정보")
-    public static class MeetingParticipantInfo{
+    public static class MeetingParticipantInfo {
 
-        @Schema(description = "멤버 id", example = "1")
+        @Schema(description = "프로필 링크용 멤버 id. 나간 사용자/탈퇴한 사용자는 null", example = "1", nullable = true)
         private Long memberId;
 
         @Schema(description = "유저이름", example = "아무개")
@@ -330,7 +350,5 @@ public class MeetingResponse {
 
         @Schema(description = "프로필이미지", example = "https://example.com/profile/user-1.jpg")
         private String profileImage;
-
     }
-
 }
