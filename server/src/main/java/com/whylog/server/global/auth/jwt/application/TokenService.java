@@ -1,9 +1,9 @@
 package com.whylog.server.global.auth.jwt.application;
 
-import com.whylog.server.domain.user.exception.AuthErrorStatus;
+import com.whylog.server.domain.user.exception.AuthErrorCode;
+import com.whylog.server.global.apiPayload.exception.handler.ErrorHandler;
 import com.whylog.server.global.auth.jwt.dao.TokenRepository;
 import com.whylog.server.global.auth.redis.Token;
-import com.whylog.server.global.apiPayload.exception.handler.ErrorHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,15 +21,23 @@ public class TokenService {
 
     @Transactional(readOnly = true)
     public Long findIdByRefreshToken(String refreshToken) {
-        return tokenRepository.findByRefreshToken(refreshToken)
+        return tokenRepository
+                .findByRefreshToken(refreshToken)
                 .map(Token::getId)
-                .orElseThrow(() -> new ErrorHandler(AuthErrorStatus.REFRESH_TOKEN_NOT_FOUND));
+                .orElseThrow(() -> new ErrorHandler(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND));
     }
 
     @Transactional
     public void deleteRefreshToken(Long memberId) {
-        Token token = tokenRepository.findById(memberId)
-                .orElseThrow(() -> new ErrorHandler(AuthErrorStatus.REFRESH_TOKEN_NOT_FOUND));
+        Token token =
+                tokenRepository
+                        .findById(memberId)
+                        .orElseThrow(() -> new ErrorHandler(AuthErrorCode.REFRESH_TOKEN_NOT_FOUND));
         tokenRepository.delete(token);
+    }
+
+    @Transactional
+    public void deleteRefreshTokenIfExists(Long memberId) {
+        tokenRepository.findById(memberId).ifPresent(tokenRepository::delete);
     }
 }
