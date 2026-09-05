@@ -28,10 +28,10 @@ const ApplicationDetailTabs = ({
           type="button"
           aria-current={active ? "page" : undefined}
           onClick={() => onTabChange?.(tab.id)}
-          className={`-mb-px border-b-2 px-0.5 pb-2 typo-button-md ${
+          className={`-mb-px cursor-pointer border-b-2 px-0.5 pb-2 typo-button-md transition-colors ${
             active
               ? "border-(--color-text-brand) text-(--color-text-brand)"
-              : "border-transparent text-(--color-text-secondary)"
+              : "border-transparent text-(--color-text-secondary) hover:border-(--color-bg-brand-subtle) hover:text-(--color-text-brand)"
           }`}
         >
           {tab.label}

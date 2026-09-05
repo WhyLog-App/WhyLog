@@ -128,7 +128,7 @@ const CommitMatchModal = ({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-(--color-overlay-dim)"
+        className="absolute inset-0 cursor-pointer bg-(--color-overlay-dim)"
         onClick={onClose}
         aria-label="모달 닫기"
       />

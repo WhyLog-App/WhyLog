@@ -6,6 +6,7 @@ import ApplicationDetailTabs, {
 import CodeApplicationTab from "./components/CodeApplicationTab";
 import DecisionHeader from "./components/DecisionHeader";
 import OriginalContextTab from "./components/OriginalContextTab";
+import OverviewTab from "./components/OverviewTab";
 import RelationshipMap from "./components/RelationshipMap";
 
 interface DecisionDetailPageProps {
@@ -13,13 +14,21 @@ interface DecisionDetailPageProps {
 }
 
 const DecisionDetailPage = ({ vm }: DecisionDetailPageProps) => {
-  const [activeTab, setActiveTab] = useState<ApplicationDetailTab>("code");
+  const [activeTab, setActiveTab] = useState<ApplicationDetailTab>("overview");
 
   return (
     <div className="-mx-4 flex h-full flex-col gap-4 overflow-y-auto p-6 lg:-mx-20 lg:p-10 2xl:p-15 3xl:-mx-50">
       <DecisionHeader meta={vm.meta} />
       <ApplicationDetailTabs activeTab={activeTab} onTabChange={setActiveTab} />
-      {activeTab === "context" ? (
+      {activeTab === "overview" ? (
+        <OverviewTab
+          detail={vm.detail}
+          confidence={vm.confidence}
+          linkedCommits={vm.linked_commits}
+          onOpenCode={() => setActiveTab("code")}
+          onOpenContext={() => setActiveTab("context")}
+        />
+      ) : activeTab === "context" ? (
         <OriginalContextTab
           messages={vm.detail.decision_contexts}
           reasons={vm.detail.decision_reasons}

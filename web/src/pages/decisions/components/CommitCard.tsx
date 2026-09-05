@@ -40,7 +40,7 @@ const CommitCard = ({
     draggable={onDragStart != null}
     onDragStart={onDragStart}
     onDragEnd={onDragEnd}
-    className={`flex w-full flex-col gap-1 border-b px-2 py-2.5 text-left transition-colors ${
+    className={`flex w-full cursor-pointer flex-col gap-1 border-b px-2 py-2.5 text-left transition-colors ${
       selected
         ? "mx-1 max-w-[calc(100%-0.5rem)] rounded-lg border-b-0 bg-(--color-bg-brand-subtle)"
         : "border-(--color-border-default) bg-(--color-bg-surface) hover:mx-1 hover:max-w-[calc(100%-0.5rem)] hover:rounded-lg hover:border-b-0 hover:bg-(--color-bg-brand-subtle)"

@@ -48,9 +48,11 @@ INSERT INTO team_member (team_id, member_id, created_at, updated_at, is_active, 
     (1, 3, NOW(), NOW(), 1, 'MEMBER'),
     (1, 4, NOW(), NOW(), 1, 'MEMBER');
 
--- repository & commits (16건)
+-- repository & commits (16건, 3개 레포지토리)
 INSERT INTO repository (repository_id, created_at, updated_at, name, url, last_synced_at, team_id) VALUES
-    (1, NOW(), NOW(), 'whylog-server', 'https://github.com/WhyLog-App/whylog-server', NOW(), 1);
+    (1, NOW(), NOW(), 'whylog-server', 'https://github.com/WhyLog-App/whylog-server', NOW(), 1),
+    (2, NOW(), NOW(), 'whylog-web', 'https://github.com/WhyLog-App/whylog-web', NOW(), 1),
+    (3, NOW(), NOW(), 'whylog-ai', 'https://github.com/WhyLog-App/whylog-ai', NOW(), 1);
 
 INSERT INTO commits (commit_id, created_at, updated_at, repository_id, hash, message, author_name, author_email, author_profile_image, datetime, added_lines, deleted_lines) VALUES
     (1, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000001', 'feat: 로그인 기능 추가', '목데이터1', 'mock1@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 5 DAY), 120, 5),
@@ -59,16 +61,16 @@ INSERT INTO commits (commit_id, created_at, updated_at, repository_id, hash, mes
     (4, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000004', 'feat: 커밋 분석 임베딩 파이프라인 추가', '목데이터4', 'mock4@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 3 DAY), 200, 10),
     (5, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000005', 'fix: JWT 리프레시 토큰 만료 처리 수정', '목데이터1', 'mock1@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 3 DAY), 45, 20),
     (6, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000006', 'feat: 팀 초대 API 추가', '목데이터2', 'mock2@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 2 DAY), 90, 3),
-    (7, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000007', 'perf: 회의 요약 캐싱 적용', '목데이터3', 'mock3@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 2 DAY), 70, 15),
-    (8, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000008', 'fix: GitHub 웹훅 서명 검증 버그 수정', '목데이터4', 'mock4@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 1 DAY), 25, 8),
-    (9, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000009', 'chore: Flyway 마이그레이션 도입', '목데이터1', 'mock1@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 1 DAY), 350, 0),
-    (10, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000010', 'docs: PR 리뷰 기록 문서화', '목데이터2', 'mock2@gmail.com', 'https://placehold.co/64x64', NOW(), 80, 2),
-    (11, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000011', 'feat: 적용사항 직접 연결 목록 조회 추가', '목데이터3', 'mock3@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 11 DAY), 110, 8),
-    (12, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000012', 'fix: 커밋 목록 페이징 중복 조회 수정', '목데이터4', 'mock4@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 10 DAY), 24, 14),
-    (13, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000013', 'refactor: Git 조회 응답 변환 로직 정리', '목데이터1', 'mock1@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 9 DAY), 75, 53),
-    (14, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000014', 'chore: GitHub 동기화 로그 레벨 조정', '목데이터2', 'mock2@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 8 DAY), 18, 6),
-    (15, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000015', 'test: 커밋 직접 연결 목록 조회 테스트 추가', '목데이터3', 'mock3@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 7 DAY), 96, 4),
-    (16, NOW(), NOW(), 1, 'a1b2c3d4e5f60000000000000000000000000016', 'docs: 커밋 연결 API 사용 예시 보완', '목데이터4', 'mock4@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 6 DAY), 42, 1);
+    (7, NOW(), NOW(), 2, 'a1b2c3d4e5f60000000000000000000000000007', 'perf: 회의 요약 캐싱 적용', '목데이터3', 'mock3@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 2 DAY), 70, 15),
+    (8, NOW(), NOW(), 2, 'a1b2c3d4e5f60000000000000000000000000008', 'fix: GitHub 웹훅 서명 검증 버그 수정', '목데이터4', 'mock4@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 1 DAY), 25, 8),
+    (9, NOW(), NOW(), 2, 'a1b2c3d4e5f60000000000000000000000000009', 'chore: Flyway 마이그레이션 도입', '목데이터1', 'mock1@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 1 DAY), 350, 0),
+    (10, NOW(), NOW(), 2, 'a1b2c3d4e5f60000000000000000000000000010', 'docs: PR 리뷰 기록 문서화', '목데이터2', 'mock2@gmail.com', 'https://placehold.co/64x64', NOW(), 80, 2),
+    (11, NOW(), NOW(), 2, 'a1b2c3d4e5f60000000000000000000000000011', 'feat: 적용사항 직접 연결 목록 조회 추가', '목데이터3', 'mock3@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 11 DAY), 110, 8),
+    (12, NOW(), NOW(), 3, 'a1b2c3d4e5f60000000000000000000000000012', 'fix: 커밋 목록 페이징 중복 조회 수정', '목데이터4', 'mock4@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 10 DAY), 24, 14),
+    (13, NOW(), NOW(), 3, 'a1b2c3d4e5f60000000000000000000000000013', 'refactor: Git 조회 응답 변환 로직 정리', '목데이터1', 'mock1@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 9 DAY), 75, 53),
+    (14, NOW(), NOW(), 3, 'a1b2c3d4e5f60000000000000000000000000014', 'chore: GitHub 동기화 로그 레벨 조정', '목데이터2', 'mock2@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 8 DAY), 18, 6),
+    (15, NOW(), NOW(), 3, 'a1b2c3d4e5f60000000000000000000000000015', 'test: 커밋 직접 연결 목록 조회 테스트 추가', '목데이터3', 'mock3@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 7 DAY), 96, 4),
+    (16, NOW(), NOW(), 3, 'a1b2c3d4e5f60000000000000000000000000016', 'docs: 커밋 연결 API 사용 예시 보완', '목데이터4', 'mock4@gmail.com', 'https://placehold.co/64x64', DATE_SUB(NOW(), INTERVAL 6 DAY), 42, 1);
 
 INSERT INTO changed_file (changed_file_id, created_at, updated_at, commit_id, file_name) VALUES
     (1, NOW(), NOW(), 1, 'src/main/java/com/whylog/server/domain/user/service/LocalLoginService.java'),

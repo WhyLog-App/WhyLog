@@ -194,14 +194,14 @@ const CodeApplicationTab = ({
                 <button
                   type="button"
                   onClick={() => setSourceTab("recommended")}
-                  className={`rounded-md px-3 py-1 ${sourceTab === "recommended" ? "bg-(--color-bg-surface) text-(--color-text-brand) shadow-sm" : "text-(--color-text-secondary)"}`}
+                  className={`cursor-pointer rounded-md px-3 py-1 transition-colors ${sourceTab === "recommended" ? "bg-(--color-bg-surface) text-(--color-text-brand) shadow-sm" : "text-(--color-text-secondary) hover:bg-(--color-action-hover) hover:text-(--color-text-primary)"}`}
                 >
                   추천 커밋
                 </button>
                 <button
                   type="button"
                   onClick={() => setSourceTab("direct")}
-                  className={`rounded-md px-3 py-1 ${sourceTab === "direct" ? "bg-(--color-bg-surface) text-(--color-text-brand) shadow-sm" : "text-(--color-text-secondary)"}`}
+                  className={`cursor-pointer rounded-md px-3 py-1 transition-colors ${sourceTab === "direct" ? "bg-(--color-bg-surface) text-(--color-text-brand) shadow-sm" : "text-(--color-text-secondary) hover:bg-(--color-action-hover) hover:text-(--color-text-primary)"}`}
                 >
                   직접 연결
                 </button>

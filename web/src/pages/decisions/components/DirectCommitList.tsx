@@ -57,7 +57,7 @@ const RepositoryTabs = ({
           key={repository.repository_id}
           type="button"
           onClick={() => onSelectRepository(repository.repository_id)}
-          className={`shrink-0 rounded-full border px-2 py-1 typo-caption1 ${selectedRepositoryId === repository.repository_id ? "border-(--color-action-primary) bg-(--color-action-primary) text-(--color-text-inverse)" : "border-(--color-border-default) bg-(--color-bg-subtle) text-(--color-text-secondary)"}`}
+          className={`shrink-0 cursor-pointer rounded-full border px-2 py-1 typo-caption1 ${selectedRepositoryId === repository.repository_id ? "border-(--color-action-primary) bg-(--color-action-primary) text-(--color-text-inverse)" : "border-(--color-border-default) bg-(--color-bg-subtle) text-(--color-text-secondary)"}`}
         >
           {repository.name}
         </button>

@@ -57,7 +57,7 @@ const CommitDetailPanel = ({
           type="button"
           onClick={onToggle}
           aria-label={collapsed ? "상세 패널 펼치기" : "상세 패널 접기"}
-          className="ml-auto flex size-6 items-center justify-center rounded text-(--color-text-secondary) hover:bg-(--color-action-hover)"
+          className="ml-auto flex size-6 cursor-pointer items-center justify-center rounded text-(--color-text-secondary) hover:bg-(--color-action-hover)"
         >
           <Icon
             icon={IconArrowRight}
@@ -87,7 +87,7 @@ const CommitDetailPanel = ({
                   if (commit.isConnected) onUnlink(commit.commitId);
                   else onConnect(commit.commitId);
                 }}
-                className={`w-full rounded-md px-3 py-2.5 typo-button-sm disabled:cursor-not-allowed disabled:opacity-60 ${
+                className={`w-full cursor-pointer rounded-md px-3 py-2.5 typo-button-sm disabled:cursor-not-allowed disabled:opacity-60 ${
                   commit.isConnected
                     ? "bg-(--color-action-disabled) text-(--color-text-secondary)"
                     : "bg-(--color-action-primary) text-(--color-text-inverse)"

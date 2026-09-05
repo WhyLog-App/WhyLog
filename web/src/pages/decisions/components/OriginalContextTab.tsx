@@ -24,10 +24,8 @@ const ContextMessage = ({
   <button
     type="button"
     onClick={onSelect}
-    className={`flex w-full gap-2 rounded-xl p-3 text-left transition-colors ${
-      selected
-        ? "border-[1.5px] border-(--color-border-brand) bg-(--color-bg-brand-subtle)"
-        : "border-[1.5px] border-transparent hover:bg-(--color-bg-subtle)"
+    className={`flex w-full cursor-pointer gap-2 rounded-xl p-3 text-left transition-colors ${
+      selected ? "bg-(--color-bg-brand-subtle)" : "hover:bg-(--color-bg-subtle)"
     }`}
   >
     {message.profile_image ? (
@@ -122,7 +120,7 @@ const OriginalContextTab = ({ messages, reasons }: OriginalContextTabProps) => {
               key={`${message.member_id}-${message.time}-${message.dialogue_content}`}
               type="button"
               onClick={() => setSelectedIndex(index)}
-              className="flex min-w-0 gap-2.5 text-left"
+              className="flex min-w-0 cursor-pointer gap-2.5 text-left"
             >
               <span className="flex w-20 shrink-0 flex-col typo-caption1 text-(--color-text-brand)">
                 <span>{message.time}</span>
