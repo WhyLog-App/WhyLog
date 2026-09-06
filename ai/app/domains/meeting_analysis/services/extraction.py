@@ -12,6 +12,8 @@ from app.core.errors import AppServiceError
 from app.core.gemini import generate_content_with_retry
 from app.domains.meeting_analysis.schemas import (
     Application,
+    ApplicationContextItem,
+    ApplicationTimelineItem,
     MeetingAnalysis,
     MeetingAnalysisResult,
 )
@@ -138,6 +140,15 @@ APPLICATION_POLICY_PROMPT = "\n".join(
         "4. timeline의 content는 간략한 한 문장으로 작성한다.",
         *CONCRETE_APPLICATION_RULE,
         *TIMELINE_EVIDENCE_ALIGNMENT_RULE,
+        "",
+        "[정책 4: 원문 맥락 정책]",
+        "1. context_items에는 해당 적용사항과 관련된 발화를 빠짐없이 담는다.",
+        "   timeline의 대표 3단계와 달리 관련된 모든 발화를 포함하며,",
+        "   timeline에 이미 들어간 발화도 다시 포함할 수 있다.",
+        "2. 각 항목은 실제 발화(utterance) 원문과 그 발화 하나에 대한",
+        "   간략한 한 문장 요약(content)을 함께 담는다.",
+        "3. member_id는 STT 데이터의 member_id 값을 사용하고, 없으면 null로 둔다.",
+        "4. 적용사항과 무관한 잡담·감정표현 발화는 포함하지 않는다.",
         "------------------------------------------------------------",
         "",
         "[출력 JSON 구조]:",
@@ -164,6 +175,14 @@ APPLICATION_POLICY_PROMPT = "\n".join(
         ),
         '          "member_id": 1,',
         '          "content": "간략 요약 한 문장",',
+        '          "utterance": "실제 발화 원문"',
+        "        }",
+        "      ],",
+        '      "context_items": [',
+        "        {",
+        '          "timestamp": "...",',
+        '          "member_id": 1,',
+        '          "content": "해당 발화 요약 한 문장",',
         '          "utterance": "실제 발화 원문"',
         "        }",
         "      ]",
@@ -233,6 +252,15 @@ APPLICATIONS_ONLY_PROMPT = "\n".join(
         *CONCRETE_APPLICATION_RULE,
         *TIMELINE_EVIDENCE_ALIGNMENT_RULE,
         "",
+        "[정책 4: 원문 맥락 정책]",
+        "1. context_items에는 해당 적용사항과 관련된 발화를 빠짐없이 담는다.",
+        "   timeline의 대표 3단계와 달리 관련된 모든 발화를 포함하며,",
+        "   timeline에 이미 들어간 발화도 다시 포함할 수 있다.",
+        "2. 각 항목은 실제 발화(utterance) 원문과 그 발화 하나에 대한",
+        "   간략한 한 문장 요약(content)을 함께 담는다.",
+        "3. member_id는 STT 데이터의 member_id 값을 사용하고, 없으면 null로 둔다.",
+        "4. 적용사항과 무관한 잡담·감정표현 발화는 포함하지 않는다.",
+        "",
         "[출력 JSON 구조]",
         "{",
         '  "applications": [',
@@ -248,6 +276,14 @@ APPLICATIONS_ONLY_PROMPT = "\n".join(
         ),
         '          "member_id": 1,',
         '          "content": "간략 요약 한 문장",',
+        '          "utterance": "실제 발화 원문"',
+        "        }",
+        "      ],",
+        '      "context_items": [',
+        "        {",
+        '          "timestamp": "...",',
+        '          "member_id": 1,',
+        '          "content": "해당 발화 요약 한 문장",',
         '          "utterance": "실제 발화 원문"',
         "        }",
         "      ]",
@@ -568,11 +604,42 @@ def _infer_timeline_member_id(
     return None
 
 
+def _normalize_items_member_ids(
+    items: list[ApplicationTimelineItem | ApplicationContextItem],
+    segments: list[TranscribeSegment],
+    valid_member_ids: set[int],
+) -> tuple[int, int]:
+    # LLM이 생성한 발화 항목의 member_id를 전사 세그먼트 기준으로 검증/보정
+    corrected_count = 0
+    unresolved_count = 0
+
+    for item in items:
+        if item.member_id in valid_member_ids:
+            continue
+
+        inferred = None
+        if valid_member_ids:
+            inferred = _infer_timeline_member_id(
+                utterance=item.utterance,
+                timestamp=item.timestamp,
+                segments=segments,
+            )
+        if inferred is not None:
+            item.member_id = inferred
+            corrected_count += 1
+        else:
+            # 추정이 불가능하면 임의 member_id를 만들지 않고 None으로 둔다.
+            item.member_id = None
+            unresolved_count += 1
+
+    return corrected_count, unresolved_count
+
+
 def _normalize_timeline_member_ids(
     result: MeetingAnalysisResult,
     segments: list[TranscribeSegment],
 ) -> None:
-    # LLM이 생성한 member_id를 전사 세그먼트 기준으로 검증/보정
+    # LLM이 생성한 timeline/context_items의 member_id를 전사 세그먼트 기준으로 검증/보정
     valid_member_ids = {
         segment.member_id for segment in segments if segment.member_id is not None
     }
@@ -580,33 +647,23 @@ def _normalize_timeline_member_ids(
     unresolved_count = 0
 
     for application in result.applications:
-        for item in application.timeline:
-            if item.member_id in valid_member_ids:
-                continue
-
-            inferred = None
-            if valid_member_ids:
-                inferred = _infer_timeline_member_id(
-                    utterance=item.utterance,
-                    timestamp=item.timestamp,
-                    segments=segments,
-                )
-            if inferred is not None:
-                item.member_id = inferred
-                corrected_count += 1
-            else:
-                # 추정이 불가능하면 임의 member_id를 만들지 않고 None으로 둔다.
-                item.member_id = None
-                unresolved_count += 1
+        for items in (application.timeline, application.context_items):
+            corrected, unresolved = _normalize_items_member_ids(
+                items,
+                segments,
+                valid_member_ids,
+            )
+            corrected_count += corrected
+            unresolved_count += unresolved
 
     if corrected_count > 0:
         logger.warning(
-            "Normalized %s invalid timeline member_id values.",
+            "Normalized %s invalid application item member_id values.",
             corrected_count,
         )
     if unresolved_count > 0:
         logger.warning(
-            "Could not infer %s timeline member_id values.",
+            "Could not infer %s application item member_id values.",
             unresolved_count,
         )
 

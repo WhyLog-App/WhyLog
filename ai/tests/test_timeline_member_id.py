@@ -1,5 +1,6 @@
 from app.domains.meeting_analysis.schemas import (
     Application,
+    ApplicationContextItem,
     ApplicationTimelineItem,
     MeetingAnalysisResult,
 )
@@ -16,7 +17,41 @@ class TestTimelineMemberId:
         prompt = f"{APPLICATION_POLICY_PROMPT}\n{APPLICATIONS_ONLY_PROMPT}"
 
         assert '"member_id": 1' in prompt
+        assert '"context_items"' in prompt
         assert "speaker" + "_id" not in prompt
+
+    def test_context_item_member_id_is_inferred_from_transcript_segment(self):
+        result = MeetingAnalysisResult(
+            applications=[
+                Application(
+                    application_title="Swagger 에러 응답 예시 문서화",
+                    application_reasons=[],
+                    context_items=[
+                        ApplicationContextItem(
+                            timestamp="00:00:03",
+                            member_id=None,
+                            content="ApiErrorCodeExample 추가 제안",
+                            utterance="ApiErrorCodeExample을 추가하는 걸로 하죠.",
+                        )
+                    ],
+                )
+            ]
+        )
+        segments = [
+            TranscribeSegment(
+                message_id=1,
+                speaker="김준용",
+                member_id=7,
+                start_time="00:00:00",
+                end_time="00:00:05",
+                text="ApiErrorCodeExample을 추가하는 걸로 하죠.",
+                is_final=True,
+            )
+        ]
+
+        _normalize_timeline_member_ids(result, segments)
+
+        assert result.applications[0].context_items[0].member_id == 7
 
     def test_timeline_member_id_is_inferred_from_transcript_segment(self):
         result = MeetingAnalysisResult(

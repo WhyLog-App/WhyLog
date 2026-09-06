@@ -81,7 +81,7 @@ const DecisionsRoutePage = () => {
     linked_commits: connectedQuery.data?.commits ?? [],
   };
 
-  return <DecisionDetailPage vm={vm} decisionId={decisionId} />;
+  return <DecisionDetailPage vm={vm} />;
 };
 
 export default DecisionsRoutePage;

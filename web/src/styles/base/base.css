@@ -68,3 +68,22 @@ body {
   box-shadow: none;
   -webkit-box-shadow: none;
 }
+
+.application-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.application-scroll::-webkit-scrollbar-track {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.application-scroll::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  box-shadow: none;
+  -webkit-box-shadow: none;
+}
+
+.application-scroll {
+  scrollbar-width: none;
+}

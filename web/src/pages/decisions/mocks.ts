@@ -17,6 +17,7 @@ export const MOCK_DECISION_DETAIL_VIEW_MODEL: DecisionDetailViewModel = {
         member_id: 1,
         member_name: "김준용",
         profile_image: avatar("kim"),
+        content: "세션 유형별 TTL 분리 필요성을 제기함",
         dialogue_content:
           "Redis 키 만료 정책이 지금 TTL 고정인데, 세션 유형별로 다르게 가져가야 할 것 같아요. 지금 인증 세션이랑 캐시 세션이 같은 TTL인 게 문제인 거죠.",
       },
@@ -25,6 +26,7 @@ export const MOCK_DECISION_DETAIL_VIEW_MODEL: DecisionDetailViewModel = {
         member_id: 2,
         member_name: "유진",
         profile_image: avatar("yujin"),
+        content: "Redis 유지와 키 네이밍 규칙 변경을 제안함",
         dialogue_content:
           "Mongo로 옮기자는 의견도 있었는데, 운영 복잡도 올라가니까 Redis 유지하면서 키 네이밍 규칙만 바꾸는 게 낫지 않을까요?",
       },
@@ -33,6 +35,7 @@ export const MOCK_DECISION_DETAIL_VIEW_MODEL: DecisionDetailViewModel = {
         member_id: 3,
         member_name: "유상완",
         profile_image: avatar("yoo"),
+        content: "키 정책 분리로 메모리 비용에 대응할 수 있다고 판단함",
         dialogue_content:
           "저도 Redis 유지에 동의합니다. 메모리 비용 이슈는 키 정책 분리로 충분히 대응 가능할 것 같아요.",
       },
@@ -41,6 +44,7 @@ export const MOCK_DECISION_DETAIL_VIEW_MODEL: DecisionDetailViewModel = {
         member_id: 4,
         member_name: "조윤지",
         profile_image: avatar("cho"),
+        content: "세션 유형별 키 정책 분리를 최종 합의함",
         dialogue_content:
           "좋습니다. 그럼 Redis 유지하고 키 정책만 세션 유형별로 분리하는 걸로 가겠습니다.",
       },

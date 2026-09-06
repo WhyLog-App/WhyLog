@@ -7,7 +7,7 @@ import { APPLICATION_CONNECTED_COMMITS_QUERY_KEY } from "./useConnectedCommits";
 import { APPLICATION_RECOMMENDED_COMMITS_QUERY_KEY } from "./useRecommendedCommits";
 
 interface UseLinkCommitOptions {
-  onSuccess?: () => void;
+  onSuccess?: (commitIds: number[]) => void;
 }
 
 export const useLinkCommit = (
@@ -20,7 +20,7 @@ export const useLinkCommit = (
   const mutation = useMutation({
     mutationFn: (commitIds: number[]) =>
       linkCommit(applicationId, { commit_ids: commitIds }),
-    onSuccess: async () => {
+    onSuccess: async (_, commitIds) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: [
@@ -32,7 +32,7 @@ export const useLinkCommit = (
           queryKey: [...APPLICATION_CONNECTED_COMMITS_QUERY_KEY, applicationId],
         }),
       ]);
-      options?.onSuccess?.();
+      options?.onSuccess?.(commitIds);
     },
     onError: (error: unknown) => {
       if (isAxiosError<ApiResponse<unknown>>(error)) {

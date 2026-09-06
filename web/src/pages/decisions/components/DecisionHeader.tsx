@@ -1,11 +1,8 @@
 import IconCircleUser from "@/assets/icons/user/ic_circle_user.svg?react";
 import { Icon } from "@/components/common/Icon";
-import type { DecisionConfidence, DecisionMeetingMeta } from "@/types/decision";
-import ConfidenceBadge from "./ConfidenceBadge";
+import type { DecisionMeetingMeta } from "@/types/decision";
 
 interface DecisionHeaderProps {
-  name: string;
-  confidence: DecisionConfidence;
   meta: DecisionMeetingMeta;
 }
 
@@ -13,18 +10,15 @@ const Dot = () => (
   <span className="typo-body6 text-(--color-text-secondary)">·</span>
 );
 
-const DecisionHeader = ({ name, confidence, meta }: DecisionHeaderProps) => {
+const DecisionHeader = ({ meta }: DecisionHeaderProps) => {
   const visibleAvatars = meta.participants.slice(0, 5);
 
   return (
-    <header className="flex w-full flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <h1 className="typo-h4 text-(--color-text-primary)">{name}</h1>
-        <ConfidenceBadge score={confidence.score} />
-      </div>
-
+    <header className="flex w-full flex-col gap-2">
       <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 typo-body6 text-(--color-text-secondary)">
-        <span>{meta.meeting_name}</span>
+        <span className="typo-subtitle5 text-(--color-text-primary)">
+          {meta.meeting_name}
+        </span>
         <Dot />
         <span>{meta.meeting_date}</span>
         <Dot />

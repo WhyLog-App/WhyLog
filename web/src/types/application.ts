@@ -10,6 +10,7 @@ export interface ApplicationContextMessage {
   member_id: number;
   member_name: string;
   profile_image: string;
+  content: string | null;
   dialogue_content: string;
 }
 
@@ -34,6 +35,9 @@ export interface ApplicationRecommendedCommit {
   commit_id: string;
   commit_hash: string;
   message: string;
+  author_name: string;
+  added_lines: number;
+  deleted_lines: number;
   reason: string;
 }
 
@@ -43,6 +47,9 @@ export interface ApplicationConnectedCommit {
   commit_id: number;
   commit_hash: string;
   message: string;
+  author_name: string;
+  added_lines: number;
+  deleted_lines: number;
   committed_date: string;
 }
 
