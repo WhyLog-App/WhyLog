@@ -61,89 +61,58 @@ class HttpRequestTest(unittest.TestCase):
             ai_review.request_json("https://example.invalid")
 
     @mock.patch.object(ai_review, "request_json")
-    def test_gemini_request_omits_deprecated_sampling_parameters(
+    def test_openai_request_uses_structured_output_without_storage(
         self, request_json: mock.Mock
     ) -> None:
-        request_json.return_value = {
-            "candidates": [{"content": {"parts": [{"text": review_json()}]}}]
-        }
+        request_json.return_value = {"output_text": review_json()}
 
-        ai_review.call_gemini("key", "system", "user")
+        ai_review.call_openai("key", "system", "user")
 
-        generation_config = request_json.call_args.kwargs["payload"]["generationConfig"]
-        self.assertNotIn("temperature", generation_config)
-        self.assertNotIn("topP", generation_config)
-        self.assertNotIn("topK", generation_config)
-
-
-class ProviderFallbackTest(unittest.TestCase):
-    @mock.patch.object(ai_review, "call_openrouter")
-    @mock.patch.object(ai_review, "call_gemini")
-    def test_primary_success_does_not_call_fallback(
-        self,
-        gemini: mock.Mock,
-        openrouter: mock.Mock,
-    ) -> None:
-        gemini.return_value = review_json()
-
-        result = ai_review.review_with_fallback(
-            "system",
-            "user",
-            "WhyLog-App/WhyLog",
-            "gemini-key",
-            "openrouter-key",
+        self.assertEqual(
+            request_json.call_args.args[0], "https://api.openai.com/v1/responses"
         )
+        payload = request_json.call_args.kwargs["payload"]
+        self.assertEqual(payload["model"], ai_review.OPENAI_MODEL)
+        self.assertFalse(payload["store"])
+        self.assertEqual(payload["reasoning"], {"effort": "medium"})
+        self.assertEqual(payload["text"]["format"]["type"], "json_schema")
+        self.assertTrue(payload["text"]["format"]["strict"])
 
-        self.assertEqual(result.model, ai_review.GEMINI_MODEL)
-        openrouter.assert_not_called()
+
+class OpenAIProviderTest(unittest.TestCase):
+    @mock.patch.object(ai_review, "call_openai")
+    def test_reviews_with_openai(self, openai: mock.Mock) -> None:
+        openai.return_value = review_json()
+
+        result = ai_review.review_with_openai("system", "user", "openai-key")
+
+        self.assertEqual(result.provider, "OpenAI")
+        self.assertEqual(result.model, ai_review.OPENAI_MODEL)
+
+    def test_requires_openai_api_key(self) -> None:
+        with self.assertRaisesRegex(ai_review.ReviewError, "OPENAI_API_KEY"):
+            ai_review.review_with_openai("system", "user", "")
 
     @mock.patch.object(ai_review.time, "sleep")
-    @mock.patch.object(ai_review, "call_openrouter")
-    @mock.patch.object(ai_review, "call_gemini")
-    def test_rate_limit_retries_then_uses_fallback(
-        self,
-        gemini: mock.Mock,
-        openrouter: mock.Mock,
-        sleep: mock.Mock,
+    @mock.patch.object(ai_review, "call_openai")
+    def test_rate_limit_retries_then_fails(
+        self, openai: mock.Mock, sleep: mock.Mock
     ) -> None:
-        gemini.side_effect = ai_review.HttpRequestError(429, "rate limited")
-        openrouter.return_value = review_json()
+        openai.side_effect = ai_review.HttpRequestError(429, "rate limited")
 
-        result = ai_review.review_with_fallback(
-            "system",
-            "user",
-            "WhyLog-App/WhyLog",
-            "gemini-key",
-            "openrouter-key",
-        )
+        with self.assertRaisesRegex(ai_review.HttpRequestError, "HTTP 429"):
+            ai_review.review_with_openai("system", "user", "openai-key")
 
-        self.assertEqual(gemini.call_count, 4)
+        self.assertEqual(openai.call_count, 4)
         self.assertEqual(
             sleep.call_args_list, [mock.call(1), mock.call(2), mock.call(4)]
         )
-        self.assertEqual(result.model, ai_review.OPENROUTER_MODEL)
-        self.assertIn("HTTP 429", result.fallback_reason or "")
 
-    @mock.patch.object(ai_review, "call_openrouter")
-    @mock.patch.object(ai_review, "call_gemini")
-    def test_invalid_primary_json_uses_fallback_without_retry(
-        self,
-        gemini: mock.Mock,
-        openrouter: mock.Mock,
-    ) -> None:
-        gemini.return_value = "not-json"
-        openrouter.return_value = review_json()
-
-        result = ai_review.review_with_fallback(
-            "system",
-            "user",
-            "WhyLog-App/WhyLog",
-            "gemini-key",
-            "openrouter-key",
-        )
-
-        gemini.assert_called_once()
-        self.assertEqual(result.provider, "OpenRouter")
+    def test_rejects_response_without_output_text(self) -> None:
+        with self.assertRaisesRegex(
+            ai_review.ReviewError, "did not contain review text"
+        ):
+            ai_review._extract_openai_text({"output": []})
 
 
 class ContextAndPromptTest(unittest.TestCase):
@@ -243,8 +212,8 @@ class CommentRenderingTest(unittest.TestCase):
             recommendation="공통 응답을 사용",
         )
         result = ai_review.ProviderResult(
-            "Google",
-            ai_review.GEMINI_MODEL,
+            "OpenAI",
+            ai_review.OPENAI_MODEL,
             ai_review.Review("요약", (finding,), (finding,)),
         )
 
@@ -257,8 +226,8 @@ class CommentRenderingTest(unittest.TestCase):
 
     def test_renders_inline_and_document_publish_status(self) -> None:
         result = ai_review.ProviderResult(
-            "Google",
-            ai_review.GEMINI_MODEL,
+            "OpenAI",
+            ai_review.OPENAI_MODEL,
             ai_review.Review("요약", (), ()),
         )
         inline = ai_review.review_publishing.InlinePublishResult(
@@ -363,12 +332,12 @@ class PullRequestSafetyTest(unittest.TestCase):
 
 class EndToEndWiringTest(unittest.TestCase):
     @mock.patch.object(ai_review, "upsert_pr_comment")
-    @mock.patch.object(ai_review, "review_with_fallback")
+    @mock.patch.object(ai_review, "review_with_openai")
     @mock.patch.object(ai_review, "fetch_pr_files")
     def test_run_reviews_internal_public_pull_request(
         self,
         fetch_pr_files: mock.Mock,
-        review_with_fallback: mock.Mock,
+        review_with_openai: mock.Mock,
         upsert_pr_comment: mock.Mock,
     ) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -402,9 +371,9 @@ class EndToEndWiringTest(unittest.TestCase):
                 [{"filename": "server/Test.java", "patch": "+change"}],
                 False,
             )
-            review_with_fallback.return_value = ai_review.ProviderResult(
-                "Google",
-                ai_review.GEMINI_MODEL,
+            review_with_openai.return_value = ai_review.ProviderResult(
+                "OpenAI",
+                ai_review.OPENAI_MODEL,
                 ai_review.Review("통합 검토 완료", (), ()),
             )
             environment = {
@@ -413,8 +382,7 @@ class EndToEndWiringTest(unittest.TestCase):
                 "GITHUB_REPOSITORY": "WhyLog-App/WhyLog",
                 "GITHUB_TOKEN": "github-token",
                 "AI_REVIEW_ACTOR_LOGIN": "whylog-dev",
-                "GEMINI_API_KEY": "gemini-key",
-                "OPENROUTER_API_KEY": "openrouter-key",
+                "OPENAI_API_KEY": "openai-key",
                 "REPOSITORY_IS_PRIVATE": "false",
             }
 
@@ -451,16 +419,16 @@ class EndToEndWiringTest(unittest.TestCase):
                 result = ai_review.run()
 
         self.assertEqual(result, 0)
-        review_with_fallback.assert_called_once()
+        review_with_openai.assert_called_once()
         self.assertEqual(upsert_pr_comment.call_count, 2)
 
     @mock.patch.object(ai_review, "upsert_pr_comment")
-    @mock.patch.object(ai_review, "review_with_fallback")
+    @mock.patch.object(ai_review, "review_with_openai")
     @mock.patch.object(ai_review, "fetch_pr_files")
     def test_generated_doc_commit_reuses_verified_blocking_result(
         self,
         fetch_pr_files: mock.Mock,
-        review_with_fallback: mock.Mock,
+        review_with_openai: mock.Mock,
         upsert_pr_comment: mock.Mock,
     ) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -501,8 +469,8 @@ class EndToEndWiringTest(unittest.TestCase):
                 7,
                 pull_request,
                 ai_review.ProviderResult(
-                    "Google",
-                    ai_review.GEMINI_MODEL,
+                    "OpenAI",
+                    ai_review.OPENAI_MODEL,
                     ai_review.Review("이전 검토", (blocker,), ()),
                 ),
                 None,
@@ -516,8 +484,7 @@ class EndToEndWiringTest(unittest.TestCase):
                 "GITHUB_REPOSITORY": "WhyLog-App/WhyLog",
                 "GITHUB_TOKEN": "github-token",
                 "AI_REVIEW_ACTOR_LOGIN": "whylog-dev",
-                "GEMINI_API_KEY": "gemini-key",
-                "OPENROUTER_API_KEY": "openrouter-key",
+                "OPENAI_API_KEY": "openai-key",
                 "AI_REVIEW_PUSH_TOKEN": "push-token",
                 "REPOSITORY_IS_PRIVATE": "false",
             }
@@ -542,7 +509,7 @@ class EndToEndWiringTest(unittest.TestCase):
                 result = ai_review.run()
 
         self.assertEqual(result, 1)
-        review_with_fallback.assert_not_called()
+        review_with_openai.assert_not_called()
         publish_inline.assert_not_called()
         upsert_pr_comment.assert_called_once()
         self.assertIn("이전 판단 유지", upsert_pr_comment.call_args.args[-1])
@@ -557,7 +524,7 @@ class EndToEndWiringTest(unittest.TestCase):
                 "GITHUB_REPOSITORY": "WhyLog-App/WhyLog",
                 "GITHUB_TOKEN": "github-token",
                 "AI_REVIEW_ACTOR_LOGIN": "whylog-dev",
-                "GEMINI_API_KEY": "gemini-key",
+                "OPENAI_API_KEY": "openai-key",
                 "REPOSITORY_IS_PRIVATE": "false",
             }
             pull_request = {
@@ -572,8 +539,8 @@ class EndToEndWiringTest(unittest.TestCase):
                 },
             }
             provider_result = ai_review.ProviderResult(
-                "Google",
-                ai_review.GEMINI_MODEL,
+                "OpenAI",
+                ai_review.OPENAI_MODEL,
                 ai_review.Review("검토 완료", (), ()),
             )
             with (
@@ -589,7 +556,7 @@ class EndToEndWiringTest(unittest.TestCase):
                     ai_review, "fetch_pr_files", return_value=([], False)
                 ),
                 mock.patch.object(
-                    ai_review, "review_with_fallback", return_value=provider_result
+                    ai_review, "review_with_openai", return_value=provider_result
                 ),
                 mock.patch.object(
                     ai_review.review_publishing,
@@ -631,7 +598,7 @@ class EndToEndWiringTest(unittest.TestCase):
                 "GITHUB_REPOSITORY": "WhyLog-App/WhyLog",
                 "GITHUB_TOKEN": "github-token",
                 "AI_REVIEW_ACTOR_LOGIN": "whylog-dev",
-                "GEMINI_API_KEY": "gemini-key",
+                "OPENAI_API_KEY": "openai-key",
                 "AI_REVIEW_PUSH_TOKEN": "push-token",
                 "REPOSITORY_IS_PRIVATE": "false",
             }
@@ -647,8 +614,8 @@ class EndToEndWiringTest(unittest.TestCase):
                 },
             }
             provider_result = ai_review.ProviderResult(
-                "Google",
-                ai_review.GEMINI_MODEL,
+                "OpenAI",
+                ai_review.OPENAI_MODEL,
                 ai_review.Review("검토 완료", (), ()),
             )
             inline_result = ai_review.review_publishing.InlinePublishResult(
@@ -667,7 +634,7 @@ class EndToEndWiringTest(unittest.TestCase):
                     ai_review, "fetch_pr_files", return_value=([], False)
                 ),
                 mock.patch.object(
-                    ai_review, "review_with_fallback", return_value=provider_result
+                    ai_review, "review_with_openai", return_value=provider_result
                 ),
                 mock.patch.object(
                     ai_review.review_publishing,
