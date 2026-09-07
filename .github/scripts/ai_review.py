@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Review a pull request with Gemini and an OpenRouter fallback.
+"""Review a pull request with OpenAI.
 
 The workflow checks out the trusted base revision before running this file. Pull
 request metadata and patches are fetched through the GitHub API and are treated
@@ -15,7 +15,6 @@ import re
 import sys
 import time
 import urllib.error
-import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,8 +23,7 @@ from typing import Any, Callable, TypeVar
 import review_publishing
 
 COMMENT_MARKER = "<!-- whylog-ai-review -->"
-GEMINI_MODEL = "gemini-3.6-flash"
-OPENROUTER_MODEL = "poolside/laguna-s-2.1:free"
+OPENAI_MODEL = "gpt-5.6-terra"
 SYSTEM_PROMPT_PATH = Path(".github/prompts/ai-review.md")
 
 MAX_PR_BODY_CHARS = 10_000
@@ -34,7 +32,7 @@ MAX_CONTEXT_CHARS = 90_000
 MAX_PATCH_CHARS = 30_000
 MAX_DIFF_CHARS = 170_000
 MAX_FINDINGS_PER_KIND = 20
-MAX_OUTPUT_TOKENS = 8_192
+MAX_OUTPUT_TOKENS = 4_096
 REQUEST_TIMEOUT_SECONDS = 60
 RETRY_DELAYS_SECONDS = (1, 2, 4)
 TRANSIENT_HTTP_STATUSES = {408, 409, 425, 429}
@@ -142,79 +140,83 @@ def with_retry(operation: Callable[[], T]) -> T:
     raise AssertionError("retry loop ended unexpectedly")
 
 
-def _extract_gemini_text(response: Any) -> str:
-    try:
-        parts = response["candidates"][0]["content"]["parts"]
-        text = "".join(part.get("text", "") for part in parts)
-    except (KeyError, IndexError, TypeError) as error:
-        raise ReviewError("Gemini response did not contain review text") from error
-    if not text.strip():
-        raise ReviewError("Gemini returned an empty review")
-    return text
+REVIEW_JSON_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["summary", "blocking", "suggestions"],
+    "properties": {
+        "summary": {"type": "string"},
+        "blocking": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+        "suggestions": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
+    },
+    "$defs": {
+        "finding": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": [
+                "title",
+                "file",
+                "line",
+                "reason",
+                "rule_reference",
+                "recommendation",
+            ],
+            "properties": {
+                "title": {"type": "string"},
+                "file": {"type": "string"},
+                "line": {"type": ["integer", "null"]},
+                "reason": {"type": "string"},
+                "rule_reference": {"type": "string"},
+                "recommendation": {"type": "string"},
+            },
+        }
+    },
+}
 
 
-def call_gemini(api_key: str, system_prompt: str, user_prompt: str) -> str:
-    model = urllib.parse.quote(GEMINI_MODEL, safe="")
-    url = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{model}:generateContent"
-    )
+def _extract_openai_text(response: Any) -> str:
+    if isinstance(response, dict):
+        output_text = response.get("output_text")
+        if isinstance(output_text, str) and output_text.strip():
+            return output_text
+
+        output = response.get("output")
+        if isinstance(output, list):
+            text = "".join(
+                part.get("text", "")
+                for item in output
+                if isinstance(item, dict)
+                for part in item.get("content", [])
+                if isinstance(part, dict) and part.get("type") == "output_text"
+            )
+            if text.strip():
+                return text
+    raise ReviewError("OpenAI response did not contain review text")
+
+
+def call_openai(api_key: str, system_prompt: str, user_prompt: str) -> str:
     response = request_json(
-        url,
+        "https://api.openai.com/v1/responses",
         method="POST",
-        headers={"x-goog-api-key": api_key},
+        headers={"Authorization": f"Bearer {api_key}"},
         payload={
-            "systemInstruction": {"parts": [{"text": system_prompt}]},
-            "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
-            "generationConfig": {
-                "maxOutputTokens": MAX_OUTPUT_TOKENS,
-                "responseMimeType": "application/json",
+            "model": OPENAI_MODEL,
+            "instructions": system_prompt,
+            "input": user_prompt,
+            "max_output_tokens": MAX_OUTPUT_TOKENS,
+            "reasoning": {"effort": "medium"},
+            "store": False,
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "pull_request_review",
+                    "strict": True,
+                    "schema": REVIEW_JSON_SCHEMA,
+                }
             },
         },
     )
-    return _extract_gemini_text(response)
-
-
-def _extract_openrouter_text(response: Any) -> str:
-    try:
-        content = response["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError) as error:
-        raise ReviewError("OpenRouter response did not contain review text") from error
-
-    if isinstance(content, list):
-        content = "".join(
-            part.get("text", "") for part in content if isinstance(part, dict)
-        )
-    if not isinstance(content, str) or not content.strip():
-        raise ReviewError("OpenRouter returned an empty review")
-    return content
-
-
-def call_openrouter(
-    api_key: str,
-    system_prompt: str,
-    user_prompt: str,
-    repository: str,
-) -> str:
-    response = request_json(
-        "https://openrouter.ai/api/v1/chat/completions",
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "HTTP-Referer": f"https://github.com/{repository}",
-            "X-OpenRouter-Title": "WhyLog CI AI Review",
-        },
-        payload={
-            "model": OPENROUTER_MODEL,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "temperature": 0.1,
-            "max_tokens": MAX_OUTPUT_TOKENS,
-        },
-    )
-    return _extract_openrouter_text(response)
+    return _extract_openai_text(response)
 
 
 def _strip_code_fence(text: str) -> str:
@@ -280,52 +282,15 @@ def parse_review(text: str) -> Review:
     )
 
 
-def _provider_failure(name: str, error: Exception) -> str:
-    return f"{name}: {type(error).__name__}: {error}"
-
-
-def review_with_fallback(
+def review_with_openai(
     system_prompt: str,
     user_prompt: str,
-    repository: str,
-    gemini_api_key: str,
-    openrouter_api_key: str,
+    openai_api_key: str,
 ) -> ProviderResult:
-    failures: list[str] = []
-
-    if gemini_api_key:
-        try:
-            raw = with_retry(
-                lambda: call_gemini(gemini_api_key, system_prompt, user_prompt)
-            )
-            return ProviderResult("Google", GEMINI_MODEL, parse_review(raw))
-        except (ReviewError, HttpRequestError, NetworkRequestError) as error:
-            failures.append(_provider_failure("Gemini", error))
-    else:
-        failures.append("Gemini: GEMINI_API_KEY is not configured")
-
-    if openrouter_api_key:
-        try:
-            raw = with_retry(
-                lambda: call_openrouter(
-                    openrouter_api_key,
-                    system_prompt,
-                    user_prompt,
-                    repository,
-                )
-            )
-            return ProviderResult(
-                "OpenRouter",
-                OPENROUTER_MODEL,
-                parse_review(raw),
-                fallback_reason=failures[-1],
-            )
-        except (ReviewError, HttpRequestError, NetworkRequestError) as error:
-            failures.append(_provider_failure("OpenRouter", error))
-    else:
-        failures.append("OpenRouter: OPENROUTER_API_KEY is not configured")
-
-    raise ReviewError("; ".join(failures))
+    if not openai_api_key:
+        raise ReviewError("OPENAI_API_KEY is not configured")
+    raw = with_retry(lambda: call_openai(openai_api_key, system_prompt, user_prompt))
+    return ProviderResult("OpenAI", OPENAI_MODEL, parse_review(raw))
 
 
 def _safe_read(path: Path, workspace: Path) -> str:
@@ -578,12 +543,6 @@ def render_comment(
     inline_result: review_publishing.InlinePublishResult | None = None,
     document_status: str | None = None,
 ) -> str:
-    fallback = ""
-    if result.fallback_reason:
-        fallback = (
-            "\n> Gemini 호출에 실패해 무료 OpenRouter 폴백을 사용했습니다: "
-            f"`{result.fallback_reason}`\n"
-        )
     verdict = "❌ 차단 항목 있음" if result.review.blocking else "✅ 차단 항목 없음"
     publishing = ""
     if inline_result is not None:
@@ -601,7 +560,6 @@ def render_comment(
 ## WhyLog AI 리뷰
 
 **결과:** {verdict} · **모델:** {result.provider} `{result.model}`
-{fallback}
 {result.review.summary}
 {publishing}
 
@@ -625,7 +583,7 @@ def render_failure_comment(message: str) -> str:
 
 `{message}`
 
-Gemini와 OpenRouter 설정 또는 일시 장애를 확인하세요. 리뷰가 생성되지 않으면 quality gate는 통과하지 않습니다.
+OpenAI API 설정 또는 일시 장애를 확인하세요. 리뷰가 생성되지 않으면 quality gate는 통과하지 않습니다.
 """
 
 
@@ -720,8 +678,7 @@ def run() -> int:
     repository = os.environ["GITHUB_REPOSITORY"]
     api_url = os.environ.get("GITHUB_API_URL", "https://api.github.com")
     github_token = os.environ["GITHUB_TOKEN"]
-    gemini_api_key = os.environ.get("GEMINI_API_KEY", "")
-    openrouter_api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    openai_api_key = os.environ.get("OPENAI_API_KEY", "")
     push_token = os.environ.get("AI_REVIEW_PUSH_TOKEN", "")
     review_actor_login = os.environ.get("AI_REVIEW_ACTOR_LOGIN", "").strip()
     if not review_actor_login:
@@ -801,12 +758,10 @@ def run() -> int:
         trusted_context,
         diff_payload,
     )
-    result = review_with_fallback(
+    result = review_with_openai(
         system_prompt,
         user_prompt,
-        repository,
-        gemini_api_key,
-        openrouter_api_key,
+        openai_api_key,
     )
     document = review_publishing.render_pr_review_document(
         pr_number,
@@ -902,7 +857,7 @@ def run() -> int:
         except Exception as error:
             message = _redact(
                 f"{type(error).__name__}: {error}",
-                (github_token, gemini_api_key, openrouter_api_key, push_token),
+                (github_token, openai_api_key, push_token),
             )
             document_status = (
                 f"`{document_path}` artifact만 생성 · 저장소 동기화 실패: `{message}`"
@@ -922,8 +877,7 @@ def run() -> int:
 def main() -> int:
     secrets = (
         os.environ.get("GITHUB_TOKEN", ""),
-        os.environ.get("GEMINI_API_KEY", ""),
-        os.environ.get("OPENROUTER_API_KEY", ""),
+        os.environ.get("OPENAI_API_KEY", ""),
         os.environ.get("AI_REVIEW_PUSH_TOKEN", ""),
     )
     try:

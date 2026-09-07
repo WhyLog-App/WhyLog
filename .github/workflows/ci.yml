@@ -216,8 +216,7 @@ jobs:
       - name: Review pull request
         if: steps.trusted-reviewer.outputs.available == 'true'
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           AI_REVIEW_PUSH_TOKEN: ${{ secrets.AI_REVIEW_PUSH_TOKEN }}
           AI_REVIEW_ACTOR_LOGIN: whylog-dev
           GITHUB_TOKEN: ${{ secrets.AI_REVIEW_PUSH_TOKEN }}
