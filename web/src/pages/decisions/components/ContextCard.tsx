@@ -1,7 +1,8 @@
-import IconCircleUser from "@/assets/icons/user/ic_circle_user.svg?react";
-import { Icon } from "@/components/common/Icon";
+import { Link } from "react-router-dom";
+import GlassCard from "@/components/common/GlassCard";
+import MemberAvatar from "@/components/common/MemberAvatar";
+import { createMemberProfileRoute } from "@/constants/routes";
 import type { DecisionContextMessage } from "@/types/decision";
-import GlassCard from "./GlassCard";
 
 interface ContextCardProps {
   messages: DecisionContextMessage[];
@@ -18,33 +19,30 @@ const ContextCard = ({ messages, className = "" }: ContextCardProps) => {
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
         {messages.map((m) => (
           <div
-            key={`${m.member_id}-${m.time}-${m.dialogue_content}`}
+            key={`${m.member_id ?? "anonymous"}-${m.time}-${m.dialogue_content}`}
             className="flex w-full items-start gap-2"
           >
-            {m.profile_image ? (
-              <img
-                src={m.profile_image}
-                alt={m.member_name}
-                className="size-7 shrink-0 rounded-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                  const fallback = e.currentTarget
-                    .nextElementSibling as HTMLElement | null;
-                  if (fallback) fallback.style.display = "inline-flex";
-                }}
-              />
-            ) : null}
-            <Icon
-              icon={IconCircleUser}
+            <MemberAvatar
+              src={m.profile_image}
+              alt={m.member_name ?? "알 수 없음"}
               size={28}
-              className="shrink-0 text-(--color-dark-100)"
-              style={m.profile_image ? { display: "none" } : undefined}
             />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex items-center gap-1">
-                <p className="typo-subtitle5 text-(--color-text-primary)">
-                  {m.member_name}
-                </p>
+                {m.member_id == null ? (
+                  <span className="typo-subtitle5 text-(--color-text-primary)">
+                    {m.member_name ?? "알 수 없음"}
+                  </span>
+                ) : (
+                  <Link
+                    to={createMemberProfileRoute(m.member_id)}
+                    className="typo-subtitle5 text-(--color-text-primary) hover:text-(--color-text-secondary) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-border-brand)"
+                    aria-label={`${m.member_name ?? "알 수 없음"} 프로필 보기`}
+                    title={`${m.member_name ?? "알 수 없음"} 프로필 보기`}
+                  >
+                    {m.member_name ?? "알 수 없음"}
+                  </Link>
+                )}
                 <p className="typo-caption1 text-(--color-text-secondary)">
                   {m.time}
                 </p>
