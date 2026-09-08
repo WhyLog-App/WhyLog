@@ -2,9 +2,17 @@ import { useRef } from "react";
 import { Link } from "react-router-dom";
 import iconCamera from "@/assets/icons/media/ic_camera.svg";
 import { Icon } from "@/components/common/Icon";
+import { PasswordInput } from "@/components/common/PasswordInput";
+import { ValidationMessage } from "@/components/common/ValidationMessage";
 import LogoSymbol from "@/components/logo/LogoSymbol";
 import LogoText from "@/components/logo/LogoText";
+import {
+  MEMBER_EMAIL_MAX_LENGTH,
+  MEMBER_NAME_MAX_LENGTH,
+  MEMBER_PASSWORD_MAX_LENGTH,
+} from "@/constants/member";
 import { ROUTES } from "@/constants/routes";
+import { PROFILE_IMAGE_ACCEPT } from "@/utils/profileImage";
 
 interface SignupFormProps {
   name: string;
@@ -86,7 +94,7 @@ export const SignupForm = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={PROFILE_IMAGE_ACCEPT}
               className="hidden"
               onChange={handleFileChange}
               aria-label="프로필 이미지 파일 선택"
@@ -105,6 +113,7 @@ export const SignupForm = ({
             id="name"
             type="text"
             value={name}
+            maxLength={MEMBER_NAME_MAX_LENGTH}
             onChange={(e) => onNameChange(e.target.value)}
             placeholder="Name"
             className="typo-body6 h-11 w-full rounded-full border border-white bg-transparent px-4 py-3 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-white"
@@ -119,50 +128,40 @@ export const SignupForm = ({
             id="email"
             type="email"
             value={email}
+            maxLength={MEMBER_EMAIL_MAX_LENGTH}
             onChange={(e) => onEmailChange(e.target.value)}
             placeholder="E-mail"
             className="typo-body6 h-11 w-full rounded-full border border-white bg-transparent px-4 py-3 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-white"
           />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="password" className="typo-label text-text-secondary">
-            비밀번호
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => onPasswordChange(e.target.value)}
-            placeholder="Password"
-            className="typo-body6 h-11 w-full rounded-full border border-white bg-transparent px-4 py-3 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-white"
-          />
-        </div>
+        <PasswordInput
+          id="password"
+          label="비밀번호"
+          value={password}
+          onChange={onPasswordChange}
+          placeholder="Password"
+          autoComplete="new-password"
+          maxLength={MEMBER_PASSWORD_MAX_LENGTH}
+          labelClassName="typo-label text-text-secondary"
+          inputClassName="typo-body6 h-11 w-full rounded-full border border-white bg-transparent px-4 py-3 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-white"
+        />
 
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="confirm-password"
-            className="typo-label text-text-secondary"
-          >
-            비밀번호 확인
-          </label>
-          <input
-            id="confirm-password"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => onConfirmPasswordChange(e.target.value)}
-            placeholder="Confirm Password"
-            className="typo-body6 h-11 w-full rounded-full border border-white bg-transparent px-4 py-3 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-white"
-          />
-        </div>
+        <PasswordInput
+          id="confirm-password"
+          label="비밀번호 확인"
+          value={confirmPassword}
+          onChange={onConfirmPasswordChange}
+          placeholder="Confirm Password"
+          autoComplete="new-password"
+          maxLength={MEMBER_PASSWORD_MAX_LENGTH}
+          labelClassName="typo-label text-text-secondary"
+          inputClassName="typo-body6 h-11 w-full rounded-full border border-white bg-transparent px-4 py-3 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-white"
+        />
       </div>
 
       <div className="flex w-full flex-col items-center gap-3">
-        {errorMessage && (
-          <p className="typo-body6 text-red-500" role="alert">
-            {errorMessage}
-          </p>
-        )}
+        <ValidationMessage message={errorMessage} />
         <button
           type="submit"
           disabled={isPending}
