@@ -1,7 +1,7 @@
 import IconClock from "@/assets/icons/media/ic_clock.svg?react";
+import GlassCard from "@/components/common/GlassCard";
 import { Icon } from "@/components/common/Icon";
 import type { DecisionTimelineItem } from "@/types/decision";
-import GlassCard from "./GlassCard";
 
 interface TimelineCardProps {
   items: DecisionTimelineItem[];
