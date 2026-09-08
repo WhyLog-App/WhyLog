@@ -1,6 +1,12 @@
 import { Link } from "react-router-dom";
+import { PasswordInput } from "@/components/common/PasswordInput";
+import { ValidationMessage } from "@/components/common/ValidationMessage";
 import LogoSymbol from "@/components/logo/LogoSymbol";
 import LogoText from "@/components/logo/LogoText";
+import {
+  MEMBER_EMAIL_MAX_LENGTH,
+  MEMBER_PASSWORD_MAX_LENGTH,
+} from "@/constants/member";
 import { ROUTES } from "@/constants/routes";
 
 interface LoginFormProps {
@@ -50,6 +56,7 @@ export const LoginForm = ({
             id="email"
             type="email"
             value={email}
+            maxLength={MEMBER_EMAIL_MAX_LENGTH}
             onChange={(e) => onEmailChange(e.target.value)}
             placeholder="E-mail"
             className="typo-body6 h-11 w-full rounded-full border border-white bg-transparent px-4 py-3 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-white"
@@ -57,28 +64,22 @@ export const LoginForm = ({
         </div>
 
         {/* Password Input */}
-        <div className="flex flex-col gap-1">
-          <label htmlFor="password" className="typo-label text-text-secondary">
-            비밀번호
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => onPasswordChange(e.target.value)}
-            placeholder="Password"
-            className="typo-body6 h-11 w-full rounded-full border border-white bg-transparent px-4 py-3 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-white"
-          />
-        </div>
+        <PasswordInput
+          id="password"
+          label="비밀번호"
+          value={password}
+          onChange={onPasswordChange}
+          placeholder="Password"
+          autoComplete="current-password"
+          maxLength={MEMBER_PASSWORD_MAX_LENGTH}
+          labelClassName="typo-label text-text-secondary"
+          inputClassName="typo-body6 h-11 w-full rounded-full border border-white bg-transparent px-4 py-3 text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-white"
+        />
       </div>
 
       {/* Footer */}
       <div className="flex w-full flex-col items-center gap-3">
-        {errorMessage && (
-          <p className="typo-body6 text-red-500" role="alert">
-            {errorMessage}
-          </p>
-        )}
+        <ValidationMessage message={errorMessage} />
         <button
           type="submit"
           disabled={isPending}
