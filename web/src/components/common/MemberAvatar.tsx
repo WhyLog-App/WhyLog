@@ -20,21 +20,21 @@ const MemberAvatar = ({
   size = 32,
   className = "",
 }: MemberAvatarProps) => {
-  const [hasError, setHasError] = useState(false);
-  const showImage = !!src && !hasError;
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const imageSrc = src && src !== failedSrc ? src : null;
 
   return (
     <span
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-(--color-bg-subtle) ${className}`}
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-transparent ${className}`}
       style={{ width: size, height: size }}
     >
-      {showImage ? (
+      {imageSrc ? (
         <img
-          src={src as string}
+          src={imageSrc}
           alt={alt}
           className="size-full object-cover"
           loading="lazy"
-          onError={() => setHasError(true)}
+          onError={() => setFailedSrc(src ?? null)}
         />
       ) : (
         <Icon

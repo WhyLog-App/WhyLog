@@ -7,20 +7,22 @@ import com.whylog.server.domain.meeting.socket.message.ParticipantSummary;
 import com.whylog.server.domain.meeting.socket.repository.MeetingRoomRepository;
 import com.whylog.server.domain.meeting.socket.repository.MeetingSocketRoomRepository;
 import com.whylog.server.global.util.json.JsonConverter;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketMessage;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Executor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketMessage;
 
 // 회의별 참가자 세션 저장소 역할을 하며 텍스트/오디오 메시지 전달을 담당합니다.
 @Service
+@Slf4j
 public class MeetingSocketRoomService {
 
     private final MeetingRepository meetingRepository;
@@ -30,8 +32,7 @@ public class MeetingSocketRoomService {
     public MeetingSocketRoomService(
             MeetingRepository meetingRepository,
             MeetingSocketRoomRepository meetingSocketRoomRepository,
-            @Qualifier("meetingSocketDispatchExecutor") Executor meetingSocketDispatchExecutor
-    ) {
+            @Qualifier("meetingSocketDispatchExecutor") Executor meetingSocketDispatchExecutor) {
         this.meetingRepository = meetingRepository;
         this.meetingSocketRoomRepository = meetingSocketRoomRepository;
         this.meetingSocketDispatchExecutor = meetingSocketDispatchExecutor;
@@ -74,6 +75,10 @@ public class MeetingSocketRoomService {
     }
 
     // 특정 멤버가 회의방에 이미 연결되어 있는지 확인합니다.
+    public void disconnectMemberSessions(Long memberId) {
+        dispatch(() -> disconnectMemberSessionsInternal(memberId));
+    }
+
     public boolean existsParticipant(Long meetingId, Long memberId) {
         MeetingRoomRepository room = getRoom(meetingId);
         if (room == null) {
@@ -115,12 +120,9 @@ public class MeetingSocketRoomService {
     public void broadcastMeetingEnded(Long meetingId, LocalDateTime endedAt) {
         broadcastText(
                 meetingId,
-                JsonConverter.toJson(new MeetingEndedMessage(
-                        MeetingMessageType.MEETING_ENDED,
-                        meetingId,
-                        endedAt
-                ))
-        );
+                JsonConverter.toJson(
+                        new MeetingEndedMessage(
+                                MeetingMessageType.MEETING_ENDED, meetingId, endedAt)));
     }
 
     // 회의방이 이미 있으면 반환하고, 없으면 새로 생성해서 반환합니다.
@@ -134,10 +136,35 @@ public class MeetingSocketRoomService {
     }
 
     private void dispatch(Runnable task) {
+        meetingSocketDispatchExecutor.execute(task);
+    }
+
+    private void disconnectMemberSessionsInternal(Long memberId) {
+        for (Long meetingId : meetingSocketRoomRepository.findAllMeetingIds()) {
+            MeetingRoomRepository room = getRoom(meetingId);
+            if (room == null) {
+                continue;
+            }
+            for (MeetingParticipant participant : room.participantsByMemberId(memberId)) {
+                closeSession(participant);
+            }
+        }
+    }
+
+    private void closeSession(MeetingParticipant participant) {
+        if (!participant.socketSession().isOpen()) {
+            return;
+        }
         try {
-            meetingSocketDispatchExecutor.execute(task);
-        } catch (RuntimeException exception) {
-            task.run();
+            participant.socketSession().close(CloseStatus.POLICY_VIOLATION);
+        } catch (Exception exception) {
+            log.warn(
+                    "Failed to close withdrawn member websocket session: meetingId={}, memberId={}, sessionId={}",
+                    participant.meetingId(),
+                    participant.memberId(),
+                    participant.sessionId(),
+                    exception);
+            leave(participant.meetingId(), participant.sessionId());
         }
     }
 
@@ -147,11 +174,13 @@ public class MeetingSocketRoomService {
             return;
         }
 
-        room.participantsByMemberId(targetMemberId).forEach(participant -> {
-            if (!sendMessage(participant, new TextMessage(payload))) {
-                leave(meetingId, participant.sessionId());
-            }
-        });
+        room.participantsByMemberId(targetMemberId)
+                .forEach(
+                        participant -> {
+                            if (!sendMessage(participant, new TextMessage(payload))) {
+                                leave(meetingId, participant.sessionId());
+                            }
+                        });
     }
 
     // 회의방 참가자 전체를 순회하면서 메시지를 보내고 끊어진 세션은 정리합니다.
@@ -187,7 +216,8 @@ public class MeetingSocketRoomService {
     }
 
     // 전송 중 끊어진 세션들을 회의방에서 제거합니다.
-    private void cleanupDisconnectedParticipants(Long meetingId, List<MeetingParticipant> disconnectedParticipants) {
+    private void cleanupDisconnectedParticipants(
+            Long meetingId, List<MeetingParticipant> disconnectedParticipants) {
         disconnectedParticipants.forEach(participant -> leave(meetingId, participant.sessionId()));
     }
 }

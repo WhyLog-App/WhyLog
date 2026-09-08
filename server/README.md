@@ -55,9 +55,20 @@
 
 ```bash
 cp .env.example .env
-# .env를 열어 값 채우기 (JWT_SECRET, GITHUB_TOKEN_ENCRYPTION_KEY, AWS_*, FAST_API_BASE_URL 등)
-# 실제 기능(S3 업로드·GitHub 연동·LiveKit)을 안 쓸 거면 .env.example의 더미값 그대로 둬도 서버는 기동됩니다.
+# .env를 열어 값 채우기 (JWT_SECRET, GMAIL_SMTP_*, EMAIL_VERIFICATION_CODE_SECRET 등)
 ```
+
+### 이메일 인증 발송 설정
+
+가입 인증 메일은 Gmail SMTP로 발송하므로 실제 서버 실행 전에 아래 값을 채웁니다.
+
+- `GMAIL_SMTP_USERNAME`: 실제 발신에 사용할 Gmail 주소
+- `GMAIL_SMTP_APP_PASSWORD`: Google 계정 일반 비밀번호가 아니라 Gmail SMTP용 Google 앱 비밀번호입니다.
+- `EMAIL_VERIFICATION_CODE_SECRET`: 인증 코드 HMAC에 사용할 32바이트 이상의 임의 문자열
+
+Google 계정의 2단계 인증을 켠 뒤 앱 비밀번호를 발급해 `.env` 또는 배포 환경변수에만 저장합니다. 실제 값은 Git에 커밋하지 않습니다.
+
+- Google 앱 비밀번호 안내: <https://support.google.com/accounts/answer/185833>
 
 ### 1) Docker Compose로 실행
 

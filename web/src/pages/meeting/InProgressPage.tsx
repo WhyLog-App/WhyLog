@@ -103,6 +103,7 @@ const InProgressPage = () => {
   const profileImageByMemberId = useMemo(() => {
     const map = new Map<string, string | null>();
     meetingDetail?.members.forEach((m) => {
+      if (m.member_id == null) return;
       map.set(String(m.member_id), m.profile_image);
     });
     return map;

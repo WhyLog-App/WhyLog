@@ -69,11 +69,11 @@ export const SidebarHeader = ({ isOpen }: SidebarHeaderProps) => {
   const handleSelectTeam = (team: Team) => {
     setIsDropdownOpen(false);
 
-    // 현재 경로에서 팀 부분 제거
     const pathWithoutTeam = location.pathname.replace(/^\/team\/\d+/, "");
+    const nextPath =
+      pathWithoutTeam === location.pathname ? "" : pathWithoutTeam;
 
-    // 새 팀으로 동일한 페이지 이동
-    navigate(`/team/${team.team_id}${pathWithoutTeam}`);
+    navigate(`/team/${team.team_id}${nextPath}`);
   };
 
   const handleCreateTeam = () => {

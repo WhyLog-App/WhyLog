@@ -4,6 +4,8 @@ import IconSettings from "@/assets/icons/interface/ic_settings.svg?react";
 import IconGit from "@/assets/icons/media/ic_git.svg?react";
 import IconHeadphones from "@/assets/icons/media/ic_headphones.svg?react";
 import IconHome from "@/assets/icons/media/ic_home.svg?react";
+import IconUser from "@/assets/icons/user/ic_circle_user.svg?react";
+import { ROUTES } from "@/constants/routes";
 import type { MenuItem } from "../types";
 
 export const mainMenuItems: MenuItem[] = [
@@ -22,6 +24,13 @@ export const subMenuItems: MenuItem[] = [
 ];
 
 export const footerMenuItems: MenuItem[] = [
+  {
+    id: "mypage",
+    icon: IconUser,
+    label: "마이페이지",
+    path: ROUTES.MYPAGE,
+    isGlobal: true,
+  },
   { id: "settings", icon: IconSettings, label: "설정", path: "/settings" },
   { id: "logout", icon: IconLogout, label: "로그아웃" },
 ];

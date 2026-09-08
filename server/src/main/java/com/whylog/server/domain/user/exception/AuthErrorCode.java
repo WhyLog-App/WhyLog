@@ -8,13 +8,20 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 @AllArgsConstructor
-public enum AuthErrorStatus implements BaseErrorCode {
-
+public enum AuthErrorCode implements BaseErrorCode {
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "AUTH409_1", "이미 가입된 이메일입니다."),
     LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "AUTH401_1", "이메일 또는 비밀번호가 올바르지 않습니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.BAD_REQUEST, "AUTH400_1", "유효하지 않은 리프레시 토큰입니다."),
     REFRESH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH401_2", "리프레시 토큰이 만료되었습니다."),
-    REFRESH_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH404_1", "저장된 리프레시 토큰이 없습니다.");
+    REFRESH_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH404_1", "저장된 리프레시 토큰이 없습니다."),
+    EMAIL_VERIFICATION_CODE_INVALID(HttpStatus.BAD_REQUEST, "AUTH400_2", "유효하지 않은 이메일 인증 코드입니다."),
+    EMAIL_VERIFICATION_ISSUE_COOLDOWN(
+            HttpStatus.TOO_MANY_REQUESTS, "AUTH429_1", "이메일 인증 코드는 60초 후 다시 요청할 수 있습니다."),
+    EMAIL_VERIFICATION_CODE_EXPIRED(HttpStatus.GONE, "AUTH410_1", "이메일 인증 코드가 만료되었습니다."),
+    EMAIL_VERIFICATION_DELIVERY_FAILED(
+            HttpStatus.BAD_GATEWAY, "AUTH502_1", "이메일 인증 코드 발송에 실패했습니다. 같은 API로 다시 요청해 주세요."),
+    WITHDRAWAL_RECOVERY_CHALLENGE_INVALID(
+            HttpStatus.BAD_REQUEST, "AUTH400_3", "탈퇴 복구 요청이 유효하지 않습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
@@ -22,11 +29,7 @@ public enum AuthErrorStatus implements BaseErrorCode {
 
     @Override
     public ErrorReasonDTO getReason() {
-        return ErrorReasonDTO.builder()
-                .isSuccess(false)
-                .code(code)
-                .message(message)
-                .build();
+        return ErrorReasonDTO.builder().isSuccess(false).code(code).message(message).build();
     }
 
     @Override

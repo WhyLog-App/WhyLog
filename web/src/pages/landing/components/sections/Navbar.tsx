@@ -1,11 +1,12 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import LogoSymbol from "@/components/logo/LogoSymbol";
 import LogoText from "@/components/logo/LogoText";
 import { ROUTES } from "@/constants/routes";
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const goLogin = () => navigate(ROUTES.LOGIN);
+  const location = useLocation();
+  const goLogin = () => navigate(ROUTES.LOGIN, { state: location.state });
   const goSignup = () => navigate(ROUTES.SIGNUP);
 
   return (

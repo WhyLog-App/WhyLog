@@ -3,6 +3,10 @@ export const ROUTES = {
   LANDING: "/landing",
   SIGNUP: "/signup",
   LOGIN: "/login",
+  EMAIL_VERIFICATION: "/email-verification",
+  WITHDRAWAL_RECOVERY: "/withdrawal-recovery",
+  MYPAGE: "/mypage",
+  MEMBER_PROFILE: "/members/:memberId",
 
   // 온보딩
   ONBOARDING_CREATE_TEAM: "/onboarding/create-team",
@@ -29,3 +33,6 @@ export const ROUTES = {
 export const createTeamRoute = (teamId: number, path: string = "") => {
   return `/team/${teamId}${path}`;
 };
+
+export const createMemberProfileRoute = (memberId: number) =>
+  `/members/${memberId}`;

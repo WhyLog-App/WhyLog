@@ -1,6 +1,11 @@
+import { isAxiosError } from "axios";
 import { type ReactNode, useEffect, useState } from "react";
 import { refreshAccessToken } from "@/apis/auth";
-import { tokenStore } from "@/utils/tokenStore";
+import { clearAuthFlowState } from "@/utils/authFlowStorage";
+import {
+  clearAuthenticatedSession,
+  establishAuthenticatedSession,
+} from "@/utils/authSessionBoundary";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -10,6 +15,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
+    let isActive = true;
+
     const initializeAuth = async () => {
       try {
         // HttpOnly 쿠키의 refresh token으로 새 access token 발급
@@ -17,31 +24,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (!accessToken) {
           throw new Error("Invalid access token received");
         }
-        tokenStore.setToken(accessToken);
-      } catch (_error) {
+        if (!isActive) return;
+        establishAuthenticatedSession(accessToken);
+        void clearAuthFlowState();
+      } catch (error) {
+        if (!isActive) return;
         // Refresh 실패 시 토큰 정리
-        tokenStore.clearToken();
-        console.debug("세션 복구 실패, 로그인이 필요합니다");
+        clearAuthenticatedSession();
+        console.debug("세션 복구 실패, 로그인이 필요합니다", {
+          status: isAxiosError(error) ? error.response?.status : undefined,
+        });
       } finally {
-        setIsInitializing(false);
+        if (isActive) setIsInitializing(false);
       }
     };
 
-    initializeAuth();
+    void initializeAuth();
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   if (isInitializing) {
     return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-        }}
-      >
-        Loading...
-      </div>
+      <div className="flex h-dvh items-center justify-center">Loading...</div>
     );
   }
 

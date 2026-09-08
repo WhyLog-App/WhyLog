@@ -1,19 +1,17 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+import { appQueryClient } from "@/utils/queryClient";
 
-// biome-ignore lint/suspicious/noExplicitAny: React children prop accepts various types
-function QueryProvider({ children }: any) {
-  const [client] = useState(
-    new QueryClient({
-      defaultOptions: {
-        queries: {
-          refetchOnWindowFocus: false,
-        },
-      },
-    }),
+interface QueryProviderProps {
+  children: ReactNode;
+}
+
+function QueryProvider({ children }: QueryProviderProps) {
+  return (
+    <QueryClientProvider client={appQueryClient}>
+      {children}
+    </QueryClientProvider>
   );
-
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
 export { QueryProvider };

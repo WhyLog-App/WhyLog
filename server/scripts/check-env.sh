@@ -12,7 +12,7 @@ set -a
 source .env
 set +a
 
-# application.yaml에서 기본값(:) 없이 필수로 요구하는 값만 검사합니다.
+# 서버 기동과 핵심 기능에 필요한 값을 검사합니다.
 # DEV_REDIS_PASSWORD는 필수지만 로컬 Redis에 비밀번호가 없으면 빈 값이 정상이라 제외합니다.
 REQUIRED_VARS=(
   DEV_DB_URL
@@ -22,6 +22,9 @@ REQUIRED_VARS=(
   DEV_REDIS_PORT
   CORS_ALLOWED_ORIGINS
   JWT_SECRET
+  GMAIL_SMTP_USERNAME
+  GMAIL_SMTP_APP_PASSWORD
+  EMAIL_VERIFICATION_CODE_SECRET
   GITHUB_TOKEN_ENCRYPTION_KEY
   AWS_S3_BUCKET
   AWS_S3_ACCESS_KEY

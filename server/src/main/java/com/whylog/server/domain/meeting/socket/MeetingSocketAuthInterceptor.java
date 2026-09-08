@@ -2,10 +2,13 @@ package com.whylog.server.domain.meeting.socket;
 
 import com.whylog.server.domain.user.entity.Member;
 import com.whylog.server.domain.user.service.MemberUseCase;
-import com.whylog.server.domain.meeting.socket.MeetingSocketRoomService;
 import com.whylog.server.global.auth.jwt.provider.JwtTokenProvider;
 import com.whylog.server.global.auth.jwt.provider.JwtValidationType;
 import jakarta.servlet.http.HttpServletResponse;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
@@ -16,11 +19,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.util.UriComponentsBuilder;
-
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
-import java.util.Optional;
 
 // 웹소켓 핸드셰이크 시 쿼리 파라미터의 회의 ID와 JWT를 검증하고 세션 속성에 담습니다.
 @Component
@@ -41,9 +39,9 @@ public class MeetingSocketAuthInterceptor implements HandshakeInterceptor {
             ServerHttpRequest request,
             ServerHttpResponse response,
             WebSocketHandler wsHandler,
-            Map<String, Object> attributes
-    ) {
-        MultiValueMap<String, String> queryParams = UriComponentsBuilder.fromUri(request.getURI()).build().getQueryParams();
+            Map<String, Object> attributes) {
+        MultiValueMap<String, String> queryParams =
+                UriComponentsBuilder.fromUri(request.getURI()).build().getQueryParams();
 
         Long meetingId = parseMeetingId(queryParams.getFirst("meetingId"));
         String token = decode(queryParams.getFirst("accessToken"));
@@ -61,6 +59,10 @@ public class MeetingSocketAuthInterceptor implements HandshakeInterceptor {
 
         Long memberId = jwtTokenProvider.getMemberIdFromJwt(token);
         Member member = memberUseCase.findMemberById(memberId);
+        if (!member.getAccountStatus().canUseNormalService()) {
+            setStatus(response, HttpServletResponse.SC_UNAUTHORIZED);
+            return false;
+        }
 
         attributes.put(MEETING_ID_ATTRIBUTE, meetingId);
         attributes.put(MEMBER_ID_ATTRIBUTE, memberId);
@@ -74,9 +76,7 @@ public class MeetingSocketAuthInterceptor implements HandshakeInterceptor {
             ServerHttpRequest request,
             ServerHttpResponse response,
             WebSocketHandler wsHandler,
-            Exception exception
-    ) {
-    }
+            Exception exception) {}
 
     // 문자열 meetingId를 Long 타입으로 안전하게 변환합니다.
     private Long parseMeetingId(String value) {

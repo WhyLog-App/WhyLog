@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import GlassCard from "@/components/common/GlassCard";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
-import GlassCard from "@/pages/decisions/components/GlassCard";
 import { parseRouteId } from "@/utils/parseRouteId";
 import CommitFileList from "./components/CommitFileList";
 import CommitHeader from "./components/CommitHeader";

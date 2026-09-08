@@ -1,14 +1,20 @@
+import { Link } from "react-router-dom";
 import IconEditPen from "@/assets/icons/edit/ic_edit_pen.svg?react";
 import IconTrash from "@/assets/icons/edit/ic_trash.svg?react";
 import IconCircleUser from "@/assets/icons/user/ic_circle_user.svg?react";
 import { Icon } from "@/components/common/Icon";
+import { createMemberProfileRoute } from "@/constants/routes";
 
 interface CompletedMeetingHeaderProps {
   name: string;
   startText: string;
   durationText: string;
   memberCount: number;
-  members: { name: string; profile_image: string | null }[];
+  members: {
+    member_id: number | null;
+    name: string;
+    profile_image: string | null;
+  }[];
   onDeleteClick?: () => void;
   isDeleting?: boolean;
 }
@@ -22,6 +28,8 @@ const CompletedMeetingHeader = ({
   onDeleteClick,
   isDeleting = false,
 }: CompletedMeetingHeaderProps) => {
+  const memberKeyCounts = new Map<string, number>();
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-start justify-between">
@@ -58,30 +66,52 @@ const CompletedMeetingHeader = ({
           대화 기록
         </span>
         <div className="flex flex-wrap items-center gap-2">
-          {members.map((m, idx) => (
-            <span
-              // biome-ignore lint/suspicious/noArrayIndexKey: mock list of members
-              key={idx}
-              className="flex items-center gap-1 rounded-full bg-(--color-bg-subtle) px-2 py-1"
-            >
-              {m.profile_image ? (
-                <img
-                  src={m.profile_image}
-                  alt={m.name}
-                  className="size-5 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <Icon
-                  icon={IconCircleUser}
-                  size={20}
-                  className="text-(--color-dark-100)"
-                />
-              )}
-              <span className="typo-caption text-(--color-text-secondary)">
-                {m.name}
+          {members.map((member) => {
+            const baseKey = String(
+              member.member_id ?? `anonymous-${member.name}`,
+            );
+            const occurrence = memberKeyCounts.get(baseKey) ?? 0;
+            memberKeyCounts.set(baseKey, occurrence + 1);
+            const key = `${baseKey}-${occurrence}`;
+            const content = (
+              <>
+                {member.profile_image ? (
+                  <img
+                    src={member.profile_image}
+                    alt={member.name}
+                    className="size-5 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <Icon
+                    icon={IconCircleUser}
+                    size={20}
+                    className="text-(--color-dark-100)"
+                  />
+                )}
+                <span className="typo-caption text-(--color-text-secondary)">
+                  {member.name}
+                </span>
+              </>
+            );
+            const className =
+              "flex items-center gap-1 rounded-full bg-(--color-bg-subtle) px-2 py-1";
+
+            return member.member_id == null ? (
+              <span key={key} className={className}>
+                {content}
               </span>
-            </span>
-          ))}
+            ) : (
+              <Link
+                key={key}
+                to={createMemberProfileRoute(member.member_id)}
+                className={`${className} hover:bg-(--color-bg-surface) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-border-brand)`}
+                aria-label={`${member.name} 프로필 보기`}
+                title={`${member.name} 프로필 보기`}
+              >
+                {content}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>

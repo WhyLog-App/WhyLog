@@ -1,5 +1,7 @@
+import { Link } from "react-router-dom";
 import IconCircleUser from "@/assets/icons/user/ic_circle_user.svg?react";
 import { Icon } from "@/components/common/Icon";
+import { createMemberProfileRoute } from "@/constants/routes";
 import type { CompletedTranscriptItem } from "../types/completed";
 
 interface CompletedTranscriptProps {
@@ -28,9 +30,20 @@ const CompletedTranscript = ({ items }: CompletedTranscriptProps) => {
           </span>
           <div className="flex flex-1 flex-col gap-1">
             <div className="flex items-baseline gap-2">
-              <span className="typo-subtitle5 text-(--color-text-primary)">
-                {item.name}
-              </span>
+              {item.profile_member_id == null ? (
+                <span className="typo-subtitle5 text-(--color-text-primary)">
+                  {item.name}
+                </span>
+              ) : (
+                <Link
+                  to={createMemberProfileRoute(item.profile_member_id)}
+                  className="typo-subtitle5 text-(--color-text-primary) hover:text-(--color-text-secondary) focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-border-brand)"
+                  aria-label={`${item.name} 프로필 보기`}
+                  title={`${item.name} 프로필 보기`}
+                >
+                  {item.name}
+                </Link>
+              )}
               <span className="typo-caption1 text-(--color-text-tertiary)">
                 {item.time}
               </span>

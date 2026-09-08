@@ -1,7 +1,7 @@
 import IconCheckboxCheck from "@/assets/icons/warning/ic_checkbox_check.svg?react";
+import GlassCard from "@/components/common/GlassCard";
 import { Icon } from "@/components/common/Icon";
 import type { ApplicationConnectedCommit } from "@/types/application";
-import GlassCard from "./GlassCard";
 
 interface ApplicationStatusCardProps {
   commits: ApplicationConnectedCommit[];

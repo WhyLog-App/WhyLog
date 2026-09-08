@@ -1,0 +1,3 @@
+export const MEMBER_NAME_MAX_LENGTH = 50;
+export const MEMBER_EMAIL_MAX_LENGTH = 50;
+export const MEMBER_PASSWORD_MAX_LENGTH = 100;

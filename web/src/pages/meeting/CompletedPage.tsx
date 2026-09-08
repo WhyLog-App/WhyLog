@@ -1,11 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import Modal from "@/components/common/Modal";
-import type {
-  MeetingAnalysis,
-  MeetingHistory,
-  MeetingMember,
-} from "@/types/meeting";
+import type { MeetingAnalysis, MeetingHistory } from "@/types/meeting";
 import { parseRouteId } from "@/utils/parseRouteId";
 import AudioPlayerBar from "./components/AudioPlayerBar";
 import CompletedMeetingHeader from "./components/CompletedMeetingHeader";
@@ -90,18 +86,14 @@ const buildTranscript = (
   history: MeetingHistory | undefined,
 ): CompletedTranscriptItem[] => {
   if (!history) return [];
-  const memberMap = new Map<number, MeetingMember>();
-  for (const p of history.participants) memberMap.set(p.member_id, p);
-  return history.dialogues.map((d, idx) => {
-    const m = memberMap.get(d.member_id);
-    return {
-      id: `${d.member_id}-${idx}`,
-      name: m?.name ?? "알 수 없음",
-      time: d.timestamp,
-      text: d.content,
-      profile_image: m?.profile_image ?? null,
-    };
-  });
+  return history.dialogues.map((dialogue, index) => ({
+    id: `${dialogue.member_id ?? "anonymous"}-${index}`,
+    profile_member_id: dialogue.member_id,
+    name: dialogue.name ?? "알 수 없음",
+    time: dialogue.timestamp,
+    text: dialogue.content,
+    profile_image: dialogue.profile_image,
+  }));
 };
 
 const CompletedPage = () => {
@@ -125,6 +117,7 @@ const CompletedPage = () => {
   const memberCount = detail?.member_count ?? 0;
   const members =
     detail?.members?.map((m) => ({
+      member_id: m.member_id,
       name: m.name,
       profile_image: m.profile_image,
     })) ?? [];

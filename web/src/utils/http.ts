@@ -10,6 +10,7 @@ import axios, {
 import ENDPOINT from "@/constants/endpoint";
 import { ROUTES } from "@/constants/routes";
 import type { ApiResponse, RefreshTokenResult } from "@/types/auth";
+import { clearAuthenticatedSession } from "@/utils/authSessionBoundary";
 import { tokenStore } from "./tokenStore";
 
 const StatusCode = {
@@ -140,7 +141,7 @@ class Http {
   }
 
   private handleAuthFailure(error: unknown) {
-    tokenStore.clearToken();
+    clearAuthenticatedSession();
     if (
       typeof window !== "undefined" &&
       window.location.pathname !== ROUTES.LANDING

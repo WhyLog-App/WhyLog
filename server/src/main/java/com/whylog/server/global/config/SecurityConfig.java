@@ -3,6 +3,7 @@ package com.whylog.server.global.config;
 import com.whylog.server.global.auth.jwt.filter.JwtAuthenticationFilter;
 import com.whylog.server.global.auth.security.CustomAccessDeniedHandler;
 import com.whylog.server.global.auth.security.CustomJwtAuthenticationEntryPoint;
+import com.whylog.server.global.auth.security.PublicAuthPaths;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,25 +31,31 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(customJwtAuthenticationEntryPoint)
-                        .accessDeniedHandler(customAccessDeniedHandler));
+                .sessionManagement(
+                        session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(
+                        exception ->
+                                exception
+                                        .authenticationEntryPoint(customJwtAuthenticationEntryPoint)
+                                        .accessDeniedHandler(customAccessDeniedHandler));
 
-        http.authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(
-                        "/api/auth/signup",
-                        "/api/auth/login",
-                        "/api/auth/refresh-token",
-                        "/ws/**",
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html",
-                        "/error"
-                ).permitAll()
-                .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        http.authorizeHttpRequests(
+                        auth ->
+                                auth.requestMatchers(HttpMethod.OPTIONS, "/**")
+                                        .permitAll()
+                                        .requestMatchers(PublicAuthPaths.asArray())
+                                        .permitAll()
+                                        .requestMatchers(
+                                                "/ws/**",
+                                                "/v3/api-docs/**",
+                                                "/swagger-ui/**",
+                                                "/swagger-ui.html",
+                                                "/error")
+                                        .permitAll()
+                                        .anyRequest()
+                                        .authenticated())
+                .addFilterBefore(
+                        jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

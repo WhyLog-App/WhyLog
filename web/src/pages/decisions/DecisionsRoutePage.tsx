@@ -24,7 +24,7 @@ const toMeetingMeta = (m: MeetingDetail): DecisionMeetingMeta => ({
   participants: m.members.map((p) => ({
     member_id: p.member_id,
     name: p.name,
-    profile_image: p.profile_image ?? "",
+    profile_image: p.profile_image,
   })),
 });
 
