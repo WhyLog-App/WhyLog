@@ -7,10 +7,12 @@ export const useCurrentTeam = () => {
   const { data: teams, isLoading, isError } = useTeams();
 
   const teamIdNum = parseRouteId(teamId);
-  const currentTeam = teams?.find((t) => t.team_id === teamIdNum) ?? null;
+  const currentTeam = teamId
+    ? (teams?.find((team) => team.team_id === teamIdNum) ?? null)
+    : (teams?.[0] ?? null);
 
   return {
-    teamId: teamIdNum,
+    teamId: currentTeam?.team_id ?? teamIdNum,
     currentTeam,
     isLoading,
     isError,
