@@ -1,8 +1,8 @@
 import IconNoteSearch from "@/assets/icons/file/ic_note_search.svg?react";
 import IconCircleCheck from "@/assets/icons/warning/ic_circle_check.svg?react";
+import GlassCard from "@/components/common/GlassCard";
 import { Icon } from "@/components/common/Icon";
 import type { DecisionReasonItem } from "@/types/decision";
-import GlassCard from "./GlassCard";
 
 interface ReasonsCardProps {
   reasons: DecisionReasonItem[];

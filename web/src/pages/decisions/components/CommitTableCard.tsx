@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { matchDecisionCommit } from "@/apis/decisions";
 import IconArrowsReload from "@/assets/icons/arrow/ic_arrows_reload.svg?react";
 import IconAddPlus from "@/assets/icons/edit/ic_add_plus.svg?react";
+import GlassCard from "@/components/common/GlassCard";
 import { Icon } from "@/components/common/Icon";
 import { useCurrentTeam } from "@/hooks/useCurrentTeam";
 import type {
@@ -18,7 +19,6 @@ import { APPLICATION_RECOMMENDED_COMMITS_QUERY_KEY } from "../hooks/useRecommend
 import { useUnlinkCommit } from "../hooks/useUnlinkCommit";
 import CommitHashBadge from "./CommitHashBadge";
 import { CommitMatchModal } from "./CommitMatchModal";
-import GlassCard from "./GlassCard";
 
 interface CommitTableCardProps {
   decisionId: number;
