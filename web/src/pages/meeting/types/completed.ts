@@ -1,5 +1,6 @@
 export interface CompletedTranscriptItem {
   id: string;
+  profile_member_id: number | null;
   name: string;
   time: string;
   text: string;
