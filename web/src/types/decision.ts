@@ -7,9 +7,9 @@ export interface DecisionTimelineItem {
 
 export interface DecisionContextMessage {
   time: string;
-  member_id: number;
-  member_name: string;
-  profile_image: string;
+  member_id: number | null;
+  member_name: string | null;
+  profile_image: string | null;
   dialogue_content: string;
 }
 
@@ -48,9 +48,9 @@ export interface DecisionMeetingMeta {
   duration_label: string; // "회의 시간 47분"
   participant_count: number;
   participants: {
-    member_id: number;
+    member_id: number | null;
     name: string;
-    profile_image: string;
+    profile_image: string | null;
   }[];
 }
 

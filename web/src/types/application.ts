@@ -7,9 +7,9 @@ export interface ApplicationTimelineItem {
 
 export interface ApplicationContextMessage {
   time: string;
-  member_id: number;
-  member_name: string;
-  profile_image: string;
+  member_id: number | null;
+  member_name: string | null;
+  profile_image: string | null;
   dialogue_content: string;
 }
 

@@ -30,7 +30,7 @@ export interface MeetingListItem {
 }
 
 export interface MeetingMember {
-  member_id: number;
+  member_id: number | null;
   name: string;
   profile_image: string | null;
 }
@@ -66,7 +66,9 @@ export interface MeetingAudio {
 }
 
 export interface MeetingHistoryDialogue {
-  member_id: number;
+  member_id: number | null;
+  name: string | null;
+  profile_image: string | null;
   content: string;
   timestamp: string;
 }
