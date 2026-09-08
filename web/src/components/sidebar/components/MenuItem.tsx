@@ -17,6 +17,7 @@ export const MenuItem = ({
   return (
     <button
       type="button"
+      aria-label={item.label}
       onClick={() => onClick(item)}
       className={`flex cursor-pointer items-center gap-3 rounded-lg p-3 transition-colors
         ${isOpen ? "w-50" : "size-12 justify-center"}

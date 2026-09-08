@@ -5,4 +5,5 @@ export interface MenuItem {
   icon: IconSource;
   label: string;
   path?: string;
+  isGlobal?: boolean;
 }
