@@ -1,12 +1,14 @@
 import ENDPOINT from "@/constants/endpoint";
 import type {
   ApiResponse,
+  EmailVerificationIssueRequest,
+  EmailVerificationVerifyRequest,
   LoginRequest,
   LoginResult,
-  ProfileImageUploadResult,
   RefreshTokenResult,
   SignupRequest,
   SignupResult,
+  WithdrawalRecoveryVerifyRequest,
 } from "@/types/auth";
 import { http } from "@/utils/http";
 
@@ -29,21 +31,41 @@ export const signup = async (payload: SignupRequest): Promise<SignupResult> => {
   return data.result;
 };
 
-export const uploadMemberProfileImage = async (
-  image: File,
-): Promise<ProfileImageUploadResult> => {
-  const formData = new FormData();
-  formData.append("image", image);
-
+export const issueEmailVerification = async (
+  payload: EmailVerificationIssueRequest,
+): Promise<void> => {
   const { data } = await http.post<
-    FormData,
-    { data: ApiResponse<ProfileImageUploadResult> }
-  >(ENDPOINT.MEMBERS.PROFILE_IMAGE, formData);
-
+    EmailVerificationIssueRequest,
+    { data: ApiResponse<null> }
+  >(ENDPOINT.AUTH.EMAIL_VERIFICATIONS, payload);
   if (!data.isSuccess) {
     throw new Error(data.message);
   }
+};
 
+export const verifyEmailVerification = async (
+  payload: EmailVerificationVerifyRequest,
+): Promise<LoginResult> => {
+  const { data } = await http.post<
+    EmailVerificationVerifyRequest,
+    { data: ApiResponse<LoginResult> }
+  >(ENDPOINT.AUTH.EMAIL_VERIFICATION_VERIFY, payload);
+  if (!data.isSuccess) {
+    throw new Error(data.message);
+  }
+  return data.result;
+};
+
+export const verifyWithdrawalRecovery = async (
+  payload: WithdrawalRecoveryVerifyRequest,
+): Promise<LoginResult> => {
+  const { data } = await http.post<
+    WithdrawalRecoveryVerifyRequest,
+    { data: ApiResponse<LoginResult> }
+  >(ENDPOINT.AUTH.WITHDRAWAL_RECOVERY_VERIFY, payload);
+  if (!data.isSuccess) {
+    throw new Error(data.message);
+  }
   return data.result;
 };
 
