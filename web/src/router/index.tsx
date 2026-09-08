@@ -1,12 +1,14 @@
 import type { RouteObject } from "react-router-dom";
 import { useRoutes } from "react-router-dom";
-import ProtectedRoute from "../components/auth/ProtectedRoute";
-import RootRedirect from "../components/routing/RootRedirect";
-import { ROUTES } from "../constants/routes";
-import TeamLayout from "../layout/TeamLayout";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import RootRedirect from "@/components/routing/RootRedirect";
+import { ROUTES } from "@/constants/routes";
+import AppLayout from "@/layout/AppLayout";
+import TeamLayout from "@/layout/TeamLayout";
 import {
   DecisionsPage,
   DecisionsRoutePage,
+  EmailVerificationPage,
   GitCommitDetailPage,
   GitPage,
   HomePage,
@@ -14,11 +16,14 @@ import {
   LoginPage,
   MeetingPage,
   MeetingRoutePage,
+  MemberProfilePage,
+  MyPage,
   NotFound,
   OnboardingCreateTeamPage,
   SettingsPage,
   SignupPage,
-} from "../pages";
+  WithdrawalRecoveryPage,
+} from "@/pages";
 
 const allRoutes: RouteObject[] = [
   // 1. 루트 리다이렉트
@@ -89,6 +94,28 @@ const allRoutes: RouteObject[] = [
     ),
   },
 
+  // 2-2. 전역 보호 라우트
+  {
+    path: ROUTES.MYPAGE,
+    element: (
+      <ProtectedRoute>
+        <AppLayout>
+          <MyPage />
+        </AppLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: ROUTES.MEMBER_PROFILE,
+    element: (
+      <ProtectedRoute>
+        <AppLayout>
+          <MemberProfilePage />
+        </AppLayout>
+      </ProtectedRoute>
+    ),
+  },
+
   // 3. 랜딩
   {
     path: ROUTES.LANDING,
@@ -103,6 +130,14 @@ const allRoutes: RouteObject[] = [
   {
     path: ROUTES.SIGNUP,
     element: <SignupPage />,
+  },
+  {
+    path: ROUTES.EMAIL_VERIFICATION,
+    element: <EmailVerificationPage />,
+  },
+  {
+    path: ROUTES.WITHDRAWAL_RECOVERY,
+    element: <WithdrawalRecoveryPage />,
   },
 
   // 5. 404
