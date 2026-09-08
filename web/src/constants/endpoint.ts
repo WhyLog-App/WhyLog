@@ -10,6 +10,9 @@ const ENDPOINT = {
     SIGNUP: `${API_BASE_URL}/api/auth/signup`,
     REFRESH_TOKEN: `${API_BASE_URL}/api/auth/refresh-token`,
     LOGOUT: `${API_BASE_URL}/api/auth/logout`,
+    EMAIL_VERIFICATIONS: `${API_BASE_URL}/api/auth/email-verifications`,
+    EMAIL_VERIFICATION_VERIFY: `${API_BASE_URL}/api/auth/email-verifications/verify`,
+    WITHDRAWAL_RECOVERY_VERIFY: `${API_BASE_URL}/api/auth/withdrawal-recoveries/verify`,
   },
   TEAMS: {
     LIST: `${API_BASE_URL}/api/members/teams`,
@@ -23,7 +26,17 @@ const ENDPOINT = {
       `${API_BASE_URL}/api/teams/${teamId}/decisions`,
   },
   MEMBERS: {
-    PROFILE_IMAGE: `${API_BASE_URL}/api/members/profile-image`,
+    ME_PROFILE: `${API_BASE_URL}/api/members/me/profile`,
+    PROFILE: (memberId: number) =>
+      `${API_BASE_URL}/api/members/${memberId}/profile`,
+    PROJECTS: (memberId: number) =>
+      `${API_BASE_URL}/api/members/${memberId}/projects`,
+    ME_NAME: `${API_BASE_URL}/api/members/me/name`,
+    ME_PROFILE_VISIBILITY: `${API_BASE_URL}/api/members/me/profile/visibility`,
+    ME_PROFILE_IMAGE: `${API_BASE_URL}/api/members/me/profile-image`,
+    ME_PASSWORD: `${API_BASE_URL}/api/members/me/password`,
+    ME_PASSWORD_VERIFY: `${API_BASE_URL}/api/members/me/password/verify`,
+    ME_WITHDRAWAL: `${API_BASE_URL}/api/members/me/withdrawal`,
   },
   MEETINGS: {
     CREATE: (teamId: number) => `${API_BASE_URL}/api/teams/${teamId}/meetings`,
