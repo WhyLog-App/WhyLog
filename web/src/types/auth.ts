@@ -16,27 +16,39 @@ export interface SignupRequest {
   password: string;
 }
 
+export interface EmailVerificationIssueRequest {
+  email: string;
+}
+
+export interface EmailVerificationVerifyRequest {
+  email: string;
+  code: string;
+}
+
+export interface WithdrawalRecoveryVerifyRequest {
+  member_id: number;
+  challenge: string;
+}
+
 export type UserRole = "ROLE_USER" | "ROLE_ADMIN" | string;
+export type LoginStatus =
+  | "AUTHENTICATED"
+  | "RECOVERY_REQUIRED"
+  | "EMAIL_VERIFICATION_REQUIRED";
 
 export interface LoginResult {
-  access_token: string;
-  refresh_token: string;
+  status: LoginStatus;
+  access_token: string | null;
   member_id: number;
   email: string;
   role: UserRole;
+  withdrawal_recovery_challenge: string | null;
+  purge_at: string | null;
 }
 
 export interface SignupResult {
-  access_token: string;
-  refresh_token: string;
   member_id: number;
   email: string;
-  role: UserRole;
-}
-
-export interface ProfileImageUploadResult {
-  member_id: number;
-  profile_image_url: string;
 }
 
 export interface RefreshTokenResult {
